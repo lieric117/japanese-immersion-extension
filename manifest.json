@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Japanese Immersion Extension",
+  "version": "0.4.4",
+  "description": "Learner-friendly Japanese subtitles for Crunchyroll (dev skeleton).",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.crunchyroll.com/*",
+    "https://jimaku.cc/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.crunchyroll.com/*"],
+      "js": ["vendor/kuromoji.js", "tokenize-utils.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["vendor/kuromoji-dict/*"],
+      "matches": ["https://*.crunchyroll.com/*"]
+    }
+  ]
+}
