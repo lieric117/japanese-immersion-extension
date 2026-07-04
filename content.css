@@ -68,7 +68,7 @@
   font-weight: bold;
   font-size: 18px;
   margin-bottom: 2px;
-  display: block;
+  ruby-position: over;
 }
 
 .jp-immersion-popup-common-badge {

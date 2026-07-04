@@ -237,13 +237,35 @@ function groupTokens(tokens, fuseSpans = []) {
     let surface = surface0;
     const inflections = [];
     let j = i + 1;
+    let prevConjugatedForm = token.conjugated_form;
     while (j < tokens.length && (fuseIdx >= fuseSpans.length || j < fuseSpans[fuseIdx].start)) {
       const n = tokens[j];
       const isTari = n.pos === "助詞" && (n.surface_form === "たり" || n.surface_form === "だり");
-      const isAbsorbable = n.pos === "助動詞" && (PURE_INFLECTION_AUX.has(n.basic_form) || isPlainCopula(n));
-      if (!isAbsorbable && !isTari) break;
+      // せる/させる/れる/られる are listed in PURE_INFLECTION_AUX but kuromoji
+      // never tags them 助動詞 like た/ない/たい/う — it tags them 動詞 with
+      // pos_detail_1 "接尾" (verb-suffix), distinct from an ordinary
+      // independent verb (自立). Confirmed empirically 2026-07-03: without
+      // this check they were never actually absorbed by the line below,
+      // since inclusion in the set alone doesn't satisfy `n.pos === "助動詞"`.
+      const isSuffixAux = n.pos === "動詞" && n.pos_detail_1 === "接尾" && PURE_INFLECTION_AUX.has(n.basic_form);
+      const isAbsorbable =
+        (n.pos === "助動詞" && (PURE_INFLECTION_AUX.has(n.basic_form) || isPlainCopula(n))) || isSuffixAux;
+      // ば (助詞, conditional/hypothetical) absorbs only right after a verb or
+      // adjective already conjugated to 仮定形 (見れ+ば, 聞け+ば) — narrow,
+      // matches the isTari precedent below (surface-form check on a 助詞
+      // rather than requiring 助動詞) but additionally gated on the preceding
+      // conjugation, since bare ば has its own unrelated meanings (a real
+      // noun "ば" = "place") that only the 仮定形 context rules out. Added
+      // 2026-07-03 at the user's request: two separate clicks (a verb stem
+      // fragment + a bare ば particle) is worse than one click on the actual
+      // conditional-inflected verb, the same reasoning that already justified
+      // merging て/た, and leaving ば out was an inconsistency, not a
+      // deliberate exclusion.
+      const isBaConditional = n.pos === "助詞" && n.surface_form === "ば" && prevConjugatedForm === "仮定形";
+      if (!isAbsorbable && !isTari && !isBaConditional) break;
       surface += n.surface_form;
       inflections.push(n.surface_form);
+      prevConjugatedForm = n.conjugated_form;
       j++;
     }
     // Proper nouns (人名/地名 etc., IPADIC pos_detail_1 "固有名詞") are frequently
@@ -252,7 +274,38 @@ function groupTokens(tokens, fuseSpans = []) {
     // showing "no dictionary entry for X" — the word still stays clickable
     // in case it turns out to have a real entry (many real names do).
     const isProperNoun = token.pos_detail_1 === "固有名詞";
-    groups.push({ surface, word, inflections, isProperNoun, pos: token.pos, tokenStart: i, tokenEnd: j - 1 });
+    // でしょ/だろ (conjecture stem) starting a group shares です/だ's
+    // basic_form, but is NOT です/だ itself — でしょう/だろう have their own
+    // JMdict headword ("probably; I guess"). Rule 0.6 already special-cases
+    // the ん-prefixed version (んでしょう); this covers the bare version so it
+    // doesn't fall through to `word` = です/だ's own "be; is" definition.
+    // Fires even when う was never absorbed (confirmed 2026-07-03: bare
+    // だろ/でしょ — colloquial そうだろ, without う — is common real speech,
+    // not just a truncation of だろう, and jmdict-compact.json's index
+    // already resolves "だろ"/"でしょ" to the same real headword as
+    // "だろう"/"でしょう").
+    //
+    // Must check conjugated_form === "未然形" specifically, NOT just
+    // "!== 基本形" — confirmed as a real regression 2026-07-03 via batch-test:
+    // past-tense でした/だった tokenize as でし/だっ (conjugated_form 連用形 /
+    // 連用タ接続, both also "not 基本形") + absorbed た, and the broader check
+    // wrongly routed their surface string (でした/だった, no JMdict headword
+    // of their own) through as the lookup word instead of です/だ, turning a
+    // silent wrong-entry bug into a new lookup miss. 未然形 is specifically
+    // だ/です's imperfective stem + volitional う — the one signal that
+    // actually means "this is でしょう/だろう," per the original find.
+    const isConjectureCopula =
+      token.pos === "助動詞" &&
+      (token.basic_form === "だ" || token.basic_form === "です") &&
+      token.conjugated_form === "未然形";
+    const resolvedWord = isConjectureCopula ? surface : word;
+    // Recorded purely for popup display (e.g. detecting imperative — 食べろ
+    // is one token with no following auxiliary, so `inflections` stays empty
+    // and conjugated_form is the only signal it inflected at all). Doesn't
+    // affect grouping/merge behavior, just carries a bit more of what
+    // kuromoji already knows through to content.js.
+    const conjugatedForm = token.conjugated_form && token.conjugated_form !== "*" ? token.conjugated_form : null;
+    groups.push({ surface, word: resolvedWord, inflections, isProperNoun, pos: token.pos, conjugatedForm, tokenStart: i, tokenEnd: j - 1 });
     i = j;
   }
   return groups;
@@ -566,12 +619,21 @@ function classifyAndSelectPhraseMatches(tokens, candidates, membership) {
     if (alreadyGrouped.has(`${c.start}:${c.end}`)) continue;
     const m = membership[c.lookupText];
     if (!m?.exists) continue;
-    if (isDualViewMatch(tokens, c)) {
+    // A pure noun+noun run (王都 = 王+都, no intervening particle/verb) is
+    // always a straightforward compound noun, never a dual-view idiom —
+    // dual-view exists for cases like もの…なる where the boundary words stay
+    // independently meaningful across an intervening particle. Checked before
+    // isDualViewMatch (not just left to the fuse-eligibility gate below,
+    // which already grants allNouns spans a fuse pass) because isDualViewMatch
+    // would otherwise claim any allNouns span first — both 王 and 都 are
+    // individually genuine content words, exactly what isDualViewMatch looks
+    // for — and bury the compound's own definition under 王's on its own.
+    const allNouns = tokens.slice(c.start, c.end + 1).every((t) => t.pos === "名詞");
+    if (!allNouns && isDualViewMatch(tokens, c)) {
       scored.push({ ...c, outcome: "dualView" });
       continue;
     }
     const isLong = c.lookupText.length >= 5;
-    const allNouns = tokens.slice(c.start, c.end + 1).every((t) => t.pos === "名詞");
     const hasFunctionPos = m.posCodes?.some((p) => FUNCTION_POS_CODES.has(p));
     // A suspicious fragment (ぼっ/ち) is itself strong evidence of a real
     // segmentation bug rather than a coincidental collision — bare ぼっち

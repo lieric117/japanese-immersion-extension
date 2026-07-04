@@ -35,6 +35,185 @@ const SPEAKER_PREFIX_RE = /^(?:[（(][^）)]{1,12}[）)]|[^:：\n]{1,12}[:：])\
 // asides that aren't a reading annotation.
 const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んー]+)[）)]/g;
 
+// Short, learner-facing POS chip labels — cuts kokugo-grammar-school jargon
+// ((futsuumeishi), (keiyoushi), etc.) that's redundant with the plain-language
+// label next to it, and collapses JMdict's fine-grained conjugation-class
+// codes (14 Godan variants, 25 archaic Nidan/Yodan ones) down to the two
+// pedagogical terms this persona's tools (WaniKani/Bunpro-style) actually use.
+// "n-pr" (proper noun) isn't reachable with this project's data source at
+// all — JMdict's proper-noun entries live in the separate JMnedict database,
+// which this project deliberately doesn't ingest (see project-plan.md
+// Decisions Log) — kept here only so the label is correct if that ever changes.
+const POS_LABELS = {
+  "adj-f": "Pre-noun adjectival",
+  "adj-i": "I-adjective",
+  "adj-ix": "I-adjective",
+  "adj-ku": "I-adjective (archaic)",
+  "adj-na": "Na-adjective",
+  "adj-nari": "Na-adjective (archaic)",
+  "adj-no": "Adjectival noun (+の)",
+  "adj-pn": "Pre-noun adjectival",
+  "adj-shiku": "I-adjective (archaic)",
+  "adj-t": "Taru-adjective",
+  adv: "Adverb",
+  "adv-to": "Adverb (+と)",
+  aux: "Auxiliary",
+  "aux-adj": "Auxiliary adjective",
+  "aux-v": "Auxiliary verb",
+  conj: "Conjunction",
+  cop: "Copula",
+  ctr: "Counter",
+  exp: "Expression",
+  int: "Interjection",
+  n: "Noun",
+  "n-pr": "Proper noun",
+  "n-pref": "Prefix",
+  "n-suf": "Suffix",
+  num: "Numeral",
+  pn: "Pronoun",
+  pref: "Prefix",
+  prt: "Particle",
+  suf: "Suffix",
+  unc: "Unclassified",
+  "v-unspec": "Verb",
+  v1: "Ichidan verb",
+  "v1-s": "Ichidan verb",
+  vz: "Ichidan verb",
+  vk: "Kuru verb",
+  vn: "Irregular verb",
+  vr: "Irregular verb",
+  vs: "する-verb",
+  "vs-c": "する-verb",
+  "vs-i": "する-verb",
+  "vs-s": "する-verb",
+  vi: "Intransitive",
+  vt: "Transitive",
+};
+
+function posLabel(code) {
+  if (POS_LABELS[code]) return POS_LABELS[code];
+  if (code.startsWith("v5")) return "Godan verb";
+  if (code.startsWith("v4")) return "Yodan verb (archaic)";
+  if (code.startsWith("v2")) return "Nidan verb (archaic)";
+  return code;
+}
+
+// くる/する's own irregular-verb-class chip ("Kuru verb"/"する-verb") is only
+// real information when くる/する is a *component* of the resolved headword
+// (持ってくる, or a noun+する pairing like 凱旋 — telling the learner a
+// non-obvious fact about how that specific word/compound conjugates).
+// When くる/する IS the resolved headword itself, the chip just restates the
+// headword in grammatical-term form — unlike Ichidan/Godan, which genuinely
+// disambiguate something spelling alone can't tell you (does 帰る conjugate
+// as godan or ichidan?), くる/する as standalone headwords have no such
+// ambiguity to resolve. Checked against both kanji and kana spellings since
+// kuromoji's basic_form mirrors whichever script the actual conjugated token
+// was written in (来る/くる both occur; 為る is する's rare archaic kanji form).
+// Deliberately doesn't suppress "vs" (JMdict's code for a noun that merely
+// *takes* する, e.g. 凱旋) — that's the real-information case this exists to
+// preserve, not the headword-is-する case this suppresses.
+const IRREGULAR_VERB_SELF_CODES = {
+  くる: new Set(["vk"]),
+  来る: new Set(["vk"]),
+  する: new Set(["vs-i", "vs-s", "vs-c"]),
+  為る: new Set(["vs-i", "vs-s", "vs-c"]),
+};
+
+// Caps at 3 chips per sense (matches every worked example: 王's king sense =
+// Noun + Suffix, 凱旋 = Noun + する-verb + Intransitive) and dedupes so e.g. a
+// sense tagged with two Godan sub-variants doesn't show "Godan verb" twice.
+function formatPosChips(pCodes, word) {
+  const skip = IRREGULAR_VERB_SELF_CODES[word];
+  const seen = new Set();
+  const chips = [];
+  for (const code of pCodes) {
+    if (skip && skip.has(code)) continue;
+    const label = posLabel(code);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    chips.push(label);
+    if (chips.length >= 3) break;
+  }
+  return chips.join(" · ");
+}
+
+// Native-morpheme inflection labels — matches how this persona already
+// studies conjugation (e.g. a Jisho-style inflection table), not English
+// grammar terminology. Keyed by the literal absorbed-auxiliary surface form
+// (see groupTokens' `inflections` array in tokenize-utils.js). れる/られる and
+// せる/させる each collapse to one fixed combined label regardless of which
+// variant actually appeared, since both members of each pair share the exact
+// same grammatical function (passive/potential; causative) — a deliberate,
+// requested simplification, not a bug.
+const INFLECTION_LABELS = {
+  て: "て-form (connective)",
+  で: "て-form (connective)",
+  た: "た-form (past)",
+  だ: "た-form (past)",
+  ない: "ない-form (negative)",
+  たい: "たい-form (desire)",
+  たら: "-たら (conditional)",
+  だら: "-たら (conditional)",
+  ば: "-ば (conditional)",
+  う: "-よう/-おう (volitional)",
+  れる: "られる/れる (passive)",
+  られる: "られる/れる (passive)",
+  せる: "せる/させる (causative)",
+  させる: "せる/させる (causative)",
+  たり: "たり (representative action)",
+  だり: "たり (representative action)",
+};
+
+// Decided: chained/compound inflections (んだろう, etc.) don't get a
+// synthesized composite label — too speculative ahead of real evidence this
+// session; just show the raw native chain as-is (see project-plan.md).
+//
+// Noun/adjective+copula/politeness-suffix branches, three distinct labels
+// (not one universal formula) — confirmed 2026-07-03 while fixing the
+// 大事なことさ bug:
+//   - noun + plain だ (田中だ) → real copula, plain register: "(copula)"
+//   - noun + polite です (凱旋です) → real copula, polite register:
+//     "(polite copula)"
+//   - i-adjective + です (いいです) → です attaches to an い-adjective, which
+//     already has its own predicate function on its own (いい alone is a
+//     complete sentence) — です here adds ONLY politeness, doing no
+//     copula-like linking work at all, so it gets "(polite)" with no
+//     "copula" in it.
+// な (だ's attributive/体言接続 form, e.g. 大事な) is the OTHER half of that
+// same bug: grammatically distinct from plain だ (基本形) despite sharing the
+// same basic_form, and previously showed no inflection line at all (its own
+// group carries no absorbed `inflections` — conjugatedForm is the only
+// signal it's a special form of だ, not だ itself). Checked first, since it
+// doesn't go through the `inflections`-array branches below at all.
+//
+// んだ/んです (Rule 0.6, the ん+copula-family construction) previously fell
+// through to the same table entry as verb-past-tense だ, showing "た-form" —
+// wrong, んだ has nothing to do with past tense. Given its own label,
+// checked via `word === "のだ"` (the literal value Rule 0.6 always sets).
+function describeInflection(inflections, pos, conjugatedForm, word) {
+  if (pos === "助動詞" && conjugatedForm === "体言接続") {
+    return "な (attributive)";
+  }
+  if (word === "のだ" && inflections.length === 1) {
+    return inflections[0] === "です" ? "んです (explanatory, polite)" : "んだ (explanatory)";
+  }
+  if (inflections.length === 1 && (inflections[0] === "だ" || inflections[0] === "です")) {
+    if (pos === "名詞") {
+      return inflections[0] === "です" ? "+ です (polite copula)" : "+ だ (copula)";
+    }
+    if (pos === "形容詞" && inflections[0] === "です") {
+      return "+ です (polite)";
+    }
+  }
+  if (inflections.length === 0) {
+    return conjugatedForm && conjugatedForm.startsWith("命令") ? "命令形 (imperative)" : null;
+  }
+  if (inflections.length === 1 && INFLECTION_LABELS[inflections[0]]) {
+    return INFLECTION_LABELS[inflections[0]];
+  }
+  return inflections.join("");
+}
+
 // In fullscreen the browser only renders children of the fullscreen element,
 // so our overlays need to live there while fullscreen is active.
 function getContainer() {
@@ -270,6 +449,7 @@ function renderGroups(subtitleBox, groups) {
     span._isParticle = group.isParticle ?? false;
     span._isProperNoun = group.isProperNoun ?? false;
     span._pos = group.pos ?? null;
+    span._conjugatedForm = group.conjugatedForm ?? null;
     span._idiomWord = group.idiomWord ?? null;
     span.addEventListener("click", onWordClick);
     subtitleBox.appendChild(span);
@@ -283,11 +463,11 @@ function onWordClick(event) {
   event.stopPropagation();
   const span = event.currentTarget;
   const word = span.dataset.word;
-  const surface = span.dataset.surface;
   const inflections = span._inflections ?? [];
   const isParticle = span._isParticle ?? false;
   const isProperNoun = span._isProperNoun ?? false;
   const pos = span._pos ?? null;
+  const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
 
   closePopup();
@@ -317,19 +497,15 @@ function onWordClick(event) {
     }
     popup.innerHTML = "";
 
-    if (surface !== word) {
+    const inflectionText = describeInflection(inflections, pos, conjugatedForm, word);
+    if (inflectionText) {
       const inflectionLine = document.createElement("div");
       inflectionLine.className = "jp-immersion-popup-inflection";
-      inflectionLine.textContent =
-        inflections.length > 0
-          ? `Dictionary form: ${word} (inflected: ${inflections
-              .map((i) => `${i}-form`)
-              .join(" + ")})`
-          : `Dictionary form: ${word}`;
+      inflectionLine.textContent = inflectionText;
       popup.appendChild(inflectionLine);
     }
 
-    renderEntries(popup, word, response.results, response.posTags ?? {});
+    renderEntries(popup, word, response.results);
 
     // Dual-view: this word is also the start of a matched multi-word set
     // phrase (see tokenize-utils.js's isDualViewMatch) whose meaning isn't a
@@ -344,13 +520,13 @@ function onWordClick(event) {
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
         popup.appendChild(label);
-        renderEntries(popup, idiomWord, idiomResponse.results, idiomResponse.posTags ?? {});
+        renderEntries(popup, idiomWord, idiomResponse.results);
       });
     }
   });
 }
 
-function renderEntries(container, word, results, posTags) {
+function renderEntries(container, word, results) {
   for (const { r, g, p, c } of results.slice(0, 3)) {
     const entry = document.createElement("div");
     entry.className = "jp-immersion-popup-entry";
@@ -367,10 +543,13 @@ function renderEntries(container, word, results, posTags) {
     entry.appendChild(headerRow);
 
     if (p && p.length > 0) {
-      const posLine = document.createElement("div");
-      posLine.className = "jp-immersion-popup-pos";
-      posLine.textContent = p.map((code) => posTags[code] ?? code).join(", ");
-      entry.appendChild(posLine);
+      const chips = formatPosChips(p, word);
+      if (chips) {
+        const posLine = document.createElement("div");
+        posLine.className = "jp-immersion-popup-pos";
+        posLine.textContent = chips;
+        entry.appendChild(posLine);
+      }
     }
 
     const gloss = document.createElement("div");

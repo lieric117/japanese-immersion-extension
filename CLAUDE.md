@@ -2,6 +2,8 @@
 
 This file is a **session-start briefing**, not the full project record. It exists to tell you the goal, the rules, and what to work on right now. For anything else — competitive analysis, technical history, the full decisions log, open questions — read `project-plan.md`, which is the source of truth. Don't duplicate its content back into this file; keep this one short and current.
 
+**If you're about to write more than 2–3 sentences into the "Current phase & priorities" section below, stop.** That level of detail belongs in `project-plan.md`'s Build Order (Section 6), not here — link to it instead of restating it. See the formatting rules at the bottom of this file before editing.
+
 ## Core goal — read this first
 
 Let learners who already study Japanese elsewhere (kanji/vocab SRS, grammar SRS, a textbook, a tutor) use Crunchyroll anime as real immersion practice, with just enough support to confirm what they half-know without breaking the scene. **The extension's job is to keep them watching, not to teach them.**
@@ -18,9 +20,15 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 4 — Sync tooling & multi-show validation** (see `project-plan.md` Section 6 for full detail). Top priority right now:
-1. Live browser testing of the full grouping-pipeline rebuild against real Crunchyroll — everything from the last session's work is corpus-validated only, not yet confirmed working in the live player. Fix whatever this surfaces.
-2. Once Phase 4 testing is stable, Phase 5 (Anki export) starts with the DRM feasibility test — see `project-plan.md` Open Questions #7 for the exact test to run.
+**Phase 4 — Sync tooling & multi-show validation.** See `project-plan.md` Section 6 for the full done/remaining breakdown. Top priority right now:
+1. Live re-test the full grouping-pipeline rebuild against real Crunchyroll — everything is corpus-validated only so far, none of it re-verified live yet.
+2. Four items were newly scheduled into Phase 4 on 2026-07-04 (kanji-name popup un-suppression, multi-reading-entry restructure, duplicate-gloss archaic-tag/demotion fix, manual subtitle upload) — see Build Order, they're active work now, not "investigated and deferred."
+3. **The manual subtitle upload fallback is a hard gate on Phase 5** — it must ship before Anki export work starts, not just be next-in-line.
+4. Once Phase 4 is stable and the manual upload fallback ships, Phase 5 starts with the DRM feasibility test (`project-plan.md` Section 8, Ongoing — "Audio/screenshot Anki fields").
+
+`JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
+
+Two permanent limitations, settled for good (now in Section 8 Resolved, not Ongoing) — check `project-plan.md` Section 8 before re-litigating: kanji-heteronym sense-context disambiguation, この先 dual-view primacy. もの…になる dual-view noise is still genuinely open (Ongoing, needs-testing) since it's contingent on whether live use shows it's actually distracting. Mono-ruby furigana (Phase 6) is designed but not built.
 
 Don't start Phase 5 or 6 work ahead of this unless explicitly told to — check `project-plan.md` Section 6 for the current phase marker if unsure.
 
@@ -29,9 +37,10 @@ Don't start Phase 5 or 6 work ahead of this unless explicitly told to — check 
 - **No AI grammar/sentence explanations, ever, in any form.** Breaks immersion and competes with resources the user already trusts more. If this ever gets revisited, that's a deliberate scope conversation to have with the user first, not something to build proactively.
 - **No built-in wordbook/SRS/quiz system.** Anki export is the mechanism for this — don't build a competing review system.
 - **No Netflix, manga OCR, or general web support.** Crunchyroll only.
-- **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature.
+- **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
+- **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)
 - **Don't build audio/screenshot Anki fields, or their UI, until the DRM feasibility test (Phase 5) resolves.**
-- **Don't build the frequency-marker toggle's actual logic** — it's a placeholder UI element only, blocked on a corpus-licensing gap. See `project-plan.md` Section 5.
+- **The frequency-rank badge is now a real feature, not a placeholder** — 3 text tiers (Common/Uncommon/Rare), no raw numbers, no badge when there's no data (decided 2026-07-04). It replaces the old common-word toggle entirely — don't build both. Numeric thresholds per tier are still TBD; confirm with the user before hardcoding them. See `project-plan.md` Section 5.
 
 Full reasoning for all of these is in `project-plan.md` Section 4 (V1 Scope) and Section 7 (Decisions Log) — check there before assuming an exception applies.
 
@@ -40,13 +49,21 @@ Full reasoning for all of these is in `project-plan.md` Section 4 (V1 Scope) and
 - I (the user) have no prior coding experience. Explain what you're doing in plain terms when it's not obvious. Prefer small, testable steps over large multi-file changes I can't verify.
 - When something is ambiguous, apply the litmus test above first. If still ambiguous, default to `project-plan.md`'s V1 Scope rather than asking — unless it's a meaningful scope decision, in which case ask first rather than deciding silently.
 
+## Formatting rules for this file — read before editing
+
+- **This file stays under ~1 page.** If an edit would make it noticeably longer, the new content almost certainly belongs in `project-plan.md` instead, with a one-line pointer left here.
+- **"Current phase & priorities" is a short numbered list (2–4 items), not a paragraph.** Each item is one sentence stating *what to do next*, not a recap of everything that happened last session. Session recaps (what was fixed, what bugs were found, the full list of fixes not yet re-verified) belong in `project-plan.md`'s Build Order "Done" list — write them there, then write one short pointer sentence here if the top priority changed.
+- **Don't inline lists of specific bugs/constructions fixed** (e.g. every individual grammar pattern touched this session) — that level of detail belongs in `project-plan.md` Section 6, already written there by the same session. Repeating it here is exactly the duplication this file exists to avoid.
+- **Scope guardrails are one line each.** If a guardrail needs more than one sentence of justification, put the justification in `project-plan.md` and link to it — don't grow the bullet here.
+
 ## End-of-session checklist
 
-Before stopping, update `project-plan.md` (not this file — this file only needs edits if the *current phase/priorities* section above has gone stale):
+Before stopping, update `project-plan.md` (not this file — this file only needs edits if the *current phase/priorities* section above has gone stale, and even then, only a short pointer update, not a rewrite):
 
-1. **Build Order (Section 6):** move finished items from "remaining" to "done" for the current phase; add newly-discovered remaining items in priority order.
-2. **Decisions Log (Section 7):** scan the session for genuine decisions — a real rejected alternative existed, not just "there was nothing else to do." Add qualifying ones with a short bolded title, dated, in order. If a decision revises an earlier logged one, update that entry rather than adding a duplicate.
-3. **Open Questions (Section 8):** move anything resolved this session into "Resolved"; add new ones to "Ongoing" in the right phase-priority slot.
-4. **Technical Architecture (Section 5):** if something now works differently than planned, update the relevant entry directly.
-5. Come back to this file (`CLAUDE.md`) and update the **Current phase & priorities** section above if the phase changed or priorities shifted.
-6. If nothing decision-worthy happened this session, say so explicitly rather than skipping the check silently.
+1. **Build Order (Section 6):** move finished items from "remaining" to "done" for the current phase, as one-line bullets; add newly-discovered remaining items in priority order.
+2. **Decisions Log (Section 7):** scan the session for genuine decisions — a real rejected alternative existed, not just "there was nothing else to do." Add qualifying ones with a short bolded title (not a full-sentence title — see `project-plan.md`'s own formatting rules), dated, in order. If a decision revises an earlier logged one, update that entry rather than adding a duplicate.
+3. **Open Questions (Section 8):** move anything resolved this session into "Resolved" (one line, pointing to the Decisions Log entry — don't restate its reasoning); add new ones to "Ongoing" under the correct subsection (needs testing/feedback vs. needs a decision — see `project-plan.md`'s own formatting rules for the test), in the right phase-priority slot (2–4 sentences each).
+4. **Technical Architecture (Section 5):** if something now works differently than planned, update the relevant entry directly to describe the new current state — don't leave the old description in place alongside it.
+5. Update `project-plan.md`'s `_Last updated:_` date.
+6. Come back to this file and update **only** the "Current phase & priorities" section above, and only if the phase changed or the top priority shifted — as a short pointer to `project-plan.md`, not a restatement of its contents.
+7. If nothing decision-worthy happened this session, say so explicitly rather than skipping the check silently.
