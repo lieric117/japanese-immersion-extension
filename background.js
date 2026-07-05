@@ -2,7 +2,7 @@
 // content.js because Chrome is removing cross-origin fetch from content
 // scripts — only extension pages/service workers can fetch other origins.
 
-importScripts("subtitle-parser.js");
+importScripts("subtitle-parser.js", "tokenize-utils.js");
 
 const JIMAKU_API_BASE = "https://jimaku.cc/api";
 
@@ -117,59 +117,55 @@ const POS_CATEGORY_MATCHERS = {
   助動詞: (p) => p.startsWith("aux"),
 };
 
-// jmdict-compact.json's index is built entirely from full-width katakana
-// (matches the raw JMdict source). Confirmed 2026-07-01: half-width katakana
-// subtitle files (e.g. VCB-Studio's releases) were never resolving to a
-// definition at all — jmdict.index["ｷﾞﾀｰ"] is undefined even though
-// jmdict.index["ギター"] exists — since nothing converted the surface form
-// before the lookup. Applied at the point of every index lookup below rather
-// than at render/candidate-generation time, so every caller (word clicks,
-// kana-merge, phrase-merge, katakana-name checks) is fixed by the one change.
-const HALFWIDTH_KATAKANA_MAP = {
-  ｦ: "ヲ", ｧ: "ァ", ｨ: "ィ", ｩ: "ゥ", ｪ: "ェ", ｫ: "ォ", ｬ: "ャ", ｭ: "ュ", ｮ: "ョ", ｯ: "ッ", ｰ: "ー",
-  ｱ: "ア", ｲ: "イ", ｳ: "ウ", ｴ: "エ", ｵ: "オ",
-  ｶ: "カ", ｷ: "キ", ｸ: "ク", ｹ: "ケ", ｺ: "コ",
-  ｻ: "サ", ｼ: "シ", ｽ: "ス", ｾ: "セ", ｿ: "ソ",
-  ﾀ: "タ", ﾁ: "チ", ﾂ: "ツ", ﾃ: "テ", ﾄ: "ト",
-  ﾅ: "ナ", ﾆ: "ニ", ﾇ: "ヌ", ﾈ: "ネ", ﾉ: "ノ",
-  ﾊ: "ハ", ﾋ: "ヒ", ﾌ: "フ", ﾍ: "ヘ", ﾎ: "ホ",
-  ﾏ: "マ", ﾐ: "ミ", ﾑ: "ム", ﾒ: "メ", ﾓ: "モ",
-  ﾔ: "ヤ", ﾕ: "ユ", ﾖ: "ヨ",
-  ﾗ: "ラ", ﾘ: "リ", ﾙ: "ル", ﾚ: "レ", ﾛ: "ロ",
-  ﾜ: "ワ", ﾝ: "ン",
-};
-const DAKUTEN_MAP = {
-  ｳ: "ヴ",
-  ｶ: "ガ", ｷ: "ギ", ｸ: "グ", ｹ: "ゲ", ｺ: "ゴ",
-  ｻ: "ザ", ｼ: "ジ", ｽ: "ズ", ｾ: "ゼ", ｿ: "ゾ",
-  ﾀ: "ダ", ﾁ: "ヂ", ﾂ: "ヅ", ﾃ: "デ", ﾄ: "ド",
-  ﾊ: "バ", ﾋ: "ビ", ﾌ: "ブ", ﾍ: "ベ", ﾎ: "ボ",
-};
-const HANDAKUTEN_MAP = { ﾊ: "パ", ﾋ: "ピ", ﾌ: "プ", ﾍ: "ペ", ﾎ: "ポ" };
-
-function normalizeHalfwidthKatakana(str) {
-  let result = "";
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    const next = str[i + 1];
-    if (next === "ﾞ" && DAKUTEN_MAP[ch]) {
-      result += DAKUTEN_MAP[ch];
-      i++;
-    } else if (next === "ﾟ" && HANDAKUTEN_MAP[ch]) {
-      result += HANDAKUTEN_MAP[ch];
-      i++;
-    } else {
-      result += HALFWIDTH_KATAKANA_MAP[ch] ?? ch;
-    }
-  }
-  return result;
-}
+// normalizeHalfwidthKatakana is defined in tokenize-utils.js (imported above)
+// — jmdict-compact.json's index is full-width-only (confirmed 2026-07-01),
+// so this still runs a second time here as a defense-in-depth normalization
+// at the JMdict-index-lookup layer even though content.js now also
+// normalizes the raw subtitle text up front (fixes half-width display).
 
 async function lookupWord(word, isParticle = false, pos = null) {
   const jmdict = await loadJmdict();
   word = normalizeHalfwidthKatakana(word);
-  const entryIndexes = jmdict.index[word] ?? [];
-  let results = entryIndexes.map((i) => jmdict.entries[i]);
+  let entryIndexes = jmdict.index[word] ?? [];
+  if (entryIndexes.length === 0) {
+    // Fallback only, never applied to an already-successful lookup: a small
+    // vowel written directly after its own large-vowel counterpart (おぉ) is a
+    // real expressive-writing convention JMdict's own reading list doesn't
+    // enumerate (see collapseVowelElongation in tokenize-utils.js) — try again
+    // with it collapsed before giving up.
+    const collapsed = collapseVowelElongation(word);
+    if (collapsed !== word) entryIndexes = jmdict.index[collapsed] ?? [];
+  }
+  if (entryIndexes.length === 0) {
+    // Fallback only, same shape as the vowel-elongation one above: kuromoji
+    // doesn't recognize every godan potential form (輝ける has zero
+    // conjugation signal at all in its own tokenization — see
+    // derivePotentialFormBase in tokenize-utils.js), so try reverse-deriving
+    // the plain dictionary form and looking that up instead. Filtered to
+    // godan-tagged entries only (v5*) — potential form is specifically a
+    // godan pattern, so this can't accidentally accept an unrelated ichidan
+    // verb or noun/adjective that happens to share the derived spelling.
+    const potentialBase = derivePotentialFormBase(word);
+    if (potentialBase) {
+      const candidates = selectPotentialFormMatches(jmdict.index[potentialBase] ?? [], jmdict);
+      if (candidates.length > 0) entryIndexes = candidates;
+    }
+  }
+  // jmdict-compact.json only carries one canonical reading (`r`) directly,
+  // but an entry reachable via a genuinely different, legitimate alternate
+  // reading (e.g. くる resolving to 刳る, a rare kanji spelling of 抉る) needs
+  // to display THAT reading, not the entry's primary one (えぐる) — the
+  // 2026-07-05 regeneration added `rs` (the entry's full reading list) to
+  // support this. Copies the entry rather than mutating it in place — these
+  // are the same shared objects cached in `jmdict.entries` across every
+  // future lookup this service-worker lifetime.
+  let results = entryIndexes.map((i) => {
+    const entry = jmdict.entries[i];
+    if (entry.rs && entry.rs.includes(word) && entry.r !== word) {
+      return { ...entry, r: word };
+    }
+    return entry;
+  });
   if (isParticle) {
     // Filter to particle-sense entries only (JMdict POS code "prt").
     // Falls back to all entries if the particle isn't in the index as "prt"

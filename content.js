@@ -2,7 +2,7 @@
 // click a word to see its reading + definition (JMdict, looked up in the
 // background worker). Search-by-show UI still doesn't exist — hardcoded.
 
-const SHOW_QUERY = "Sousou no Frieren";
+const SHOW_QUERY = "Bocchi the Rock!";
 const EPISODE = 1;
 
 // JAPANESE_WORD_RE and groupTokens live in tokenize-utils.js (loaded before
@@ -162,6 +162,11 @@ const INFLECTION_LABELS = {
   させる: "せる/させる (causative)",
   たり: "たり (representative action)",
   だり: "たり (representative action)",
+  てる: "てる (contracted ている)",
+  てた: "てた (contracted ていた)",
+  てく: "てく (contracted ていく)",
+  てき: "てき (contracted てきた/てくる)",
+  なく: "ない-form, connective (negative)",
 };
 
 // Decided: chained/compound inflections (んだろう, etc.) don't get a
@@ -197,6 +202,15 @@ function describeInflection(inflections, pos, conjugatedForm, word) {
   if (word === "のだ" && inflections.length === 1) {
     return inflections[0] === "です" ? "んです (explanatory, polite)" : "んだ (explanatory)";
   }
+  // んだろう/んでしょう (Rule 0.6's ん+copula-family chain extended with the
+  // conjecture stem だろ/でしょ + う) previously fell through to the raw
+  // inflections.join("") fallback below, showing just "だろう" — not
+  // informative. Mirrors the んだ/んです labeling above.
+  if (word === "のだ" && inflections.length === 2 && inflections[1] === "う") {
+    return inflections[0] === "でしょ"
+      ? "んでしょう (explanatory, conjecture, polite)"
+      : "んだろう (explanatory, conjecture)";
+  }
   if (inflections.length === 1 && (inflections[0] === "だ" || inflections[0] === "です")) {
     if (pos === "名詞") {
       return inflections[0] === "です" ? "+ です (polite copula)" : "+ だ (copula)";
@@ -206,7 +220,14 @@ function describeInflection(inflections, pos, conjugatedForm, word) {
     }
   }
   if (inflections.length === 0) {
-    return conjugatedForm && conjugatedForm.startsWith("命令") ? "命令形 (imperative)" : null;
+    if (conjugatedForm && conjugatedForm.startsWith("命令")) return "命令形 (imperative)";
+    // い-adjective's conjunctive/adverbial く-form (うまく in うまくなる,
+    // うまくて) isn't absorbed into anything — Rule 1's te-merge only applies
+    // to 動詞, not 形容詞 — so it stays its own group with no `inflections`
+    // entry recorded, and previously showed no note explaining the form at
+    // all even though it resolves correctly to the dictionary form (うまい).
+    if (pos === "形容詞" && conjugatedForm === "連用テ接続") return "く-form (adverbial)";
+    return null;
   }
   if (inflections.length === 1 && INFLECTION_LABELS[inflections[0]]) {
     return INFLECTION_LABELS[inflections[0]];
@@ -285,6 +306,12 @@ function init() {
           .map((t) => t.replace(SPEAKER_PREFIX_RE, "").trim())
           .map((t) => t.replace(INLINE_FURIGANA_RE, "$1"))
           .filter((t) => t)
+          // Normalizes half-width katakana (some fansub releases, e.g.
+          // VCB-Studio, encode katakana this way) to full-width BEFORE
+          // tokenization — the 2026-07-01 fix only normalized at the JMdict
+          // lookup layer, so a half-width word resolved correctly on click
+          // but still displayed half-width on screen (スマホ shown as ｽﾏﾎ).
+          .map((t) => normalizeHalfwidthKatakana(t))
           .join("\n");
         if (text === lastText) return;
         lastText = text;
@@ -305,7 +332,7 @@ function init() {
       setOffset(offset - 0.1);
     } else if (event.key === "ArrowRight") {
       setOffset(offset + 0.1);
-    } else if (event.key === "0") {
+    } else if (event.code === "Digit0") {
       setOffset(0);
     } else {
       return;
@@ -419,6 +446,21 @@ function renderAfterPhraseMerge(subtitleBox, myGeneration, groups) {
 }
 
 function renderAfterKanaMerge(subtitleBox, myGeneration, groups) {
+  const candidates = findKatakanaUnsuppressCandidates(groups);
+  if (candidates.length === 0) {
+    renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups);
+    return;
+  }
+
+  const texts = [...new Set(candidates.map((i) => groups[i].surface))];
+  chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts }, (response) => {
+    if (myGeneration !== renderGeneration) return;
+    const membership = response?.membership ?? {};
+    renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, applyKatakanaUnsuppress(groups, candidates, membership));
+  });
+}
+
+function renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups) {
   const candidates = findKatakanaNameCandidates(groups);
   if (candidates.length === 0) {
     renderGroups(subtitleBox, groups);
@@ -447,7 +489,6 @@ function renderGroups(subtitleBox, groups) {
     span.dataset.surface = group.surface;
     span._inflections = group.inflections;
     span._isParticle = group.isParticle ?? false;
-    span._isProperNoun = group.isProperNoun ?? false;
     span._pos = group.pos ?? null;
     span._conjugatedForm = group.conjugatedForm ?? null;
     span._idiomWord = group.idiomWord ?? null;
@@ -465,7 +506,6 @@ function onWordClick(event) {
   const word = span.dataset.word;
   const inflections = span._inflections ?? [];
   const isParticle = span._isParticle ?? false;
-  const isProperNoun = span._isProperNoun ?? false;
   const pos = span._pos ?? null;
   const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
@@ -485,13 +525,13 @@ function onWordClick(event) {
       return;
     }
     if (!response.results.length) {
-      // Invented character/place names are frequently proper nouns with no
-      // real JMdict entry — silently close instead of showing a "no
-      // dictionary entry" popup for something that was never meant to have one.
-      if (isProperNoun) {
-        closePopup();
-        return;
-      }
+      // Kanji-containing proper nouns (character/place names) behave as
+      // ordinary clickable words (decided 2026-07-04) — a missing JMdict
+      // entry shows the normal "no dictionary entry" message like any other
+      // word, not a silent close. Katakana-only invented names (ヒンメル,
+      // アイゼン) never reach this branch at all: groupTokens' katakana-run
+      // rule already makes the whole run inert (word: null, no click
+      // handler) before a click is even possible.
       popup.textContent = `No dictionary entry for "${word}"`;
       return;
     }
@@ -526,10 +566,45 @@ function onWordClick(event) {
   });
 }
 
+// Sense-level `misc` tags (checked ahead of reading-level ones, priority
+// order) and reading-level tags that mark a headword's specific reading as
+// old/irregular (same tag family as the kanji rK/sK rarity fix). Used only
+// for the duplicate-gloss homograph fix below — a real, JMdict-sourced label
+// is always preferred over silent demotion when one of these is present.
+const ARCHAIC_MISC_LABELS = { arch: "archaic", obs: "obsolete", dated: "dated" };
+const ARCHAIC_READING_TAGS = new Set(["ok", "ik"]);
+
+// Duplicate-gloss homographs (酒 → さけ vs 酒 → ささ, both "alcohol; sake"; 君
+// → きみ vs 君 → きんじ, both "you") otherwise show as separate, equal-weight
+// cards with no indication one is the rare/dated reading. Checked against the
+// raw JMdict release per-case (2026-07-05), not assumed: real 酒/君 duplicates
+// do carry `misc`/reading tags confirming this. Returns a real sourced label
+// when the entry's own data has one; null means "duplicate, but nothing to
+// cite" — the caller demotes it instead.
+function archaicTagLabel(entry) {
+  for (const code of entry.m ?? []) {
+    if (ARCHAIC_MISC_LABELS[code]) return ARCHAIC_MISC_LABELS[code];
+  }
+  if (entry.ki?.some((t) => ARCHAIC_READING_TAGS.has(t))) return "dated reading";
+  return null;
+}
+
 function renderEntries(container, word, results) {
-  for (const { r, g, p, c } of results.slice(0, 3)) {
-    const entry = document.createElement("div");
-    entry.className = "jp-immersion-popup-entry";
+  const seenFirstGloss = new Set();
+  for (const entry of results.slice(0, 3)) {
+    const { r, g, p, c } = entry;
+
+    // A later entry sharing its first gloss with one already shown above is
+    // very likely the same core meaning under a rarer/alternate reading, not
+    // a genuinely distinct sense worth equal billing — tag it with a real
+    // JMdict-sourced label when one exists, or visually demote it otherwise.
+    const isDuplicate = g[0] !== undefined && seenFirstGloss.has(g[0]);
+    seenFirstGloss.add(g[0]);
+    const tagLabel = isDuplicate ? archaicTagLabel(entry) : null;
+    const demoted = isDuplicate && !tagLabel;
+
+    const cardEl = document.createElement("div");
+    cardEl.className = demoted ? "jp-immersion-popup-entry jp-immersion-popup-entry-demoted" : "jp-immersion-popup-entry";
 
     const headerRow = document.createElement("div");
     headerRow.className = "jp-immersion-popup-header-row";
@@ -540,7 +615,13 @@ function renderEntries(container, word, results) {
       badge.textContent = "common word";
       headerRow.appendChild(badge);
     }
-    entry.appendChild(headerRow);
+    if (tagLabel) {
+      const badge = document.createElement("span");
+      badge.className = "jp-immersion-popup-archaic-badge";
+      badge.textContent = tagLabel;
+      headerRow.appendChild(badge);
+    }
+    cardEl.appendChild(headerRow);
 
     if (p && p.length > 0) {
       const chips = formatPosChips(p, word);
@@ -548,15 +629,15 @@ function renderEntries(container, word, results) {
         const posLine = document.createElement("div");
         posLine.className = "jp-immersion-popup-pos";
         posLine.textContent = chips;
-        entry.appendChild(posLine);
+        cardEl.appendChild(posLine);
       }
     }
 
     const gloss = document.createElement("div");
     gloss.className = "jp-immersion-popup-gloss";
     gloss.textContent = g.join("; ");
-    entry.appendChild(gloss);
-    container.appendChild(entry);
+    cardEl.appendChild(gloss);
+    container.appendChild(cardEl);
   }
 }
 

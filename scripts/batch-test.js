@@ -26,6 +26,10 @@ const {
   findPhraseMatchCandidates,
   classifyAndSelectPhraseMatches,
   applyPhraseMatches,
+  findKatakanaUnsuppressCandidates,
+  applyKatakanaUnsuppress,
+  derivePotentialFormBase,
+  selectPotentialFormMatches,
 } = require("../tokenize-utils.js");
 
 // ── paths ─────────────────────────────────────────────────────────────────────
@@ -251,6 +255,59 @@ function detectPhraseMatches(tokens, jmdict) {
   return { fuseHits, dualViewHits, groups };
 }
 
+// Pattern 8 — katakana proper-noun un-suppression (2026-07-05 fix). Reports
+// every group findKatakanaUnsuppressCandidates/applyKatakanaUnsuppress
+// resolves to a real word after groupTokens' hasProperNoun rule silenced the
+// whole run (チヤホヤ, mis-tagged 固有名詞 on its first half) — a corpus-scale
+// false-positive check before trusting the fix broadly, same validation
+// pattern as Pattern 5's kana-merge check.
+function detectKatakanaUnsuppress(groups, jmdict) {
+  const candidates = findKatakanaUnsuppressCandidates(groups);
+  if (!candidates.length) return [];
+
+  const membership = {};
+  for (const i of candidates) {
+    const surface = groups[i].surface;
+    if (membership[surface] !== undefined) continue;
+    const idxs = jmdict.index[surface] ?? [];
+    membership[surface] = { exists: idxs.length > 0 };
+  }
+
+  const unsuppressed = applyKatakanaUnsuppress(groups, candidates, membership);
+  const hits = [];
+  for (const i of candidates) {
+    if (unsuppressed[i].word !== null) hits.push({ surface: groups[i].surface, resolvedTo: unsuppressed[i].word });
+  }
+  return hits;
+}
+
+// Pattern 9 — godan potential-form reverse-conjugation fallback (2026-07-05
+// fix). Reports every JMdict lookup-miss (Pattern 2's own candidates) that
+// derivePotentialFormBase resolves to a real godan verb — a corpus-scale
+// check for the exact false-positive risk this fix was built to avoid: a
+// word ending in an e-row kana that ISN'T actually a potential form,
+// coincidentally reverse-deriving to an unrelated but real godan verb. Only
+// fires on words that already have no direct entry (see detectLookupMisses),
+// same fallback-only gate as background.js's lookupWord.
+function detectPotentialFormResolutions(groups, jmdict) {
+  const hits = [];
+  for (const g of groups) {
+    if (g.word === null) continue;
+    if (jmdict.index[g.word]) continue; // has a direct entry — not a miss
+    if ([...g.word].length === 1) continue;
+    if (/^[゠-ヿ]+$/.test(g.word)) continue;
+    if (!/[ぁ-ん㐀-鿿]/.test(g.word)) continue;
+
+    const base = derivePotentialFormBase(g.word);
+    if (!base) continue;
+    const candidates = selectPotentialFormMatches(jmdict.index[base] ?? [], jmdict);
+    if (candidates.length > 0) {
+      hits.push({ surface: g.surface, wordLookedUp: g.word, resolvedBase: base, gloss: jmdict.entries[candidates[0]].g });
+    }
+  }
+  return hits;
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -278,13 +335,15 @@ async function main() {
       kanaMerge:           { label: "Pattern 5 — Kana merges applied (check for false-positive merges)", count: 0, examples: [] },
       phraseMerge:         { label: "Pattern 6 — Phrase-match fuses applied (check for coincidental/contextually-wrong merges)", count: 0, examples: [] },
       phraseDualView:      { label: "Pattern 7 — Phrase-match dual-view notes attached (individual tokens stay clickable)", count: 0, examples: [] },
+      katakanaUnsuppress:  { label: "Pattern 8 — Katakana proper-noun un-suppression applied (check for false-positive un-suppressions)", count: 0, examples: [] },
+      potentialForm:       { label: "Pattern 9 — Godan potential-form fallback resolutions (check for false-positive reverse-conjugations)", count: 0, examples: [] },
     },
   };
 
-  // kanaMerge/phraseMerge/phraseDualView examples are uncapped — verifying
-  // every merge for false positives is the point of these patterns, not just
-  // sampling a few.
-  const UNCAPPED_PATTERNS = new Set(["kanaMerge", "phraseMerge", "phraseDualView"]);
+  // kanaMerge/phraseMerge/phraseDualView/katakanaUnsuppress/potentialForm
+  // examples are uncapped — verifying every merge/resolution for false
+  // positives is the point of these patterns, not just sampling a few.
+  const UNCAPPED_PATTERNS = new Set(["kanaMerge", "phraseMerge", "phraseDualView", "katakanaUnsuppress", "potentialForm"]);
   function record(key, lineText, detail) {
     const p = report.patterns[key];
     p.count++;
@@ -326,6 +385,8 @@ async function main() {
         for (const hit of detectKanaMerges(groups, jmdict))     record("kanaMerge", text, hit);
         for (const hit of fuseHits)                             record("phraseMerge", text, hit);
         for (const hit of dualViewHits)                         record("phraseDualView", text, hit);
+        for (const hit of detectKatakanaUnsuppress(groups, jmdict)) record("katakanaUnsuppress", text, hit);
+        for (const hit of detectPotentialFormResolutions(groups, jmdict)) record("potentialForm", text, hit);
       }
 
       console.log(`  → ${linesThisEp} lines tokenized`);

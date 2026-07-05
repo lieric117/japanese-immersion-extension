@@ -50,7 +50,47 @@ const COMPACT_PATH = path.join(__dirname, "..", "jmdict-compact.json");
 console.log("Loading compact dictionary...");
 const compact = JSON.parse(fs.readFileSync(COMPACT_PATH, "utf8"));
 
+// Maps a JMdict POS code (jmdict-compact.json's `p` array) and a TUBELEX/
+// UniDic top-level POS class (the "pos" column, e.g. "助詞-終助詞" — only the
+// segment before the first "-" is used, UniDic's coarsest category) onto one
+// shared category. Deliberately coarse (matches this project's existing
+// POS_CATEGORY_MATCHERS pattern in background.js) — the goal is only to catch
+// a clear cross-category mismatch (particle vs. noun), not fine sense
+// disambiguation within the same category.
+function jmdictCategory(p) {
+  if (p.startsWith("v") || p === "aux-v") return "verb";
+  if (p.startsWith("adj")) return "adj";
+  if (p === "adv" || p === "adv-to") return "adv";
+  if (p === "prt") return "particle";
+  if (p === "conj") return "conj";
+  if (p === "int") return "interjection";
+  if (p === "pref" || p === "n-pref") return "prefix";
+  if (p === "suf" || p === "n-suf") return "suffix";
+  if (p === "pn") return "pronoun";
+  if (p === "aux" || p === "aux-adj") return "aux";
+  if (p === "exp") return "expr";
+  if (p === "n" || p === "num" || p === "ctr") return "noun";
+  return null;
+}
+const UNIDIC_TOP_CLASS_TO_CATEGORY = {
+  名詞: "noun",
+  動詞: "verb",
+  形容詞: "adj",
+  形状詞: "adj",
+  副詞: "adv",
+  連体詞: "adj",
+  接続詞: "conj",
+  感動詞: "interjection",
+  助詞: "particle",
+  助動詞: "aux",
+  接頭辞: "prefix",
+  接尾辞: "suffix",
+  代名詞: "pronoun",
+};
+
 console.log("Loading TUBELEX frequency list...");
+// { word: { count, category } } — category is the mapped UniDic top-level
+// class, or null if unmapped (symbols, NUM/UNK/WEB/EMAIL/etc. placeholders).
 const freqMap = new Map();
 {
   const raw = fs.readFileSync(tsvPath, "utf8");
@@ -64,10 +104,16 @@ const freqMap = new Map();
     if (!line) continue;
     const tab1 = line.indexOf("\t");
     const tab2 = line.indexOf("\t", tab1 + 1);
-    if (tab1 === -1 || tab2 === -1) continue;
+    const tab3 = line.indexOf("\t", tab2 + 1);
+    const tab4 = line.indexOf("\t", tab3 + 1);
+    const tab5 = line.indexOf("\t", tab4 + 1);
+    if (tab1 === -1 || tab2 === -1 || tab4 === -1) continue;
     const word = line.slice(0, tab1);
     const count = Number(line.slice(tab1 + 1, tab2));
-    freqMap.set(word, count);
+    const posField = line.slice(tab4 + 1, tab5 === -1 ? undefined : tab5);
+    const topClass = posField.split("-")[0];
+    const category = UNIDIC_TOP_CLASS_TO_CATEGORY[topClass] ?? null;
+    freqMap.set(word, { count, category });
   }
 }
 console.log(`Loaded ${freqMap.size} TUBELEX lemma frequencies.`);
@@ -124,14 +170,44 @@ const scoreByEntry = new Int32Array(compact.entries.length);
 // words of any score at all, confirmed empirically: an earlier version of
 // this filter that excluded ALL non-matching keys, kanji included, dropped
 // scored-entry coverage from 59,703 to 9,450 entries).
+// POS-compatibility gate (2026-07-05): a kana reading can be shared by
+// completely unrelated words in different grammatical categories — 子's ね
+// reading (zodiac-sign noun, JMdict "n") shares its bare kana key with the
+// sentence-final particle ね, which TUBELEX's own "ね" lemma row tags 助詞
+// (particle), not 名詞 (noun). TUBELEX aggregates ALL real-world usage of ね
+// under that one row regardless of which JMdict sense a human would assign —
+// in practice that's ~100% the enormously common particle, so the zodiac
+// noun's entry was inheriting a wildly inflated score with no relation to its
+// own actual frequency. Unlike the そうか contamination fixed above (a
+// DIFFERENT reading cross-linked via a shared kanji spelling), this is the
+// SAME reading legitimately shared across categories — the existing
+// own-reading-match check can't catch it, since the reading genuinely does
+// match. Gated the same lenient way as everything else in this script: only
+// rejects a clear cross-category mismatch; an unmapped TUBELEX category
+// (symbols, NUM/UNK/etc.) or an entry with no mappable JMdict category is
+// always allowed through, so this narrows contamination without repeating the
+// earlier coverage-collapse mistake (59,703 -> 9,450 entries) from an
+// over-broad filter.
+function entryCategories(idx) {
+  const categories = new Set();
+  for (const p of compact.entries[idx].p ?? []) {
+    const cat = jmdictCategory(p);
+    if (cat) categories.add(cat);
+  }
+  return categories;
+}
+
 let scored = 0;
 for (const [idx, keys] of entryToKeys) {
   const ownReading = toHiragana(compact.entries[idx].r ?? "");
+  const categories = entryCategories(idx);
   let best = 0;
   for (const key of keys) {
     if (KANA_ONLY_RE.test(key) && toHiragana(key) !== ownReading) continue;
     const f = freqMap.get(key);
-    if (f !== undefined && f > best) best = f;
+    if (f === undefined) continue;
+    if (categories.size > 0 && f.category && !categories.has(f.category)) continue;
+    if (f.count > best) best = f.count;
   }
   if (best > 0) {
     scoreByEntry[idx] = best;

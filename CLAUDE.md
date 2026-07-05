@@ -21,14 +21,11 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 ## Current phase & priorities
 
 **Phase 4 — Sync tooling & multi-show validation.** See `project-plan.md` Section 6 for the full done/remaining breakdown. Top priority right now:
-1. Live re-test the full grouping-pipeline rebuild against real Crunchyroll — everything is corpus-validated only so far, none of it re-verified live yet.
-2. Four items were newly scheduled into Phase 4 on 2026-07-04 (kanji-name popup un-suppression, multi-reading-entry restructure, duplicate-gloss archaic-tag/demotion fix, manual subtitle upload) — see Build Order, they're active work now, not "investigated and deferred."
-3. **The manual subtitle upload fallback is a hard gate on Phase 5** — it must ship before Anki export work starts, not just be next-in-line.
-4. Once Phase 4 is stable and the manual upload fallback ships, Phase 5 starts with the DRM feasibility test (`project-plan.md` Section 8, Ongoing — "Audio/screenshot Anki fields").
+1. Live re-test the grouping-pipeline rebuild against real Crunchyroll — Bocchi the Rock! ep 1 pass done, Frieren and One Piece still need theirs (see Build Order for what shipped since the last pass).
+2. **The manual subtitle upload fallback is the one remaining build item and is a hard gate on Phase 5** — it must ship before Anki export work starts.
+3. Once Phase 4 is stable and the manual upload fallback ships, Phase 5 starts with the DRM feasibility test (`project-plan.md` Section 8, Ongoing — "Audio/screenshot Anki fields").
 
 `JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
-
-Two permanent limitations, settled for good (now in Section 8 Resolved, not Ongoing) — check `project-plan.md` Section 8 before re-litigating: kanji-heteronym sense-context disambiguation, この先 dual-view primacy. もの…になる dual-view noise is still genuinely open (Ongoing, needs-testing) since it's contingent on whether live use shows it's actually distracting. Mono-ruby furigana (Phase 6) is designed but not built.
 
 Don't start Phase 5 or 6 work ahead of this unless explicitly told to — check `project-plan.md` Section 6 for the current phase marker if unsure.
 
@@ -36,7 +33,7 @@ Don't start Phase 5 or 6 work ahead of this unless explicitly told to — check 
 
 - **No AI grammar/sentence explanations, ever, in any form.** Breaks immersion and competes with resources the user already trusts more. If this ever gets revisited, that's a deliberate scope conversation to have with the user first, not something to build proactively.
 - **No built-in wordbook/SRS/quiz system.** Anki export is the mechanism for this — don't build a competing review system.
-- **No Netflix, manga OCR, or general web support.** Crunchyroll only.
+- **No other video platforms (Netflix, YouTube, etc.), manga OCR, or general web support.** Crunchyroll-only by design, not a Netflix-specific gap.
 - **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
 - **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)
 - **Don't build audio/screenshot Anki fields, or their UI, until the DRM feasibility test (Phase 5) resolves.**

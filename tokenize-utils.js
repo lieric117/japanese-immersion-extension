@@ -8,6 +8,121 @@
 // groups (e.g. VCB-Studio Bocchi) encode katakana in half-width form.
 const JAPANESE_WORD_RE = /[ぁ-ヿ㐀-鿿ｦ-ﾟ]/;
 
+// Converts half-width katakana (some fansub releases, e.g. VCB-Studio, encode
+// katakana this way) to full-width. Shared by content.js (applied to the raw
+// subtitle text before tokenization, so both the on-screen display and every
+// downstream lookup see normalized full-width text) and background.js
+// (applied at the JMdict-index-lookup layer as a second, defense-in-depth
+// normalization — jmdict-compact.json's index is full-width-only).
+const HALFWIDTH_KATAKANA_MAP = {
+  ｦ: "ヲ", ｧ: "ァ", ｨ: "ィ", ｩ: "ゥ", ｪ: "ェ", ｫ: "ォ", ｬ: "ャ", ｭ: "ュ", ｮ: "ョ", ｯ: "ッ", ｰ: "ー",
+  ｱ: "ア", ｲ: "イ", ｳ: "ウ", ｴ: "エ", ｵ: "オ",
+  ｶ: "カ", ｷ: "キ", ｸ: "ク", ｹ: "ケ", ｺ: "コ",
+  ｻ: "サ", ｼ: "シ", ｽ: "ス", ｾ: "セ", ｿ: "ソ",
+  ﾀ: "タ", ﾁ: "チ", ﾂ: "ツ", ﾃ: "テ", ﾄ: "ト",
+  ﾅ: "ナ", ﾆ: "ニ", ﾇ: "ヌ", ﾈ: "ネ", ﾉ: "ノ",
+  ﾊ: "ハ", ﾋ: "ヒ", ﾌ: "フ", ﾍ: "ヘ", ﾎ: "ホ",
+  ﾏ: "マ", ﾐ: "ミ", ﾑ: "ム", ﾒ: "メ", ﾓ: "モ",
+  ﾔ: "ヤ", ﾕ: "ユ", ﾖ: "ヨ",
+  ﾗ: "ラ", ﾘ: "リ", ﾙ: "ル", ﾚ: "レ", ﾛ: "ロ",
+  ﾜ: "ワ", ﾝ: "ン",
+};
+const DAKUTEN_MAP = {
+  ｳ: "ヴ",
+  ｶ: "ガ", ｷ: "ギ", ｸ: "グ", ｹ: "ゲ", ｺ: "ゴ",
+  ｻ: "ザ", ｼ: "ジ", ｽ: "ズ", ｾ: "ゼ", ｿ: "ゾ",
+  ﾀ: "ダ", ﾁ: "ヂ", ﾂ: "ヅ", ﾃ: "デ", ﾄ: "ド",
+  ﾊ: "バ", ﾋ: "ビ", ﾌ: "ブ", ﾍ: "ベ", ﾎ: "ボ",
+};
+const HANDAKUTEN_MAP = { ﾊ: "パ", ﾋ: "ピ", ﾌ: "プ", ﾍ: "ペ", ﾎ: "ポ" };
+
+function normalizeHalfwidthKatakana(str) {
+  let result = "";
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    const next = str[i + 1];
+    if (next === "ﾞ" && DAKUTEN_MAP[ch]) {
+      result += DAKUTEN_MAP[ch];
+      i++;
+    } else if (next === "ﾟ" && HANDAKUTEN_MAP[ch]) {
+      result += HANDAKUTEN_MAP[ch];
+      i++;
+    } else {
+      result += HALFWIDTH_KATAKANA_MAP[ch] ?? ch;
+    }
+  }
+  return result;
+}
+
+// Collapses a small vowel kana directly following its own large-vowel
+// counterpart (お+ぉ, あ+ぁ, etc.) down to just the large vowel. Confirmed
+// 2026-07-05 against the raw jmdict-eng release: this is a real, common
+// expressive-writing convention for a drawn-out/emphasized vowel (おぉ, a
+// standalone interjection kuromoji already tags correctly as 感動詞) that
+// JMdict's own reading list simply never enumerates as a variant (the real
+// entry only lists おお/おう/おー/オー) — same shape of gap as half-width
+// katakana (a real orthographic variant the dictionary doesn't index), not
+// index corruption. Only ever applied as a lookupWord FALLBACK on a miss
+// (background.js), never to the displayed subtitle text — unlike half-width
+// katakana, this is a deliberate stylistic choice by the subtitle author and
+// should stay visible as written.
+const VOWEL_ELONGATION_PAIRS = [
+  ["あ", "ぁ"], ["い", "ぃ"], ["う", "ぅ"], ["え", "ぇ"], ["お", "ぉ"],
+  ["ア", "ァ"], ["イ", "ィ"], ["ウ", "ゥ"], ["エ", "ェ"], ["オ", "ォ"],
+];
+function collapseVowelElongation(str) {
+  let result = str;
+  for (const [large, small] of VOWEL_ELONGATION_PAIRS) {
+    result = result.replace(new RegExp(`${large}${small}+`, "g"), large);
+  }
+  return result;
+}
+
+// Reverse-derives a godan verb's plain dictionary form from its potential
+// form (書ける -> 書く, 輝ける -> 輝く) by mapping the final e-row kana back to
+// its u-row counterpart. Confirmed 2026-07-05: kuromoji's own IPADIC
+// dictionary doesn't recognize every godan potential form (輝ける tokenizes as
+// one opaque UNK token, pos 連体詞, with zero connection established to 輝く —
+// unlike て/た/etc. inflections, there's no kuromoji-provided conjugation
+// signal to lean on here at all). Deliberately used ONLY as a lookupWord
+// fallback after a direct lookup miss (background.js) — never applied
+// pre-emptively to a word that already resolves on its own, which is what
+// keeps this safe: an ordinary ichidan verb ending in -eru (食べる, 見える)
+// always has its own real JMdict headword and is never routed through this
+// path at all. The caller additionally filters results to godan-tagged
+// entries only (JMdict "v5*" codes) — potential form is specifically a godan
+// pattern, so an unrelated ichidan/noun/adjective entry that happens to
+// share the reverse-derived spelling is never accepted.
+const POTENTIAL_FORM_ENDINGS = [
+  ["ける", "く"], ["げる", "ぐ"], ["せる", "す"], ["てる", "つ"],
+  ["ねる", "ぬ"], ["べる", "ぶ"], ["める", "む"], ["れる", "る"], ["える", "う"],
+];
+function derivePotentialFormBase(word) {
+  for (const [ending, replacement] of POTENTIAL_FORM_ENDINGS) {
+    if (word.length > ending.length && word.endsWith(ending)) {
+      return word.slice(0, -ending.length) + replacement;
+    }
+  }
+  return null;
+}
+
+// Given the full, unfiltered list of JMdict entry indexes sharing a
+// reverse-derived potential-form base's index key, returns the ones actually
+// worth accepting — preferring an irregular-verb match (JMdict "vk", i.e.
+// 来る/くる) over a godan one (v5*) when both exist under the same key.
+// Confirmed real 2026-07-05: 来れる (ら抜き potential of the irregular verb
+// 来る) reverse-derives to the same shared kanji key as きたる, an unrelated
+// godan verb ("next, forthcoming") that happens to also be spelled 来る — a
+// v5-only filter picks きたる's wrong sense instead of くる's intended one.
+// ら抜き applies to 来る specifically as well as to ordinary godan verbs, so
+// an irregular-verb candidate, when present, is always the intended match;
+// only fall back to godan candidates when there's no irregular-verb entry.
+function selectPotentialFormMatches(candidateEntryIndexes, jmdict) {
+  const irregular = candidateEntryIndexes.filter((i) => jmdict.entries[i].p?.includes("vk"));
+  if (irregular.length > 0) return irregular;
+  return candidateEntryIndexes.filter((i) => jmdict.entries[i].p?.some((p) => p.startsWith("v5")));
+}
+
 // Katakana only (full-width, half-width, prolonged sound mark). Used to spot
 // character/place names spelled with no kanji at all — kuromoji frequently
 // fragments these into a real common-word token plus an unrecognized proper-
@@ -145,6 +260,26 @@ function groupTokens(tokens, fuseSpans = []) {
     // the lookup should filter for particle senses, not homophone nouns
     // (に→荷 "cargo", は→歯 "tooth"). isParticle flags this for background.js.
     if (token.pos === "助詞") {
+      // な tagged 終助詞 (sentence-final particle) directly followed by a noun
+      // is actually だ's attributive/体言接続 form (大事な子-style), not the
+      // true sentence-final な (いいな, 行くな) — a genuine 終助詞 な always ends
+      // its utterance; it's never immediately followed by a noun with no
+      // particle/punctuation between. kuromoji mis-tags it this way when the
+      // PRECEDING word wasn't recognized as its own token at all (ひとりぼっち
+      // fragments into ぼる/ちる verb stems in kuromoji's own dictionary,
+      // throwing off its parse of the whole clause) — confirmed correctly
+      // tagged 助動詞/体言接続 in the ordinary case (大事な, 静かな), so this is
+      // a structural correction for a kuromoji parse artifact, not a
+      // hardcoded exception for one word.
+      if (
+        token.surface_form === "な" &&
+        token.pos_detail_1 === "終助詞" &&
+        tokens[i + 1] && tokens[i + 1].pos === "名詞"
+      ) {
+        groups.push({ surface: token.surface_form, word: "だ", pos: "助動詞", conjugatedForm: "体言接続", inflections: [], tokenStart: i, tokenEnd: i });
+        i++;
+        continue;
+      }
       groups.push({ surface: token.surface_form, word: token.surface_form, isParticle: true, inflections: [], tokenStart: i, tokenEnd: i });
       i++;
       continue;
@@ -226,9 +361,12 @@ function groupTokens(tokens, fuseSpans = []) {
       continue;
     }
 
-    // Rule 2: contracted te-form auxiliary
+    // Rule 2: contracted te-form auxiliary. Records the contraction's own
+    // surface (てる/てた/てく/てき) as the inflection so content.js's
+    // describeInflection can label it (previously discarded entirely, so
+    // 見てる/してる showed no inflection note at all).
     if (token.pos === "動詞" && next1 && isContractedTeAux(next1)) {
-      groups.push({ surface: surface0 + next1.surface_form, word, inflections: [], pos: token.pos, tokenStart: i, tokenEnd: i + 1 });
+      groups.push({ surface: surface0 + next1.surface_form, word, inflections: [next1.surface_form], pos: token.pos, tokenStart: i, tokenEnd: i + 1 });
       i += 2;
       continue;
     }
@@ -262,7 +400,21 @@ function groupTokens(tokens, fuseSpans = []) {
       // merging て/た, and leaving ば out was an inconsistency, not a
       // deliberate exclusion.
       const isBaConditional = n.pos === "助詞" && n.surface_form === "ば" && prevConjugatedForm === "仮定形";
-      if (!isAbsorbable && !isTari && !isBaConditional) break;
+      // だら/たら (verb-past-tense conditional: 読んだら, 気付いたら) shares
+      // basic_form "だ"/conjugated_form 仮定形 with copula だ's OWN conditional
+      // form (なら, 学生なら) — kuromoji tags both identically at that level.
+      // conjugated_type is the distinguishing signal: 特殊・タ is the た/だ
+      // past-tense auxiliary's own paradigm (voiced to だ after ん/ぶ/む/ぐ
+      // stems — the same euphonic voicing as て→で); 特殊・ダ is the copula's
+      // own separate paradigm. た's own 仮定形 (たら) already absorbs via
+      // PURE_INFLECTION_AUX above; だ's voiced variant doesn't, since only
+      // "た" (not "だ") is in that set — confirmed a real gap, same shape as
+      // the 2026-07-03 れる/られる/せる/させる tag-mismatch fix. Deliberately
+      // does NOT touch なら (copula 仮定形) — that's a separate, already-
+      // flagged gap (see project-plan.md), not in scope here.
+      const isPastTenseConditional =
+        n.pos === "助動詞" && n.conjugated_form === "仮定形" && n.conjugated_type === "特殊・タ";
+      if (!isAbsorbable && !isTari && !isBaConditional && !isPastTenseConditional) break;
       surface += n.surface_form;
       inflections.push(n.surface_form);
       prevConjugatedForm = n.conjugated_form;
@@ -567,6 +719,14 @@ function hasSuspiciousFragment(tokens, span) {
 function isDualViewMatch(tokens, span) {
   const isToParticle = (t) => t.pos === "助詞" && t.surface_form === "と";
   if (isToParticle(tokens[span.start]) || isToParticle(tokens[span.end])) return true;
+  // 時 (dependent noun "time/occasion") retains a genuinely common, unrelated
+  // job as an ordinary noun (遠足の時に "during the school trip") far more
+  // often than it's the idiomatic とき-adverb/conjunction sense ("by the way";
+  // "sometimes") that gives 時に a JMdict "conj"/"adv" tag — same carve-out
+  // reasoning as と above (a real, common, unrelated job at that exact
+  // position), not a hardcoded phrase list.
+  const isTokiNoun = (t) => t.pos === "名詞" && t.basic_form === "時";
+  if (isTokiNoun(tokens[span.start])) return true;
   if (hasSuspiciousFragment(tokens, span)) return false;
   return isContentToken(tokens[span.start]) && isContentToken(tokens[span.end]);
 }
@@ -613,10 +773,30 @@ function classifyAndSelectPhraseMatches(tokens, candidates, membership) {
   // dictionary answer before this filter.
   const baselineGroups = groupTokens(tokens);
   const alreadyGrouped = new Set(baselineGroups.map((g) => `${g.tokenStart}:${g.tokenEnd}`));
+  // Maps every raw token index to the baseline group containing it, so a
+  // candidate that only partially overlaps a group Rule 1/2/3/0.5/0.6 already
+  // decided must stay together can be rejected outright, not just an exact
+  // match. Confirmed real: し+て+い (交換していた) is 3 raw tokens where
+  // baseline grouping already produces して (one group, Rule 1's te-merge) +
+  // いた (a separate group, Rule 3's た-absorption) — the 3-token span してい
+  // cuts across that boundary instead of spanning whole groups, and
+  // coincidentally matches an unrelated real word (してい, "designation"),
+  // shown as a bogus "Also, as a set phrase" note. Same failure mode for
+  // いいん in いいんだろう: the span ends in the middle of Rule 0.6's ん+だろ+う
+  // group instead of at its edge. A phrase match is only valid if it starts
+  // and ends exactly on baseline-group edges — it may span several whole
+  // groups (ひとりぼっち: 3 single-token groups), just never carve into one.
+  const groupOf = new Map();
+  for (const g of baselineGroups) {
+    for (let k = g.tokenStart; k <= g.tokenEnd; k++) groupOf.set(k, g);
+  }
 
   const scored = [];
   for (const c of candidates) {
     if (alreadyGrouped.has(`${c.start}:${c.end}`)) continue;
+    const startGroup = groupOf.get(c.start);
+    const endGroup = groupOf.get(c.end);
+    if (startGroup.tokenStart !== c.start || endGroup.tokenEnd !== c.end) continue;
     const m = membership[c.lookupText];
     if (!m?.exists) continue;
     // A pure noun+noun run (王都 = 王+都, no intervening particle/verb) is
@@ -698,6 +878,35 @@ function applyKatakanaNameSuppression(groups, candidates, membership) {
   });
 }
 
+// groupTokens' katakana-only-proper-noun-run rule (above) suppresses the
+// WHOLE run as soon as ANY token in it is kuromoji-tagged 固有名詞, without
+// ever checking whether the run, taken as a whole, is actually a real word.
+// Confirmed real 2026-07-05: チヤホヤされるんだ！ (an ordinary onomatopoeic verb,
+// "to be pampered/fussed over" — no punctuation or ellipsis involved, contrary
+// to an earlier same-day misdiagnosis) mis-tags its first half チヤ as 固有名詞,
+// silencing the entire run even though チヤホヤ has a real JMdict entry. This is
+// the mirror image of findKatakanaNameCandidates/applyKatakanaNameSuppression
+// above (which un-clicks a word that turns out to have NO entry) — this
+// un-suppresses one that turns out to HAVE one. Existence-only gate, same
+// reliability precedent as the katakana-name check itself.
+function findKatakanaUnsuppressCandidates(groups) {
+  const candidates = [];
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i];
+    if (g.word !== null) continue;
+    if (KATAKANA_ONLY_RE.test(g.surface)) candidates.push(i);
+  }
+  return candidates;
+}
+
+function applyKatakanaUnsuppress(groups, candidates, membership) {
+  return groups.map((g, i) => {
+    if (!candidates.includes(i)) return g;
+    if (!membership[g.surface]?.exists) return g;
+    return { ...g, word: g.surface };
+  });
+}
+
 // typeof process is the reliable Node.js signal — module can be defined in
 // some browser/extension contexts and would cause unexpected assignment there.
 if (typeof process !== "undefined") {
@@ -711,6 +920,12 @@ if (typeof process !== "undefined") {
     applyPhraseMatches,
     findKatakanaNameCandidates,
     applyKatakanaNameSuppression,
+    findKatakanaUnsuppressCandidates,
+    applyKatakanaUnsuppress,
     FUNCTION_POS_CODES,
+    normalizeHalfwidthKatakana,
+    collapseVowelElongation,
+    derivePotentialFormBase,
+    selectPotentialFormMatches,
   };
 }
