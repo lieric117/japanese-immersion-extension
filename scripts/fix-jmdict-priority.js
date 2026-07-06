@@ -61,7 +61,10 @@ console.log("Tagging compact entries...");
 let tagged = 0;
 let unmatched = 0;
 for (const entry of compact.entries) {
-  const key = entry.r + "||" + entry.g[0];
+  // entry.g is grouped by sense (array of arrays, since 2026-07-06) — g[0][0]
+  // is still the entry's first/primary gloss string, matching the raw side's
+  // firstSenseWithGloss.gloss[0].text fingerprint component above.
+  const key = entry.r + "||" + entry.g[0]?.[0];
   if (!rawKanaPrimaryByKey.has(key)) {
     unmatched++;
     continue;

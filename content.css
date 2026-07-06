@@ -106,6 +106,29 @@
   color: #555;
 }
 
+.jp-immersion-popup-kanji-spelling {
+  font-size: 13px;
+  color: #666;
+}
+
+.jp-immersion-popup-gloss-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jp-immersion-popup-gloss-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.jp-immersion-popup-gloss-number {
+  font-size: 12px;
+  color: #888;
+  flex-shrink: 0;
+}
+
 .jp-immersion-popup-gloss {
   font-size: 13px;
   color: #333;
@@ -144,4 +167,25 @@
 #jp-immersion-offset-value {
   min-width: 76px;
   text-align: center;
+}
+
+#jp-immersion-upload {
+  position: fixed;
+  top: 56px;
+  left: 16px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: sans-serif;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  max-width: 320px;
+}
+
+#jp-immersion-upload-status {
+  overflow-wrap: anywhere;
 }

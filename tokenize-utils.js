@@ -130,6 +130,165 @@ function selectPotentialFormMatches(candidateEntryIndexes, jmdict) {
 // leaves a real-but-wrong definition sitting on part of a name.
 const KATAKANA_ONLY_RE = /^[ァ-ヺｦ-ﾟー]+$/;
 
+// Kanji only — used by the multi-kanji personal/place-name run fusion below
+// to keep the run from swallowing an adjacent particle, okurigana, or
+// hiragana-written word that happens to sit right next to a name.
+const KANJI_ONLY_RE = /^[㐀-鿿々]+$/;
+
+// Real Japanese full names (surname + given name) very rarely exceed 4
+// kanji total — caps how far a name run can extend, same shape as
+// MAX_PHRASE_MATCH_LEN below.
+const MAX_NAME_RUN_LEN = 4;
+
+// Whether a token can EXTEND an already-anchored kanji proper-noun run (see
+// groupTokens below). A 固有名詞-tagged token (kuromoji itself recognizes it
+// as a name, e.g. 郁代 in 喜多郁代) extends at any length. A 一般-tagged token
+// only extends when it's a single kanji character — the signature of
+// kuromoji being forced to fall back to individual kanji it happens to know
+// because it doesn't recognize the combination as a word at all (虹, then 夏,
+// each their own token in 伊地知虹夏). A real compound noun kuromoji DOES
+// recognize as one word (高校 in 下北沢高校, "Shimokitazawa High School")
+// surfaces as a single multi-character 一般 token instead, which this length
+// check correctly excludes — avoiding the false positive of sweeping a
+// legitimate, separately-clickable place-name + common-noun compound (which
+// still has its own correct definitions if left unfused) into one no-entry
+// unit. This is the one discriminating signal available without semantic
+// context this project doesn't build (same kind of POS-level ambiguity
+// already accepted for kanji-heteronym disambiguation — see project-plan.md
+// Decisions Log). Deliberately excludes 接尾 (name+さん/くん/ちゃん honorific
+// suffixes, already handled as their own separate, correctly-defined click)
+// and 代名詞/数/サ変接続/etc., which are never part of a name span.
+function extendsNameRun(token) {
+  if (token.pos !== "名詞" || !KANJI_ONLY_RE.test(token.surface_form)) return false;
+  if (token.pos_detail_1 === "固有名詞") return true;
+  return token.pos_detail_1 === "一般" && [...token.surface_form].length === 1;
+}
+
+// Given a raw kuromoji token array and an anchor index i (must itself satisfy
+// extendsNameRun's 固有名詞 case), returns the exclusive end index of the run
+// starting at i — i.e. tokens[i..end-1] form the run. Returns i itself (no
+// extension) if nothing beyond the anchor qualifies. Shared by groupTokens
+// (which additionally bounds the run against any already-decided fuseSpans)
+// and the batch-testing script (which calls this directly on raw tokens, so
+// its corpus check measures exactly this rule's own contribution rather than
+// reverse-engineering it from output that other mechanisms — e.g. the general
+// phrase-matcher's own noun+noun fuse — can independently produce the same
+// shape of).
+function findNameRunEnd(tokens, i) {
+  let j = i;
+  while (j < tokens.length && j - i < MAX_NAME_RUN_LEN && extendsNameRun(tokens[j])) j++;
+  return j;
+}
+
+// Arabic digit glyphs, half- or full-width. A token matching this is never
+// covered by JAPANESE_WORD_RE (digits are outside its kana/kanji ranges), so
+// it would otherwise render as plain, non-clickable text no matter how the
+// rest of groupTokens is extended — handled as its own run-detection check in
+// groupTokens, same shape as KATAKANA_ONLY_RE above.
+const NUMERAL_ONLY_RE = /^[0-9０-９]+$/;
+
+// Converts half-width (ASCII) digits to full-width, the mirror image of
+// normalizeHalfwidthKatakana above, and needed for the same reason:
+// jmdict-compact.json's own numeral entries (0-9, most round tens/hundreds/
+// thousands, 10000 — confirmed 2026-07-05) are indexed under full-width
+// glyphs (１, ２, ...), not ASCII ones, even though ASCII is what a subtitle
+// actually contains. Applied only at the JMdict-index-lookup layer
+// (background.js), never to the displayed subtitle text — unlike half-width
+// katakana, an ASCII digit is normal, unremarkable Japanese subtitle text as
+// written and should stay visible exactly as the subtitle author wrote it.
+function normalizeDigitsToFullwidth(str) {
+  return str.replace(/[0-9]/g, (d) => String.fromCharCode(d.charCodeAt(0) + 0xfee0));
+}
+
+// Digit → reading, used only for the multiplier position within a 4-digit
+// group (see readFourDigitGroup) or a bare group value greater than 1 — NOT
+// for the group-of-one special case (十/百 omit "one" entirely; 万/億/兆 keep
+// it; see numberToReading). よん/なな/きゅう (not し/しち/く) match the reading
+// jmdict-compact.json's own multi-digit round-number entries use (e.g. 40 →
+// よんじゅう, 700 → ななひゃく). A bare single digit (3, 7, 9) can read
+// differently in isolation (し/しち/く are also valid) but a direct JMdict
+// lookup always wins for those
+// before this synthesis fallback ever runs (0-9 and most round numbers are
+// already indexed) — this table's choice only matters for combinations
+// jmdict-compact.json doesn't carry an entry for at all (24, 456, 2019, ...).
+const DIGIT_READING = ["", "いち", "に", "さん", "よん", "ご", "ろく", "なな", "はち", "きゅう"];
+
+// Reads a 0-9999 value as its own self-contained 4-digit group (千/百/十の位),
+// including the standard sound-change irregulars for 百/千 (voicing:
+// さんびゃく/さんぜん; small-tsu: ろっぴゃく/はっぴゃく/はっせん) confirmed
+// against jmdict-compact.json's own round-number entries. 十 has no sound
+// changes at all; 十/百 silently drop the "one" digit (10 → じゅう, 100 →
+// ひゃく, never いちじゅう/いちひゃく) while 千 keeps it as いっせん (small-tsu,
+// not a bare せん) — this asymmetry is real Japanese, not an inconsistency:
+// jmdict-compact.json's own "1000" entry is いっせん, matched here for
+// consistency with data already trusted elsewhere in this project.
+function readFourDigitGroup(n) {
+  let result = "";
+  const thousands = Math.floor(n / 1000) % 10;
+  const hundreds = Math.floor(n / 100) % 10;
+  const tens = Math.floor(n / 10) % 10;
+  const ones = n % 10;
+
+  if (thousands === 1) result += "いっせん";
+  else if (thousands === 3) result += "さんぜん";
+  else if (thousands === 8) result += "はっせん";
+  else if (thousands > 0) result += DIGIT_READING[thousands] + "せん";
+
+  if (hundreds === 1) result += "ひゃく";
+  else if (hundreds === 3) result += "さんびゃく";
+  else if (hundreds === 6) result += "ろっぴゃく";
+  else if (hundreds === 8) result += "はっぴゃく";
+  else if (hundreds > 0) result += DIGIT_READING[hundreds] + "ひゃく";
+
+  if (tens === 1) result += "じゅう";
+  else if (tens > 0) result += DIGIT_READING[tens] + "じゅう";
+
+  if (ones > 0) result += DIGIT_READING[ones];
+
+  return result;
+}
+
+// Unit name for each successive 4-digit group, read right-to-left (standard
+// Japanese numeral grouping is base-10000, not base-1000 like English) —
+// covers anything a real subtitle could plausibly contain, and degrades to no
+// suffix at all rather than throwing if a number somehow runs past 京.
+const GROUP_UNITS = ["", "まん", "おく", "ちょう", "けい"];
+
+// Synthesizes a reading for an arbitrary non-negative integer string (ASCII
+// or full-width digits) — the fallback lookupWord (background.js) reaches for
+// only once a direct JMdict lookup misses. jmdict-compact.json already has
+// real entries for 0-9, most round tens/hundreds/thousands, and 10000 (see
+// DIGIT_READING/readFourDigitGroup comments) — this covers everything else
+// (24, 456, 2019, ...), which is an unbounded combinatorial space no static
+// dictionary could enumerate, unlike the finite set of round numbers JMdict
+// itself carries.
+function numberToReading(digitStr) {
+  const halfwidth = digitStr.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+  const trimmed = halfwidth.replace(/^0+(?=\d)/, "");
+  if (trimmed === "0") return "れい";
+
+  const groups = [];
+  let remaining = trimmed;
+  while (remaining.length > 0) {
+    const chunk = remaining.length > 4 ? remaining.slice(-4) : remaining;
+    groups.unshift(parseInt(chunk, 10));
+    remaining = remaining.length > 4 ? remaining.slice(0, -4) : "";
+  }
+
+  let result = "";
+  for (let idx = 0; idx < groups.length; idx++) {
+    const value = groups[idx];
+    if (value === 0) continue;
+    const unitIdx = groups.length - 1 - idx;
+    // 万/億/兆/京 keep an explicit "one" (10000 → いちまん) — unlike 十/百,
+    // which drop it — confirmed against jmdict-compact.json's own "10000"
+    // entry (いちまん, not just まん).
+    const groupReading = unitIdx > 0 && value === 1 ? "いち" : readFourDigitGroup(value);
+    result += groupReading + (GROUP_UNITS[unitIdx] ?? "");
+  }
+  return result;
+}
+
 // Returns true for a 動詞 token that is a contracted te-form auxiliary:
 // てる/てた/てく/てき = contracted ている/ていた/ていく/てくる.
 // Only て-starting contractions are checked here; voiced-stem contractions
@@ -216,13 +375,49 @@ function groupTokens(tokens, fuseSpans = []) {
       const span = fuseSpans[fuseIdx];
       let surface = "";
       for (let k = span.start; k <= span.end; k++) surface += tokens[k].surface_form;
-      groups.push({ surface, word: span.lookupText, inflections: [], tokenStart: span.start, tokenEnd: span.end });
+      // pos: "__phraseFuse" (2026-07-06) — a sentinel, not a real kuromoji
+      // tag. A fused phrase span (からといって, じゃない, んだ, そうか) has no
+      // single natural kuromoji POS to inherit (それ's constituent tokens can
+      // be any mix of 副詞/助詞/etc.), but without SOME `pos` value,
+      // background.js's existing kuromoji-POS-to-JMdict-POS-category filter
+      // (`POS_CATEGORY_MATCHERS`) never activates for phrase-fused words at
+      // all — confirmed real bug: そうか (always reached via this fuse path,
+      // never a single kuromoji token) showed unrelated noun homographs
+      // (層化, 装花) alongside its real "is that so?" sense with no filtering.
+      // See `POS_CATEGORY_MATCHERS["__phraseFuse"]` in background.js.
+      groups.push({ surface, word: span.lookupText, inflections: [], pos: "__phraseFuse", tokenStart: span.start, tokenEnd: span.end });
       i = span.end + 1;
       fuseIdx++;
       continue;
     }
 
     const token = tokens[i];
+
+    // Numeral runs (Arabic digit glyphs) — handled before the JAPANESE_WORD_RE
+    // check below, since digits are outside that regex's ranges entirely and
+    // would otherwise fall into the "not a Japanese word" branch and render
+    // as plain, non-clickable text. kuromoji tokenizes a half-width run as
+    // ONE token (23 → one "23" token) but a full-width run digit-by-digit
+    // (２３ → "２" + "３"), so adjacent numeral tokens are merged into one
+    // surface here before lookup — background.js supplies the reading
+    // (a real JMdict lookup first, a synthesized one via numberToReading as
+    // the fallback), same two-step pattern as every other lookupWord fallback.
+    if (NUMERAL_ONLY_RE.test(token.surface_form)) {
+      let j = i;
+      let surface = "";
+      while (
+        j < tokens.length &&
+        NUMERAL_ONLY_RE.test(tokens[j].surface_form) &&
+        (fuseIdx >= fuseSpans.length || j < fuseSpans[fuseIdx].start)
+      ) {
+        surface += tokens[j].surface_form;
+        j++;
+      }
+      groups.push({ surface, word: surface, inflections: [], tokenStart: i, tokenEnd: j - 1 });
+      i = j;
+      continue;
+    }
+
     if (!JAPANESE_WORD_RE.test(token.surface_form)) {
       groups.push({ surface: token.surface_form, word: null, tokenStart: i, tokenEnd: i });
       i++;
@@ -251,6 +446,38 @@ function groupTokens(tokens, fuseSpans = []) {
       }
       if (hasProperNoun) {
         groups.push({ surface, word: null, tokenStart: i, tokenEnd: j - 1 });
+        i = j;
+        continue;
+      }
+    }
+
+    // Multi-kanji personal/place-name run fusion (2026-07-05): kuromoji often
+    // only recognizes the SURNAME half of a full name as 固有名詞, while the
+    // given-name half — frequently not itself in IPADIC's proper-noun list —
+    // falls through as ordinary kanji it happens to also know as ordinary
+    // words (伊地知虹夏 → 伊地知(固有名詞) + 虹("rainbow", 一般) + 夏("summer",
+    // 一般)). Left unmerged, each half is independently clickable and shows a
+    // REAL but WRONG, misleading definition for what's actually just part of
+    // a person's given name — same shape of bug as the katakana proper-noun
+    // case above (フリーレン → フリー + レン), but for kanji. Anchored on a
+    // 固有名詞-tagged token (kuromoji's own signal that something here is a
+    // name — always the first fragment, since Japanese names are always
+    // surname-first and surnames are far more likely to be IPADIC-recognized
+    // than an arbitrary given name) and extends through adjacent tokens via
+    // extendsNameRun (see above). The whole run becomes ONE lookup unit
+    // regardless of whether the fused span has a real JMdict entry: a real
+    // coincidental hit (胡桃, also the common word for "walnut") shows
+    // normally; a miss still shows one honest "no dictionary entry" message
+    // instead of two disconnected wrong ones — matching the already-decided
+    // kanji-proper-noun UX (2026-07-04), which prefers an honest miss over
+    // suppressing the click entirely.
+    if (token.pos === "名詞" && token.pos_detail_1 === "固有名詞" && KANJI_ONLY_RE.test(token.surface_form)) {
+      const boundedTokens = fuseIdx < fuseSpans.length ? tokens.slice(0, fuseSpans[fuseIdx].start) : tokens;
+      const j = findNameRunEnd(boundedTokens, i);
+      if (j > i + 1) {
+        let surface = "";
+        for (let k = i; k < j; k++) surface += tokens[k].surface_form;
+        groups.push({ surface, word: surface, inflections: [], tokenStart: i, tokenEnd: j - 1 });
         i = j;
         continue;
       }
@@ -927,5 +1154,10 @@ if (typeof process !== "undefined") {
     collapseVowelElongation,
     derivePotentialFormBase,
     selectPotentialFormMatches,
+    NUMERAL_ONLY_RE,
+    normalizeDigitsToFullwidth,
+    numberToReading,
+    KANJI_ONLY_RE,
+    findNameRunEnd,
   };
 }

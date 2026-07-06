@@ -21,13 +21,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 ## Current phase & priorities
 
 **Phase 4 — Sync tooling & multi-show validation.** See `project-plan.md` Section 6 for the full done/remaining breakdown. Top priority right now:
-1. Live re-test the grouping-pipeline rebuild against real Crunchyroll — Bocchi the Rock! ep 1 pass done, Frieren and One Piece still need theirs (see Build Order for what shipped since the last pass).
-2. **The manual subtitle upload fallback is the one remaining build item and is a hard gate on Phase 5** — it must ship before Anki export work starts.
-3. Once Phase 4 is stable and the manual upload fallback ships, Phase 5 starts with the DRM feasibility test (`project-plan.md` Section 8, Ongoing — "Audio/screenshot Anki fields").
+1. All Phase 4 build work is done again (kanji-spelling filtering by rK/sK/oK/iK tags, the そうか phrase-fuse POS-filter fix, and verb-type-implied archaism tagging all shipped 2026-07-06) — the only remaining item is the live re-test itself: Bocchi ep 1 done, Frieren rounds done, Naruto: Shippuuden ep 1 up next (swapped in for One Piece, then for the original Naruto series, both same day — see `project-plan.md` Decisions Log 2026-07-06). `content.js`'s `SHOW_QUERY`/`EPISODE`/`FILE_HINT` are already pointed at it.
+2. Once this Phase 4 testing pass wraps, a new **Phase 4.5 — Jimaku integration** now sits between Phase 4 and Phase 5 (added 2026-07-05, planning session) — see `project-plan.md` Section 6 for its full task list (show/episode auto-detection first, then ranked subtitle selection, auto-select, switcher panel, and per-show-per-season uploader memory). Phase 5 (Anki export, starting with the DRM feasibility test) now follows Phase 4.5, not Phase 4 directly.
 
 `JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
 
-Don't start Phase 5 or 6 work ahead of this unless explicitly told to — check `project-plan.md` Section 6 for the current phase marker if unsure.
+Don't start Phase 4.5, 5, or 6 work ahead of finishing the current Phase 4 testing pass unless explicitly told to — check `project-plan.md` Section 6 for the current phase marker if unsure.
 
 ## Scope guardrails — do not build these unless asked
 

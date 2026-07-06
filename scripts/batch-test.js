@@ -30,6 +30,11 @@ const {
   applyKatakanaUnsuppress,
   derivePotentialFormBase,
   selectPotentialFormMatches,
+  NUMERAL_ONLY_RE,
+  normalizeDigitsToFullwidth,
+  numberToReading,
+  KANJI_ONLY_RE,
+  findNameRunEnd,
 } = require("../tokenize-utils.js");
 
 // ── paths ─────────────────────────────────────────────────────────────────────
@@ -302,8 +307,62 @@ function detectPotentialFormResolutions(groups, jmdict) {
     if (!base) continue;
     const candidates = selectPotentialFormMatches(jmdict.index[base] ?? [], jmdict);
     if (candidates.length > 0) {
-      hits.push({ surface: g.surface, wordLookedUp: g.word, resolvedBase: base, gloss: jmdict.entries[candidates[0]].g });
+      // .flat() — g is grouped by sense (array of arrays, since 2026-07-06);
+      // flattened here purely for a readable one-line report entry.
+      hits.push({ surface: g.surface, wordLookedUp: g.word, resolvedBase: base, gloss: jmdict.entries[candidates[0]].g.flat() });
     }
+  }
+  return hits;
+}
+
+// Pattern 10 — numeral runs (2026-07-05 fix). groupTokens now merges Arabic
+// digit runs (half- or full-width) into one clickable unit instead of leaving
+// them as plain, non-clickable text — reports the reading each one resolves
+// to (a direct JMdict lookup for the ones jmdict-compact.json already
+// carries, e.g. round numbers, or numberToReading's synthesized reading
+// otherwise) so a corpus-scale sanity check exists before trusting either
+// path broadly, same validation shape as Pattern 8/9.
+function detectNumerals(groups, jmdict) {
+  const hits = [];
+  for (const g of groups) {
+    if (g.word === null) continue;
+    if (!NUMERAL_ONLY_RE.test(g.word)) continue;
+
+    const idxs = jmdict.index[normalizeDigitsToFullwidth(g.word)] ?? [];
+    if (idxs.length > 0) {
+      hits.push({ surface: g.surface, source: "jmdict", reading: jmdict.entries[idxs[0]].r });
+    } else {
+      hits.push({ surface: g.surface, source: "synthesized", reading: numberToReading(g.word) });
+    }
+  }
+  return hits;
+}
+
+// Pattern 11 — multi-kanji personal/place-name run fusion (2026-07-05 fix).
+// Calls findNameRunEnd directly on RAW tokens (the same anchor + extend logic
+// groupTokens itself uses) rather than inferring fusions from final grouped
+// output — the general phrase-matcher's own noun+noun fuse (王都, etc.) can
+// independently produce the exact same group shape (multi-token, kanji-only,
+// word === surface), which would double-count work this rule didn't actually
+// do. Reports whether the fused span has a real JMdict entry so both
+// outcomes (a coincidental hit like 胡桃, or an honest "no entry" for an
+// ordinary personal name) are visible for eyeballing — and so a corpus-scale
+// check exists for the false positive this rule's length-gated design was
+// built to avoid: sweeping a legitimate place-name + common-noun compound
+// (下北沢高校) into one no-entry unit instead of leaving it correctly split.
+function detectNameFusions(tokens, jmdict) {
+  const hits = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.pos !== "名詞" || t.pos_detail_1 !== "固有名詞" || !KANJI_ONLY_RE.test(t.surface_form)) continue;
+    const j = findNameRunEnd(tokens, i);
+    if (j <= i + 1) continue;
+
+    let surface = "";
+    for (let k = i; k < j; k++) surface += tokens[k].surface_form;
+    const idxs = jmdict.index[surface] ?? [];
+    hits.push({ surface, hasEntry: idxs.length > 0 });
+    i = j - 1;
   }
   return hits;
 }
@@ -337,13 +396,15 @@ async function main() {
       phraseDualView:      { label: "Pattern 7 — Phrase-match dual-view notes attached (individual tokens stay clickable)", count: 0, examples: [] },
       katakanaUnsuppress:  { label: "Pattern 8 — Katakana proper-noun un-suppression applied (check for false-positive un-suppressions)", count: 0, examples: [] },
       potentialForm:       { label: "Pattern 9 — Godan potential-form fallback resolutions (check for false-positive reverse-conjugations)", count: 0, examples: [] },
+      numeral:             { label: "Pattern 10 — Numeral runs resolved (check readings for correctness)", count: 0, examples: [] },
+      nameFusion:          { label: "Pattern 11 — Multi-kanji name-run fusions applied (check for false-positive compound-noun fusions)", count: 0, examples: [] },
     },
   };
 
-  // kanaMerge/phraseMerge/phraseDualView/katakanaUnsuppress/potentialForm
+  // kanaMerge/phraseMerge/phraseDualView/katakanaUnsuppress/potentialForm/numeral/nameFusion
   // examples are uncapped — verifying every merge/resolution for false
   // positives is the point of these patterns, not just sampling a few.
-  const UNCAPPED_PATTERNS = new Set(["kanaMerge", "phraseMerge", "phraseDualView", "katakanaUnsuppress", "potentialForm"]);
+  const UNCAPPED_PATTERNS = new Set(["kanaMerge", "phraseMerge", "phraseDualView", "katakanaUnsuppress", "potentialForm", "numeral", "nameFusion"]);
   function record(key, lineText, detail) {
     const p = report.patterns[key];
     p.count++;
@@ -387,6 +448,8 @@ async function main() {
         for (const hit of dualViewHits)                         record("phraseDualView", text, hit);
         for (const hit of detectKatakanaUnsuppress(groups, jmdict)) record("katakanaUnsuppress", text, hit);
         for (const hit of detectPotentialFormResolutions(groups, jmdict)) record("potentialForm", text, hit);
+        for (const hit of detectNumerals(groups, jmdict))       record("numeral", text, hit);
+        for (const hit of detectNameFusions(tokens, jmdict))    record("nameFusion", text, hit);
       }
 
       console.log(`  → ${linesThisEp} lines tokenized`);

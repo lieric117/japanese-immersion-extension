@@ -6,9 +6,16 @@ importScripts("subtitle-parser.js", "tokenize-utils.js");
 
 const JIMAKU_API_BASE = "https://jimaku.cc/api";
 
+// Archive files (bulk multi-episode downloads) can't be parsed as subtitle
+// text directly — same filter already used in scripts/batch-test.js, ported
+// here since production fetchSubtitles never had it (confirmed real gap
+// 2026-07-06: Naruto ep 1's Jimaku files list a .zip as its first entry,
+// which `files[0]` would have picked blindly and failed to parse).
+const ARCHIVE_RE = /\.(7z|zip|rar|gz|tar|bz2)$/i;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_SUBTITLES") {
-    fetchSubtitles(message.query, message.episode)
+    fetchSubtitles(message.query, message.episode, message.fileHint)
       .then((cues) => sendResponse({ cues }))
       .catch((error) => sendResponse({ error: error.message }));
     return true; // keep the message channel open for the async response
@@ -31,7 +38,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-async function fetchSubtitles(query, episode) {
+async function fetchSubtitles(query, episode, fileHint = null) {
   const { jimakuApiKey } = await chrome.storage.local.get("jimakuApiKey");
   if (!jimakuApiKey) {
     throw new Error(
@@ -71,7 +78,29 @@ async function fetchSubtitles(query, episode) {
   if (!files.length) {
     throw new Error(`No subtitle file found for episode ${episode}`);
   }
-  const file = files[0];
+  const textFiles = files.filter((f) => !ARCHIVE_RE.test(f.name));
+  if (!textFiles.length) {
+    throw new Error(
+      `Only archive files found for episode ${episode} (${files
+        .map((f) => f.name)
+        .join(", ")}) — use the manual upload fallback instead`
+    );
+  }
+  // Optional manual override for picking a specific file among several
+  // candidates Jimaku returns for the same requested episode — needed since
+  // Jimaku's own per-file episode tagging isn't always reliable. Confirmed
+  // real 2026-07-06: a Hulu-sourced batch upload for Naruto: Shippuuden
+  // tags an entire season's worth of files (each using a per-season
+  // "SxxE01" restart numbering, e.g. S07E01 = 第144話, episode 144) as
+  // "episode 1" — the unfiltered first-match pick would silently grab the
+  // wrong episode's subtitles. `fileHint` (a case-insensitive filename
+  // substring) is a stopgap for exactly this until Phase 4.5's real ranked
+  // "best subtitle" selection ships — falls back to the first text file
+  // when no hint is given or nothing matches, same as before.
+  const hinted = fileHint
+    ? textFiles.find((f) => f.name.toLowerCase().includes(fileHint.toLowerCase()))
+    : null;
+  const file = hinted ?? textFiles[0];
 
   const fileRes = await fetch(file.url, { headers });
   if (!fileRes.ok) {
@@ -115,6 +144,15 @@ const POS_CATEGORY_MATCHERS = {
   感動詞: (p) => p === "int",
   接頭詞: (p) => p.startsWith("n-pref") || p === "pref",
   助動詞: (p) => p.startsWith("aux"),
+  // Not a real kuromoji tag — tokenize-utils.js's groupTokens sets this
+  // sentinel `pos` on every phrase-matcher fuse-outcome group (からといって,
+  // じゃない, んだ, そうか), since a fused span covering multiple raw tokens of
+  // possibly-mixed POS has no single natural kuromoji category to inherit.
+  // JMdict's own "exp"/"int" codes are the closest fit for a fused
+  // colloquial phrase/expression — confirmed real fix for そうか, which
+  // otherwise showed unrelated noun homographs (層化, 装花) sharing the same
+  // reading with no filtering applied at all (2026-07-06).
+  __phraseFuse: (p) => p === "exp" || p === "int",
 };
 
 // normalizeHalfwidthKatakana is defined in tokenize-utils.js (imported above)
@@ -123,10 +161,43 @@ const POS_CATEGORY_MATCHERS = {
 // at the JMdict-index-lookup layer even though content.js now also
 // normalizes the raw subtitle text up front (fixes half-width display).
 
+// Formats a digit string (half- or full-width) as a comma-grouped gloss
+// (1234 → "1,234") — Western thousands-grouping, since the gloss is the
+// popup's English-facing side, distinct from the reading's Japanese
+// base-10000 grouping (see numberToReading in tokenize-utils.js).
+function formatNumberGloss(digitStr) {
+  const halfwidth = digitStr.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+  const trimmed = halfwidth.replace(/^0+(?=\d)/, "");
+  return trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 async function lookupWord(word, isParticle = false, pos = null) {
   const jmdict = await loadJmdict();
   word = normalizeHalfwidthKatakana(word);
+  // jmdict-compact.json's own numeral entries (0-9, most round tens/hundreds/
+  // thousands, 10000) are indexed under full-width digit glyphs, not the
+  // ASCII ones a subtitle actually contains — same normalize-for-lookup-only
+  // pattern as normalizeHalfwidthKatakana above.
+  if (NUMERAL_ONLY_RE.test(word)) word = normalizeDigitsToFullwidth(word);
   let entryIndexes = jmdict.index[word] ?? [];
+  if (entryIndexes.length === 0 && NUMERAL_ONLY_RE.test(word)) {
+    // Fallback only, same shape as every other lookupWord fallback: JMdict
+    // only carries entries for a finite set of round numbers (confirmed
+    // against the compact file directly) — any other digit combination
+    // (24, 456, 2019, ...) gets a synthesized reading instead of a real
+    // dictionary hit. numberToReading is a closed, deterministic algorithm
+    // (standard Japanese numeral construction, including the real sound-change
+    // irregulars for 百/千 — see tokenize-utils.js), not a per-number lookup
+    // table, so it needs no maintenance as new numbers show up in dialogue.
+    return {
+      // g is grouped by sense (array of arrays, since 2026-07-06) — a single
+      // synthesized "sense" containing one gloss, matching jmdict-compact.json's
+      // real entries' shape so content.js's numbered-gloss rendering works
+      // the same way for both.
+      results: [{ r: numberToReading(word), g: [[formatNumberGloss(word)]], p: ["num"] }],
+      posTags: jmdict.posTags,
+    };
+  }
   if (entryIndexes.length === 0) {
     // Fallback only, never applied to an already-successful lookup: a small
     // vowel written directly after its own large-vowel counterpart (おぉ) is a

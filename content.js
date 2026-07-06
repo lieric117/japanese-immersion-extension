@@ -2,15 +2,16 @@
 // click a word to see its reading + definition (JMdict, looked up in the
 // background worker). Search-by-show UI still doesn't exist — hardcoded.
 
-const SHOW_QUERY = "Bocchi the Rock!";
+const SHOW_QUERY = "Naruto: Shippuuden";
 const EPISODE = 1;
+// This entry's Jimaku files include a whole season's worth of "SxxE01"
+// per-season-restart-numbered releases all mistagged as "episode 1" — the
+// only one that's actually episode 1 has "S01E01" in its name (see
+// background.js's fetchSubtitles fileHint param, added 2026-07-06).
+const FILE_HINT = "S01E01";
 
 // JAPANESE_WORD_RE and groupTokens live in tokenize-utils.js (loaded before
 // this file by the manifest) so the batch-testing script can import them too.
-
-// Matches kanji only — used to decide whether a headword needs furigana at
-// all (a kana-only word doesn't need its own reading annotated above it).
-const KANJI_RE = /[㐀-鿿]/;
 
 let tokenizer = null;
 let cues = null;
@@ -34,6 +35,15 @@ const SPEAKER_PREFIX_RE = /^(?:[（(][^）)]{1,12}[）)]|[^:：\n]{1,12}[:：])\
 // contents are pure hiragana, so it doesn't touch stage directions or other
 // asides that aren't a reading annotation.
 const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んー]+)[）)]/g;
+
+// Fansub-provider markup with no linguistic content, stripped globally
+// (unlike STAGE_RE above, which only matches a parenthetical that's the
+// WHOLE line): ➡ continuation-into-next-cue arrows, 》 bracket markers,
+// 📺 TV-dialogue emoji, and a 🎵〜 music-note marker. 〜 on its own (not
+// preceded by 🎵) is left alone — it's a real vowel-elongation convention
+// elsewhere in ordinary dialogue, not fansub markup. 「」 quote brackets are
+// real Japanese orthographic punctuation and are never touched.
+const FANSUB_MARKUP_RE = /[➡》📺]|🎵〜?/gu;
 
 // Short, learner-facing POS chip labels — cuts kokugo-grammar-school jargon
 // ((futsuumeishi), (keiyoushi), etc.) that's redundant with the plain-language
@@ -280,45 +290,55 @@ function init() {
     updateOffsetDisplay();
   });
 
+  // Attached once, unconditionally — reads from the shared `cues` variable so
+  // either a Jimaku fetch or a manual file upload (see buildUploadControl)
+  // can populate it interchangeably, without each needing its own listener.
+  let lastText = null;
+  video.addEventListener("timeupdate", () => {
+    if (!cues) return;
+    const adjustedTime = video.currentTime - offset;
+    // ASS files often split one visual subtitle across multiple simultaneous
+    // Dialogue events — collect all that match the current time and join them.
+    const text = cues
+      .filter((c) => adjustedTime >= c.start && adjustedTime <= c.end)
+      .map((c) => c.text.trim())
+      .filter((t) => t && !STAGE_RE.test(t))
+      .map((t) => t.replace(SPEAKER_PREFIX_RE, "").trim())
+      .map((t) => t.replace(INLINE_FURIGANA_RE, "$1"))
+      .map((t) => t.replace(FANSUB_MARKUP_RE, "").trim())
+      .filter((t) => t)
+      // Normalizes half-width katakana (some fansub releases, e.g.
+      // VCB-Studio, encode katakana this way) to full-width BEFORE
+      // tokenization — the 2026-07-01 fix only normalized at the JMdict
+      // lookup layer, so a half-width word resolved correctly on click
+      // but still displayed half-width on screen (スマホ shown as ｽﾏﾎ).
+      .map((t) => normalizeHalfwidthKatakana(t))
+      .join("\n");
+    if (text === lastText) return;
+    lastText = text;
+    renderCue(subtitleBox, text);
+  });
+
   chrome.runtime.sendMessage(
-    { type: "FETCH_SUBTITLES", query: SHOW_QUERY, episode: EPISODE },
+    { type: "FETCH_SUBTITLES", query: SHOW_QUERY, episode: EPISODE, fileHint: FILE_HINT },
     (response) => {
       if (!response) {
         subtitleBox.textContent = "Extension error: no response from background.";
         return;
       }
       if (response.error) {
-        subtitleBox.textContent = `Subtitle error: ${response.error}`;
+        subtitleBox.textContent = `Subtitle error: ${response.error} — use "Upload subtitle file" below if Jimaku has nothing for this show.`;
         return;
       }
-
       cues = response.cues;
-      let lastText = null;
-
-      video.addEventListener("timeupdate", () => {
-        const adjustedTime = video.currentTime - offset;
-        // ASS files often split one visual subtitle across multiple simultaneous
-        // Dialogue events — collect all that match the current time and join them.
-        const text = cues
-          .filter((c) => adjustedTime >= c.start && adjustedTime <= c.end)
-          .map((c) => c.text.trim())
-          .filter((t) => t && !STAGE_RE.test(t))
-          .map((t) => t.replace(SPEAKER_PREFIX_RE, "").trim())
-          .map((t) => t.replace(INLINE_FURIGANA_RE, "$1"))
-          .filter((t) => t)
-          // Normalizes half-width katakana (some fansub releases, e.g.
-          // VCB-Studio, encode katakana this way) to full-width BEFORE
-          // tokenization — the 2026-07-01 fix only normalized at the JMdict
-          // lookup layer, so a half-width word resolved correctly on click
-          // but still displayed half-width on screen (スマホ shown as ｽﾏﾎ).
-          .map((t) => normalizeHalfwidthKatakana(t))
-          .join("\n");
-        if (text === lastText) return;
-        lastText = text;
-        renderCue(subtitleBox, text);
-      });
     }
   );
+
+  const uploadControl = buildUploadControl(video);
+  getContainer().appendChild(uploadControl);
+  document.addEventListener("fullscreenchange", () => {
+    getContainer().appendChild(uploadControl);
+  });
 
   document.addEventListener("click", (event) => {
     if (activePopup && !activePopup.contains(event.target) && !event.target.classList.contains("jp-immersion-word")) {
@@ -361,6 +381,64 @@ function buildOffsetControl() {
   reset.addEventListener("click", () => setOffset(0));
 
   control.append(dec, value, inc, reset);
+  return control;
+}
+
+// Manual subtitle upload fallback (2026-07-06) — for shows Jimaku has zero
+// entries for at all, or a per-episode override when the auto-fetched file
+// is wrong/missing. Feeds a local .srt/.ass file into the same
+// parseSrt/parseAss already built in Phase 2 for Jimaku-sourced files (now
+// also loaded as a content script, see manifest.json) — no new parsing
+// logic, just a new input path alongside the existing FETCH_SUBTITLES one.
+// Always visible (not just shown on a Jimaku failure), since a per-episode
+// override is a real, expected use case even when Jimaku succeeds.
+function buildUploadControl(video) {
+  const control = document.createElement("div");
+  control.id = "jp-immersion-upload";
+
+  const label = document.createElement("label");
+  label.textContent = "Upload subtitle file (.srt/.ass): ";
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".srt,.ass,.ssa";
+
+  const status = document.createElement("span");
+  status.id = "jp-immersion-upload-status";
+
+  input.addEventListener("change", () => {
+    const file = input.files[0];
+    if (!file) return;
+    status.textContent = "Loading…";
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const isAss = /\.(ass|ssa)$/i.test(file.name);
+        const parsedCues = isAss ? parseAss(reader.result) : parseSrt(reader.result);
+        if (!parsedCues.length) {
+          status.textContent = `No cues found in "${file.name}" — check the file is a valid .srt/.ass.`;
+          return;
+        }
+        cues = parsedCues;
+        status.textContent = `Loaded "${file.name}" (${parsedCues.length} cues).`;
+        // Forces an immediate re-render using the existing timeupdate
+        // listener (see init()) rather than waiting for the video to fire
+        // its own next timeupdate — otherwise a paused video shows no
+        // change until the user seeks or presses play.
+        video.dispatchEvent(new Event("timeupdate"));
+      } catch (err) {
+        status.textContent = `Failed to parse "${file.name}": ${err.message}`;
+      }
+    };
+    reader.onerror = () => {
+      status.textContent = `Failed to read "${file.name}".`;
+    };
+    reader.readAsText(file);
+  });
+
+  label.appendChild(input);
+  control.append(label, status);
   return control;
 }
 
@@ -574,6 +652,20 @@ function onWordClick(event) {
 const ARCHAIC_MISC_LABELS = { arch: "archaic", obs: "obsolete", dated: "dated" };
 const ARCHAIC_READING_TAGS = new Set(["ok", "ik"]);
 
+// Yodan/Nidan conjugation-class POS codes (v4*/v2*) are pre-modern-only
+// grammar — JMdict's own posTags map labels literally every one of them
+// "(archaic)" (confirmed by inspecting the full map, not assumed from just
+// v4r/v2r-s) — the same real signal as an explicit misc `arch` tag, just
+// carried on `p` instead of `m`. Real entries exist with a v4/v2 code and NO
+// explicit misc tag at all (confirmed: 捧ぐ/ささぐ, v2g-s, carries no `m`) —
+// these previously fell through to silent demotion despite the POS chip
+// itself already showing "(archaic)". Checked only as a FALLBACK, after the
+// explicit m/ki checks, so an entry with its own real tag isn't overridden —
+// one tag shown, sourced from whichever signal fired first.
+function isArchaicVerbType(entry) {
+  return entry.p?.some((p) => p.startsWith("v4") || p.startsWith("v2")) ?? false;
+}
+
 // Duplicate-gloss homographs (酒 → さけ vs 酒 → ささ, both "alcohol; sake"; 君
 // → きみ vs 君 → きんじ, both "you") otherwise show as separate, equal-weight
 // cards with no indication one is the rare/dated reading. Checked against the
@@ -586,21 +678,41 @@ function archaicTagLabel(entry) {
     if (ARCHAIC_MISC_LABELS[code]) return ARCHAIC_MISC_LABELS[code];
   }
   if (entry.ki?.some((t) => ARCHAIC_READING_TAGS.has(t))) return "dated reading";
+  if (isArchaicVerbType(entry)) return "archaic";
   return null;
 }
+
+// True when `word` (the surface actually clicked/looked up) has no kanji of
+// its own — the only case where showing an entry's kanji spelling(s) next to
+// the header adds information rather than just repeating what's already
+// visible in the ruby headword itself.
+const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
 function renderEntries(container, word, results) {
   const seenFirstGloss = new Set();
   for (const entry of results.slice(0, 3)) {
-    const { r, g, p, c } = entry;
+    const { r, g, p, c, k } = entry;
 
     // A later entry sharing its first gloss with one already shown above is
     // very likely the same core meaning under a rarer/alternate reading, not
-    // a genuinely distinct sense worth equal billing — tag it with a real
-    // JMdict-sourced label when one exists, or visually demote it otherwise.
-    const isDuplicate = g[0] !== undefined && seenFirstGloss.has(g[0]);
-    seenFirstGloss.add(g[0]);
-    const tagLabel = isDuplicate ? archaicTagLabel(entry) : null;
+    // a genuinely distinct sense worth equal billing — visually demote it
+    // unless a real JMdict-sourced label explains why (checked below).
+    // g is grouped by sense (array of arrays, since 2026-07-06) — g[0]?.[0]
+    // is still the entry's first/primary gloss string.
+    const firstGloss = g[0]?.[0];
+    const isDuplicate = firstGloss !== undefined && seenFirstGloss.has(firstGloss);
+    seenFirstGloss.add(firstGloss);
+    // archaicTagLabel checked unconditionally, not just for duplicates
+    // (2026-07-06 fix): a real archaic/dated/obsolete signal is worth
+    // showing on ANY card, not only ones that happen to collide with an
+    // earlier card's first gloss — confirmed real gap via live testing (呉る,
+    // こかす/倒す both have their own distinct first gloss, so isDuplicate was
+    // always false for them, and the verb-type-implied archaic signal never
+    // got a chance to render at all despite their own POS chip already
+    // reading "(archaic)"). Demotion, unlike the tag, still only applies to
+    // genuine duplicates — an ordinary non-duplicate entry with no archaic
+    // signal stays a normal, undemoted card.
+    const tagLabel = archaicTagLabel(entry);
     const demoted = isDuplicate && !tagLabel;
 
     const cardEl = document.createElement("div");
@@ -609,6 +721,17 @@ function renderEntries(container, word, results) {
     const headerRow = document.createElement("div");
     headerRow.className = "jp-immersion-popup-header-row";
     headerRow.appendChild(buildHeadword(word, r));
+    // Homograph cards reached via a kana-only lookup (いる → 居る/入る/要る)
+    // otherwise show identical kana headers with no way to tell them apart
+    // at a glance — show the entry's own kanji spelling(s) as extra context.
+    // Skipped when `word` already has its own kanji (already visible in the
+    // ruby headword itself, so this would just repeat it).
+    if (k && k.length > 0 && NO_KANJI_RE.test(word)) {
+      const kanjiSpan = document.createElement("span");
+      kanjiSpan.className = "jp-immersion-popup-kanji-spelling";
+      kanjiSpan.textContent = k.join("・");
+      headerRow.appendChild(kanjiSpan);
+    }
     if (c) {
       const badge = document.createElement("span");
       badge.className = "jp-immersion-popup-common-badge";
@@ -633,21 +756,42 @@ function renderEntries(container, word, results) {
       }
     }
 
-    const gloss = document.createElement("div");
-    gloss.className = "jp-immersion-popup-gloss";
-    gloss.textContent = g.join("; ");
-    cardEl.appendChild(gloss);
+    // Numbered per-sense gloss list (2026-07-06) — g's sense boundaries
+    // (added the same day, see jmdict-compact.json's generation script) let
+    // each sense render as its own numbered row instead of one flattened,
+    // unnumbered string. A single-sense entry still gets a bare "1." row for
+    // visual consistency rather than special-casing it away.
+    const glossList = document.createElement("div");
+    glossList.className = "jp-immersion-popup-gloss-list";
+    g.forEach((senseGlosses, i) => {
+      const row = document.createElement("div");
+      row.className = "jp-immersion-popup-gloss-row";
+      const number = document.createElement("span");
+      number.className = "jp-immersion-popup-gloss-number";
+      number.textContent = `${i + 1}.`;
+      const text = document.createElement("span");
+      text.className = "jp-immersion-popup-gloss";
+      text.textContent = senseGlosses.join("; ");
+      row.appendChild(number);
+      row.appendChild(text);
+      glossList.appendChild(row);
+    });
+    cardEl.appendChild(glossList);
     container.appendChild(cardEl);
   }
 }
 
-// `word` is the dictionary form sent to the lookup (e.g. 分かる), `reading`
-// is that specific entry's kana reading (e.g. わかる). If the word has no
-// kanji there's nothing to annotate, so it's shown as plain reading text —
-// otherwise it's rendered as furigana over the whole word, matching the
-// <ruby>kanji<rt>reading</rt></ruby> format.
+// `word` is the dictionary form sent to the lookup (e.g. 分かる, or a numeral
+// glyph run like "23"), `reading` is that specific entry's kana reading (e.g.
+// わかる, にじゅうさん). If they're identical there's nothing to annotate, so
+// it's shown as plain reading text — otherwise it's rendered as furigana over
+// the whole word, matching the <ruby>word<rt>reading</rt></ruby> format. Keyed
+// on word !== reading directly rather than "does word contain kanji": that
+// was only ever a proxy for the same check (kanji headwords always differ
+// from their kana reading) — a numeral glyph run (23 → にじゅうさん) needs the
+// same ruby treatment despite having no kanji at all.
 function buildHeadword(word, reading) {
-  if (!KANJI_RE.test(word)) {
+  if (word === reading) {
     const span = document.createElement("span");
     span.className = "jp-immersion-popup-reading";
     span.textContent = reading;
