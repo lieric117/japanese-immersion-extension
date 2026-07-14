@@ -2,13 +2,14 @@
 // click a word to see its reading + definition (JMdict, looked up in the
 // background worker). Search-by-show UI still doesn't exist — hardcoded.
 
-const SHOW_QUERY = "Naruto: Shippuuden";
+const SHOW_QUERY = "Witch Hat Atelier";
 const EPISODE = 1;
-// This entry's Jimaku files include a whole season's worth of "SxxE01"
-// per-season-restart-numbered releases all mistagged as "episode 1" — the
-// only one that's actually episode 1 has "S01E01" in its name (see
-// background.js's fetchSubtitles fileHint param, added 2026-07-06).
-const FILE_HINT = "S01E01";
+// This entry's first Jimaku file for ep 1 (Haruhana's release) is a dual
+// Chinese+Japanese sub track ("[CHS, JPN]") — background.js's fetchSubtitles
+// would silently grab it via textFiles[0] and feed mixed-language text into
+// the tokenizer. The same uploader also has a Japanese-only cut of the same
+// release ("[JPN]"), so hint toward that one instead.
+const FILE_HINT = "[JPN]";
 
 // JAPANESE_WORD_RE and groupTokens live in tokenize-utils.js (loaded before
 // this file by the manifest) so the batch-testing script can import them too.
@@ -177,6 +178,8 @@ const INFLECTION_LABELS = {
   てく: "てく (contracted ていく)",
   てき: "てき (contracted てきた/てくる)",
   なく: "ない-form, connective (negative)",
+  お: "お (honorific prefix)",
+  ご: "ご (honorific prefix)",
 };
 
 // Decided: chained/compound inflections (んだろう, etc.) don't get a
@@ -241,6 +244,24 @@ function describeInflection(inflections, pos, conjugatedForm, word) {
   }
   if (inflections.length === 1 && INFLECTION_LABELS[inflections[0]]) {
     return INFLECTION_LABELS[inflections[0]];
+  }
+  // れる/られる/せる/させる absorb ない (or its て-form/connective なく) as a
+  // SEPARATE second inflections entry (信じられない → ["られ", "ない"]) — the
+  // suffix's own surface form here is its 未然形 stem (られ/れ/せ/させ), not
+  // the INFLECTION_LABELS-keyed dictionary form (られる/れる/せる/させる), so
+  // neither the length-1 branch above nor a direct table lookup matches, and
+  // this fell through to the raw, untranslated join below (plain "られない")
+  // while every other inflection gets a plain-English label. Scoped to
+  // exactly this family+ない/なく shape, not a general chained-inflection
+  // composer — see the んだろう/んでしょう handling above for why chains don't
+  // get a synthesized label in general.
+  const PASSIVE_CAUSATIVE_STEMS = { れ: "れる", られ: "られる", せ: "せる", させ: "させる" };
+  if (
+    inflections.length === 2 &&
+    PASSIVE_CAUSATIVE_STEMS[inflections[0]] &&
+    INFLECTION_LABELS[inflections[1]]
+  ) {
+    return `${INFLECTION_LABELS[PASSIVE_CAUSATIVE_STEMS[inflections[0]]]} + ${INFLECTION_LABELS[inflections[1]]}`;
   }
   return inflections.join("");
 }
@@ -524,6 +545,10 @@ function renderAfterPhraseMerge(subtitleBox, myGeneration, groups) {
 }
 
 function renderAfterKanaMerge(subtitleBox, myGeneration, groups) {
+  // Runs unconditionally, after kana-merge has already had its chance to
+  // claim a lone っ into a real merged word (んっ) — see suppressTrailingSokuon
+  // in tokenize-utils.js for why the ordering matters.
+  groups = suppressTrailingSokuon(groups);
   const candidates = findKatakanaUnsuppressCandidates(groups);
   if (candidates.length === 0) {
     renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups);
@@ -567,6 +592,7 @@ function renderGroups(subtitleBox, groups) {
     span.dataset.surface = group.surface;
     span._inflections = group.inflections;
     span._isParticle = group.isParticle ?? false;
+    span._isHonorificSuffix = group.isHonorificSuffix ?? false;
     span._pos = group.pos ?? null;
     span._conjugatedForm = group.conjugatedForm ?? null;
     span._idiomWord = group.idiomWord ?? null;
@@ -584,6 +610,7 @@ function onWordClick(event) {
   const word = span.dataset.word;
   const inflections = span._inflections ?? [];
   const isParticle = span._isParticle ?? false;
+  const isHonorificSuffix = span._isHonorificSuffix ?? false;
   const pos = span._pos ?? null;
   const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
@@ -596,7 +623,7 @@ function onWordClick(event) {
   positionPopup(popup, span);
   activePopup = popup;
 
-  chrome.runtime.sendMessage({ type: "LOOKUP_WORD", word, isParticle, pos }, (response) => {
+  chrome.runtime.sendMessage({ type: "LOOKUP_WORD", word, isParticle, pos, isHonorificSuffix }, (response) => {
     if (!activePopup) return; // user already dismissed it
     if (!response || response.error) {
       popup.textContent = `Lookup failed: ${response?.error ?? "unknown error"}`;

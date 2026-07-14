@@ -22,7 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "LOOKUP_WORD") {
-    lookupWord(message.word, message.isParticle, message.pos)
+    lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix)
       .then(({ results, posTags }) => sendResponse({ results, posTags }))
       .catch((error) => sendResponse({ error: error.message }));
     return true;
@@ -171,7 +171,7 @@ function formatNumberGloss(digitStr) {
   return trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-async function lookupWord(word, isParticle = false, pos = null) {
+async function lookupWord(word, isParticle = false, pos = null, isHonorificSuffix = false) {
   const jmdict = await loadJmdict();
   word = normalizeHalfwidthKatakana(word);
   // jmdict-compact.json's own numeral entries (0-9, most round tens/hundreds/
@@ -230,25 +230,61 @@ async function lookupWord(word, isParticle = false, pos = null) {
   // support this. Copies the entry rather than mutating it in place — these
   // are the same shared objects cached in `jmdict.entries` across every
   // future lookup this service-worker lifetime.
-  let results = entryIndexes.map((i) => {
+  // `isDirect` — true when `word` IS this entry's own primary reading, false
+  // when it only matched via an alternate kana reading listed in `rs`. Kept
+  // alongside `display` (rather than checked against `display.r` later) since
+  // the rs-swap below overwrites `display.r` to equal `word` for ANY entry
+  // that lists it as an alternate — after that swap, r === word is true for
+  // every candidate, direct or not, so the distinction has to be captured
+  // before it's erased.
+  let candidates = entryIndexes.map((i) => {
     const entry = jmdict.entries[i];
-    if (entry.rs && entry.rs.includes(word) && entry.r !== word) {
-      return { ...entry, r: word };
-    }
-    return entry;
+    const isDirect = entry.r === word;
+    const display = entry.rs && entry.rs.includes(word) && entry.r !== word ? { ...entry, r: word } : entry;
+    return { display, isDirect };
   });
   if (isParticle) {
     // Filter to particle-sense entries only (JMdict POS code "prt").
     // Falls back to all entries if the particle isn't in the index as "prt"
     // (e.g. obscure sentence-final particles not in jmdict-compact.json).
-    const particleResults = results.filter((r) => r.p && r.p.includes("prt"));
-    if (particleResults.length > 0) results = particleResults;
+    const particleCandidates = candidates.filter((c) => c.display.p && c.display.p.includes("prt"));
+    if (particleCandidates.length > 0) candidates = particleCandidates;
+    // A particle reached only via an entry's SECONDARY kana reading (bare て
+    // matching quotative って's entry, which lists て as a colloquial-
+    // contraction alternate reading alongside its primary って) can
+    // coincidentally outrank the entry whose PRIMARY reading actually IS the
+    // word looked up (て's own plain connective entry) — both are real,
+    // correctly prt-tagged entries, so the filter above can't tell them
+    // apart. Confirmed real via live testing: 気づかなくて's て card showed
+    // quotative って's senses ("you said", "do you seriously think that")
+    // alongside the correct connective て senses. When at least one surviving
+    // candidate's own primary reading IS the word being looked up, prefer
+    // those and drop the ones reached only through an alternate — doesn't
+    // touch the rs-swap display-precision feature above (くる → 刳る), which
+    // only affects HOW an already-selected entry displays its reading, never
+    // which entries get selected.
+    const direct = candidates.filter((c) => c.isDirect);
+    if (direct.length > 0) candidates = direct;
+  } else if (isHonorificSuffix) {
+    // Mirrors the isParticle filter above, but for JMdict POS code "suf" —
+    // an honorific personal-name suffix (さん, さま, くん, ちゃん, 様, 氏, ...)
+    // shares its bare kana reading with unrelated ordinary-noun homographs
+    // far more often than not (さん alone also reaches 酸 "acid", 三 "three",
+    // 讃 "praise", ...), and the generic POS_CATEGORY_MATCHERS["名詞"] matcher
+    // below can't tell them apart — it accepts any "n"-prefixed code, which
+    // every one of those unrelated nouns also carries. Confirmed real via
+    // live testing: 仕立て屋さん's さん card showed 酸/三/讃 instead of the
+    // honorific sense. See tokenize-utils.js's isHonorificSuffix detection
+    // (kuromoji's own 名詞/接尾/人名 tagging) for the general, non-word-
+    // specific trigger.
+    const sufCandidates = candidates.filter((c) => c.display.p && c.display.p.includes("suf"));
+    if (sufCandidates.length > 0) candidates = sufCandidates;
   } else if (pos && POS_CATEGORY_MATCHERS[pos]) {
     const matcher = POS_CATEGORY_MATCHERS[pos];
-    const posResults = results.filter((r) => r.p && r.p.some(matcher));
-    if (posResults.length > 0) results = posResults;
+    const posCandidates = candidates.filter((c) => c.display.p && c.display.p.some(matcher));
+    if (posCandidates.length > 0) candidates = posCandidates;
   }
-  return { results, posTags: jmdict.posTags };
+  return { results: candidates.map((c) => c.display), posTags: jmdict.posTags };
 }
 
 // Used by content.js to check whether a run of adjacent hiragana tokens that

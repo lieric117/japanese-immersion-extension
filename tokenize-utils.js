@@ -516,10 +516,48 @@ function groupTokens(tokens, fuseSpans = []) {
     const word = token.basic_form !== "*" ? token.basic_form : token.surface_form;
     const next1 = (fuseIdx >= fuseSpans.length || i + 1 < fuseSpans[fuseIdx].start) ? tokens[i + 1] : undefined;
 
-    // Rule 0: honorific prefix + following word
+    // の tagged 名詞/非自立 (formal/dummy noun) by kuromoji is actually the
+    // nominalizer/explanatory particle の (魔法をかけるの, なれないのだ), not a
+    // real noun — IPADIC tags it this way specifically when it follows an
+    // inflected form like ない (confirmed via direct tokenizer testing
+    // 2026-07-11: なれないのだ's の comes back 名詞/非自立, while the same word
+    // after a plain verb dictionary form, かけるの, correctly comes back
+    // 助詞/終助詞 and already hits the branch above). Left unflagged, this
+    // token fell through to the general grouping logic below with
+    // pos: "名詞", so background.js's POS-category filter kept only の's noun
+    // homographs (野, 幅・布, 篦) and excluded the correct nominalizer entry
+    // entirely. Scoped to basic_form === "の" specifically — other genuine
+    // 名詞/非自立 formal nouns (こと, もの, とき, わけ, はず, ...) each have
+    // their own real headword and must NOT be treated as a particle.
+    const isDummyNoParticle = token.pos === "名詞" && token.pos_detail_1 === "非自立" && token.basic_form === "の";
+
+    // Honorific personal-name SUFFIX (さん, さま, くん, ちゃん, 様, 氏, ...) —
+    // the mirror image of Rule 0 below (which handles the honorific PREFIX
+    // お). kuromoji tags every one of these uniformly as 名詞/接尾/人名
+    // (confirmed via direct tokenizer testing 2026-07-13 across さん/さま/
+    // くん/ちゃん/様/氏 — a real, general IPADIC signal, not a per-word
+    // coincidence), distinct from a title/profession noun like 先生 that can
+    // stand alone and is tagged plain 名詞/一般 instead. Left unflagged, this
+    // token was just an ordinary standalone noun group, so background.js's
+    // generic 名詞-category filter (which accepts any "n"-prefixed JMdict
+    // code) couldn't exclude さん's unrelated ordinary-noun homographs
+    // (酸 "acid", 三 "three", 讃 "praise", ...) the way it excludes verb/
+    // adjective mismatches — all of those ARE nouns too. isHonorificSuffix
+    // flags this for background.js to filter to JMdict POS code "suf"
+    // specifically, the same shape as isParticle's "prt" filter.
+    const isHonorificSuffix = token.pos === "名詞" && token.pos_detail_1 === "接尾" && token.pos_detail_2 === "人名";
+
+    // Rule 0: honorific prefix + following word. `inflections` records the
+    // prefix's own surface text (お/ご) — added 2026-07-13, the one
+    // absorption rule with no inflection note at all before this, unlike
+    // Rule 1 (て-form), Rule 3 (auxiliary absorption), and Rule 0.6 (んだ),
+    // which all show one. Doesn't fire for words like お母さん/お客様: those
+    // are their own single lexicalized JMdict headwords (お already part of
+    // kuromoji's own basic_form), never reaching this branch at all — only a
+    // genuine strip-and-relookup case like お弁当 does.
     if (token.pos === "接頭詞" && next1 && JAPANESE_WORD_RE.test(next1.surface_form)) {
       const nextWord = next1.basic_form !== "*" ? next1.basic_form : next1.surface_form;
-      groups.push({ surface: surface0 + next1.surface_form, word: nextWord, inflections: [], pos: next1.pos, tokenStart: i, tokenEnd: i + 1 });
+      groups.push({ surface: surface0 + next1.surface_form, word: nextWord, inflections: [surface0], pos: next1.pos, tokenStart: i, tokenEnd: i + 1 });
       i += 2;
       continue;
     }
@@ -684,7 +722,10 @@ function groupTokens(tokens, fuseSpans = []) {
     // affect grouping/merge behavior, just carries a bit more of what
     // kuromoji already knows through to content.js.
     const conjugatedForm = token.conjugated_form && token.conjugated_form !== "*" ? token.conjugated_form : null;
-    groups.push({ surface, word: resolvedWord, inflections, isProperNoun, pos: token.pos, conjugatedForm, tokenStart: i, tokenEnd: j - 1 });
+    const group = { surface, word: resolvedWord, inflections, isProperNoun, pos: token.pos, conjugatedForm, tokenStart: i, tokenEnd: j - 1 };
+    if (isDummyNoParticle) group.isParticle = true;
+    if (isHonorificSuffix) group.isHonorificSuffix = true;
+    groups.push(group);
     i = j;
   }
   return groups;
@@ -954,6 +995,17 @@ function isDualViewMatch(tokens, span) {
   // position), not a hardcoded phrase list.
   const isTokiNoun = (t) => t.pos === "名詞" && t.basic_form === "時";
   if (isTokiNoun(tokens[span.start])) return true;
+  // 外 (ordinary noun "outside", e.g. 外に羽馬車が来てる "there's a carriage
+  // outside") retains a genuinely common, unrelated job far more often than
+  // the idiomatic 外に(ほかに) "else; in addition; besides" reading — same
+  // carve-out reasoning as と/時 above. Confirmed real via the raw JMdict
+  // release: 外に's own idiom entry (id 1203280) tags its 外に kanji spelling
+  // rK (rare) — real modern usage almost always writes the idiom as 他に —
+  // but jmdict-compact.json's index isn't filtered by that tag (only the
+  // display-only `k` field is), so the coincidental match still exists and
+  // was winning the fuse gate's hasFunctionPos check (its pos is exp/adv).
+  const isSotoNoun = (t) => t.pos === "名詞" && t.basic_form === "外";
+  if (isSotoNoun(tokens[span.start])) return true;
   if (hasSuspiciousFragment(tokens, span)) return false;
   return isContentToken(tokens[span.start]) && isContentToken(tokens[span.end]);
 }
@@ -1072,6 +1124,46 @@ function applyPhraseMatches(tokens, fuseSpans, dualViewSpans) {
   return groups;
 }
 
+// Trailing emphatic っ (sokuon used as a dramatic vocal cutoff — やめろっ,
+// 行けっ — never a real grammatical suffix) has no consistent kuromoji tag of
+// its own: after an imperative/conjugated verb form, IPADIC reliably
+// (confirmed across multiple real examples) emits it as a bogus standalone
+// 動詞/非自立 token with basic_form "く" — not a real word, an artifact of the
+// dictionary's internal euphonic-connector entry with nothing after it to
+// actually connect to. Left alone it was independently clickable and
+// resolved to く's unrelated homographs (句/区/九).
+//
+// Checked AFTER kana-merge (applyKanaMerges) as its own pass, not inside
+// groupTokens itself — confirmed necessary via batch-test regression
+// 2026-07-13: ん+っ is a real, distinct JMdict headword (んっ, "hm?; huh?"),
+// and kana-merge's own JMdict-existence check already correctly splices it
+// together. An earlier version of this fix suppressed the token during
+// groupTokens, before kana-merge ever ran, which silently pre-empted that
+// correct merge — kana-merge's candidate scan requires two ADJACENT,
+// non-null hiragana groups, so a っ group already absorbed away never even
+// reached it. Running this pass after kana-merge instead means a real merge
+// (んっ) has already claimed the token by the time this runs; this only ever
+// fires on a っ group that SURVIVED unmerged — either because kana-merge's
+// own existence check correctly declined the merge (やめろっ isn't its own
+// headword) or because the preceding group wasn't eligible for kana-merge to
+// begin with (a kanji-containing group like 行け in 行けっ).
+function suppressTrailingSokuon(groups) {
+  const result = [];
+  for (const g of groups) {
+    if (g.surface === "っ" && g.word === "く") {
+      const prev = result[result.length - 1];
+      if (prev && prev.word !== null) {
+        prev.surface += g.surface;
+        continue;
+      }
+      result.push({ surface: g.surface, word: null });
+      continue;
+    }
+    result.push(g);
+  }
+  return result;
+}
+
 // Catches standalone katakana names groupTokens' 固有名詞-based rule misses.
 // kuromoji's UNK handler is inconsistent about tagging unrecognized katakana
 // as 固有名詞 vs. plain 名詞/一般 — confirmed empirically: レン/ハイター got
@@ -1142,6 +1234,7 @@ if (typeof process !== "undefined") {
     JAPANESE_WORD_RE,
     findKanaMergeCandidates,
     applyKanaMerges,
+    suppressTrailingSokuon,
     findPhraseMatchCandidates,
     classifyAndSelectPhraseMatches,
     applyPhraseMatches,

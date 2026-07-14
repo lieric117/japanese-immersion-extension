@@ -10,9 +10,10 @@
 //
 // Confirmed rules (all cross-checked against the current file):
 //   - r: first kana reading (kana[0].text).
-//   - g/p/m: collected from the first 3 senses that have at least one gloss.
-//     partOfSpeech/misc codes are a deduped union across the same senses, in
-//     first-occurrence order.
+//   - g/p/m: collected from the first 3 senses that have at least one gloss
+//     (see the sense-selection budget fix below for a 2026-07-11 correction
+//     to this). partOfSpeech/misc codes are a deduped union across the same
+//     senses, in first-occurrence order.
 //   - c: true if ANY kanji or ANY kana element has common:true (not just the
 //     first of each).
 //   - index: every kanji.text AND every kana.text (all variants) point to
@@ -61,6 +62,23 @@
 //     Consumers that expect a flat array/string (content.js's duplicate-gloss
 //     first-gloss check, fix-jmdict-priority.js's fingerprint key) now read
 //     `g[0]?.[0]` instead of `g[0]`.
+//   - Sense-selection budget (g/p/m) now only spends its 3-slot budget on
+//     senses that end up VISIBLE after gloss dedup, not every sense merely
+//     considered — added 2026-07-11 after live testing on よ (JMdict id
+//     2029090) found 2 of its 4 senses being wasted (one dedup-emptied
+//     entirely, still charged against the budget) which meant the popup
+//     could only ever show 2 near-duplicate rows and never reached the
+//     entry's genuinely distinct 4th (`int`) sense. See selectSensesView.
+//   - Per-reading sense filtering for entries with `appliesToKana`
+//     restrictions — added 2026-07-11 after live testing found な/なあ (one
+//     shared JMdict entry, id 2029110) always showing な's own
+//     appliesToKana:["な"]-restricted senses ("don't"/"do") even when the
+//     reading actually being looked up was なあ. Affects 802 of 217768
+//     entries (confirmed count against the raw release); every other entry
+//     is unaffected and takes the original single-entry-per-word path. Does
+//     NOT do the symmetric fix for `appliesToKanji` restrictions (463
+//     entries) — no live-test case has shown that one actually producing a
+//     wrong card yet. See hasKanaRestriction/sensesForReading.
 // Does NOT compute `kp` (kana-primary boost) — that's a separate, already-
 // working pass (fix-jmdict-priority.js), meant to run again after this script
 // against a fresh raw-release copy.
@@ -113,19 +131,31 @@ function dedupedUnion(arraysOfCodes) {
   return result;
 }
 
-for (const w of raw.words) {
-  if (!w.kana.length) continue;
-
-  const readings = w.kana.map((k) => k.text);
-  const r = readings[0];
-
+// Builds a `{ g, p, m }` view from a (possibly pre-filtered — see
+// selectSensesByReading below) list of raw senses, applying the 3-sense
+// display budget and cross-sense gloss dedup.
+//
+// The budget is only spent on senses that actually end up VISIBLE (non-empty
+// after dedup), not on every sense merely considered — added 2026-07-11,
+// fixing a real bug found via live testing on よ (JMdict id 2029090, 4
+// senses: "hey; you" / "hey" / "hey; hold on" / int "yo; hey"). The old
+// budget-counts-everything version spent 2 of its 3 slots on sense 0 ("hey;
+// you") and sense 1 ("hey" — fully swallowed by dedup, since "hey" was
+// already seen, leaving an EMPTY g row that still cost a slot), then spent
+// its last slot on sense 2, leaving no room to ever reach sense 3 (the
+// distinct `int` "yo; hey" sense) — so the popup only ever showed 2
+// low-information, near-duplicate rows ("hey; you" / "hold on") no matter
+// which of よ's real, distinct discourse functions (assertive vs.
+// attention-getting) prompted the lookup. Now sense 1's dedup-emptied row is
+// skipped without spending a slot, so sense 3 is reached and shown too.
+function selectSensesView(senses, budget = 3) {
   const g = [];
   const gSeen = new Set();
   const pGroups = [];
-  const mGroups = [];
-  let sensesUsed = 0;
-  for (const s of w.sense) {
-    if (sensesUsed >= 3) break;
+  let firstVisibleMisc = null;
+  let sensesShown = 0;
+  for (const s of senses) {
+    if (sensesShown >= budget) break;
     if (!s.gloss.length) continue;
     const senseGlosses = [];
     for (const gl of s.gloss.slice(0, 3)) {
@@ -133,38 +163,98 @@ for (const w of raw.words) {
       gSeen.add(gl.text);
       senseGlosses.push(gl.text);
     }
-    // Counts against the 3-sense budget and contributes to p/m regardless —
-    // matches the original algorithm's counting exactly. Only whether an
-    // empty (fully-deduped) sense's sub-array gets pushed to g changes, so a
-    // sense that lost every gloss to dedup doesn't render as an empty
-    // numbered row — rare in practice, real JMdict senses essentially never
-    // fully duplicate an earlier sense.
-    if (senseGlosses.length > 0) g.push(senseGlosses);
+    // Still contributes to p regardless of whether it ends up visible in g —
+    // matches the original algorithm's intent that p reflects everything
+    // looked at while filling the budget, not just what rendered.
     pGroups.push(s.partOfSpeech);
-    mGroups.push(s.misc);
-    sensesUsed++;
+    if (senseGlosses.length > 0) {
+      // `m` deliberately tracks the misc of whichever sense produced g[0]
+      // (previously always senses[0], since a first sense can never itself
+      // be dedup-emptied — nothing's been seen yet — so this is a strict
+      // generalization of the prior behavior, not a change to it), not a
+      // union across all included senses/readings (2026-07-06 fix) — that
+      // was the original design, but live testing found it actively wrong
+      // once archaicTagLabel() (content.js) started checking every card, not
+      // just duplicates: こと's entry has an `arch`-tagged SECOND sense
+      // ("stringed instrument") while its first/primary sense ("koto,
+      // 13-stringed zither") isn't archaic at all, so the union wrongly
+      // tagged the whole common-word card "archaic"; 君 has the same shape
+      // with `obs` on its third sense.
+      if (firstVisibleMisc === null) firstVisibleMisc = s.misc;
+      g.push(senseGlosses);
+      sensesShown++;
+    }
   }
-  const p = dedupedUnion(pGroups);
-  // `m`/`ki` deliberately do NOT union across all included senses/readings
-  // (2026-07-06 fix) — that was the original design, but live testing found
-  // it actively wrong once archaicTagLabel() (content.js) started checking
-  // every card, not just duplicates: こと's entry has an `arch`-tagged SECOND
-  // sense ("stringed instrument") while its first/primary sense ("koto,
-  // 13-stringed zither") isn't archaic at all, so the union wrongly tagged
-  // the whole common-word card "archaic"; 君 has the same shape with `obs`
-  // on its third sense; じゃない's entry has NO misc tags anywhere, but its
-  // kana array's alternate reading ぢゃない is tagged `ik`, and the old
-  // ki-as-union wrongly leaked that onto the primary じゃない reading, which
-  // carries no tags of its own. `m` now reflects only the FIRST included
-  // sense's own misc tags (the sense driving the first-gloss duplicate
-  // check and the card's primary identity) and `ki` only the entry's
-  // PRIMARY reading's own tags (`w.kana[0]`) — not every alternate reading's
-  // tags conflated together. Known residual gap, not fixed here: if a user
-  // clicks a specific ALTERNATE reading via the `rs`-swap mechanism
-  // (background.js) that happens to be archaic/dated while the primary
-  // reading isn't, the badge won't reflect that specific reading — no real
-  // case of this has turned up in testing, so not building for it now.
-  const m = mGroups[0] ?? [];
+  return { g, p: dedupedUnion(pGroups), m: firstVisibleMisc ?? [] };
+}
+
+// True when at least one sense restricts which kana reading(s) it applies to
+// (JMdict's `appliesToKana`, e.g. な/なあ/なー/なぁ share one entry, but its
+// "don't"/"do" senses are tagged appliesToKana: ["な"] — they're specifically
+// the prohibitive-particle な, not the attention-getting/admiring なあ family
+// that shares the same entry). The overwhelmingly common case (a sense
+// applying to every reading, appliesToKana: ["*"]) is unaffected — this only
+// ever changes output for the ~0.4% of entries (802 of 217768, confirmed by
+// direct count against the raw release) that actually carry a restriction.
+// Particle/interjection entries get a higher sense budget (8, vs. the
+// default 3) — added 2026-07-13 after live testing found real senses cut off
+// for common function words: の's sentence-final question sense (6th
+// position) and ただ今's "right away" sense (4th position) were both real,
+// distinct, frequently-needed senses lost purely to the fixed cap, not a
+// context-disambiguation problem (see the popup's own numbered-sense
+// design — this doesn't try to guess which sense fits a given sentence,
+// just shows more of what's real).
+//
+// Scoped to prt/int-PRIMARY entries specifically (the first sense with a
+// gloss is tagged "prt" or "int"), not raised globally — confirmed via a
+// direct scan of the raw release that content words (verbs/nouns/
+// adjectives) have a long, effectively unbounded tail of legitimate senses
+// (落ちる has 27, する has 17, とる has 18, ...; 273 COMMON entries exceed 6
+// senses) where even a doubled cap would still constantly cut real content
+// and just clutters the popup for the common case instead. Particles/
+// interjections are a fundamentally different shape: a small, closed set of
+// distinct GRAMMATICAL FUNCTIONS rather than open-ended semantic extension —
+// confirmed only 806 entries are prt/int-primary at all, and raising their
+// budget to 8 fully covers 802 of those 806 (99.5%), including both
+// confirmed cases (の needs 6, ただ今 needs 4). The 4 remaining outliers (か:
+// 15 senses, が: 10, に: 9, quotative って: 9 — already handled separately by
+// the primary-reading-preference fix above) are words whose real usage is
+// this genuinely broad; accepting a partial list for those 4 is a much
+// smaller tradeoff than the alternative (an unbounded cap that stops
+// protecting against clutter for every polysemous common verb).
+function isFunctionWordPrimary(senses) {
+  const firstWithGloss = senses.find((s) => s.gloss.length > 0);
+  if (!firstWithGloss) return false;
+  return firstWithGloss.partOfSpeech.includes("prt") || firstWithGloss.partOfSpeech.includes("int");
+}
+const FUNCTION_WORD_SENSE_BUDGET = 8;
+
+function hasKanaRestriction(senses) {
+  return senses.some((s) => {
+    const atk = s.appliesToKana;
+    return atk && atk.length > 0 && !(atk.length === 1 && atk[0] === "*");
+  });
+}
+
+// Senses applicable to one specific kana reading: appliesToKana ["*"] (all
+// readings) or a list explicitly including this reading.
+function sensesForReading(senses, readingText) {
+  return senses.filter((s) => {
+    const atk = s.appliesToKana;
+    if (!atk || atk.length === 0) return true;
+    if (atk.length === 1 && atk[0] === "*") return true;
+    return atk.includes(readingText);
+  });
+}
+
+for (const w of raw.words) {
+  if (!w.kana.length) continue;
+
+  const readings = w.kana.map((k) => k.text);
+  const r = readings[0];
+
+  const senseBudget = isFunctionWordPrimary(w.sense) ? FUNCTION_WORD_SENSE_BUDGET : 3;
+  const { g, p, m } = selectSensesView(w.sense, senseBudget);
   const ki = w.kana[0]?.tags ?? [];
   // Excludes rK/sK/oK/iK-tagged forms (rare/search-only/out-dated/irregular
   // kanji — confirmed real counts in the raw release: sK 14831, rK 5732,
@@ -197,8 +287,63 @@ for (const w of raw.words) {
   const idx = entries.length;
   entries.push(entry);
 
-  const allTexts = new Set([...w.kanji.map((k) => k.text), ...w.kana.map((k) => k.text)]);
-  for (const key of allTexts) addToIndex(key, idx);
+  const kanjiTexts = new Set(w.kanji.map((k) => k.text));
+  if (!hasKanaRestriction(w.sense)) {
+    // Fast, unchanged path for the ~99.6% of entries with no per-sense kana
+    // restriction — every kanji/kana form indexes straight to the one entry
+    // just built, exactly as before this fix.
+    for (const key of new Set([...kanjiTexts, ...readings])) addToIndex(key, idx);
+    continue;
+  }
+
+  // Kanji forms still all point at the primary entry (built from the
+  // primary reading's applicable senses) — a kanji spelling's OWN sense
+  // restrictions (`appliesToKanji`) are a separate, symmetric gap (463 of
+  // 217768 entries) not fixed here, since no live-test case has actually
+  // shown it producing a wrong card yet, unlike this kana-side one.
+  for (const key of kanjiTexts) addToIndex(key, idx);
+
+  // Each kana reading gets senses filtered to what actually applies to IT,
+  // not the primary reading's senses reused wholesale — confirmed real via
+  // live testing: な/なあ/なー/なぁ all share one JMdict entry (id 2029110),
+  // but its first two senses ("don't" / "do") are tagged
+  // appliesToKana: ["な"] specifically (JMdict's own signal that these are
+  // the prohibitive-particle な, not shared with なあ's attention-getting/
+  // admiring family) — the unfiltered version showed those な-only senses
+  // for EVERY reading including なあ, so a なあ lookup (すぐ元に…なあ) showed
+  // "don't"/"do" nonsense instead of なあ's real senses. A reading whose
+  // filtered view is IDENTICAL to the primary reading's (the common case
+  // even among these 802 entries — most kana-restricted entries restrict
+  // only ONE of several readings) just reuses the primary entry rather than
+  // creating a redundant duplicate.
+  const primarySenses = sensesForReading(w.sense, r);
+  for (const readingText of new Set(readings)) {
+    const thisSenses = sensesForReading(w.sense, readingText);
+    if (
+      thisSenses.length === primarySenses.length &&
+      thisSenses.every((s, i) => s === primarySenses[i])
+    ) {
+      addToIndex(readingText, idx);
+      continue;
+    }
+    const view = selectSensesView(thisSenses, isFunctionWordPrimary(thisSenses) ? FUNCTION_WORD_SENSE_BUDGET : 3);
+    if (view.g.length === 0) {
+      // Defensive fallback only — every real case checked has at least one
+      // sense applying to every non-primary reading it lists, so this
+      // shouldn't trigger, but an empty g would break content.js's rendering.
+      addToIndex(readingText, idx);
+      continue;
+    }
+    const variant = { r, g: view.g, p: view.p };
+    if (common) variant.c = true;
+    if (readings.length > 1) variant.rs = readings;
+    if (view.m.length > 0) variant.m = view.m;
+    if (ki.length > 0) variant.ki = ki;
+    if (kanjiSpellings.length > 0) variant.k = kanjiSpellings;
+    const variantIdx = entries.length;
+    entries.push(variant);
+    addToIndex(readingText, variantIdx);
+  }
 }
 
 console.log(`Built ${entries.length} entries, ${Object.keys(index).length} index keys.`);
