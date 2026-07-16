@@ -79,6 +79,29 @@
 //     NOT do the symmetric fix for `appliesToKanji` restrictions (463
 //     entries) — no live-test case has shown that one actually producing a
 //     wrong card yet. See hasKanaRestriction/sensesForReading.
+//   - `si`: per-sense array (parallel to `g`, same indices/length) of JMdict's
+//     `info` (s_inf) annotation text for that sense, joined with "; " when a
+//     sense carries more than one — "" for a visible sense with no note.
+//     Included on the entry only when at least one sense has a non-empty
+//     note. Added 2026-07-15 after よ's popup showed sense 1 as a bare "hey;
+//     you" with no indication it's a sentence-final particle used for
+//     certainty/emphasis/contempt/etc. — that qualifier is real JMdict data
+//     (s_inf), just never carried into the compact format. Scanned the raw
+//     release before adding this rather than assuming: prt (62.8%) and int
+//     (23.3%) senses carry a note far more often than content-word POS
+//     (nouns 1.5%, verbs 3-6%, adjectives 2-7%), confirming the intuition
+//     that function words need this more — but when a content-word sense
+//     DOES have one, it's typically NOT redundant register/dialect info
+//     already covered by the archaic badge; it's substantive grammatical-
+//     construction info (らしい: "after the plain form of a verb or
+//     adjective...") or kanji-nuance disambiguation (あう: "逢う is often used
+//     for close friends... 遭う may have an undesirable nuance") that the
+//     existing archaic-badge/kanji-rarity mechanisms don't cover at all. So
+//     this is NOT scoped to prt/int-primary entries the way the sense-budget
+//     fix above is — it's included for any visible sense on any entry,
+//     regardless of POS. Cost is negligible either way: only 6,668 of
+//     252,198 senses in the whole raw release carry a note at all (2.6%),
+//     ~160KB of raw text total.
 // Does NOT compute `kp` (kana-primary boost) — that's a separate, already-
 // working pass (fix-jmdict-priority.js), meant to run again after this script
 // against a fresh raw-release copy.
@@ -150,6 +173,7 @@ function dedupedUnion(arraysOfCodes) {
 // skipped without spending a slot, so sense 3 is reached and shown too.
 function selectSensesView(senses, budget = 3) {
   const g = [];
+  const si = [];
   const gSeen = new Set();
   const pGroups = [];
   let firstVisibleMisc = null;
@@ -182,10 +206,11 @@ function selectSensesView(senses, budget = 3) {
       // with `obs` on its third sense.
       if (firstVisibleMisc === null) firstVisibleMisc = s.misc;
       g.push(senseGlosses);
+      si.push(s.info && s.info.length > 0 ? s.info.join("; ") : "");
       sensesShown++;
     }
   }
-  return { g, p: dedupedUnion(pGroups), m: firstVisibleMisc ?? [] };
+  return { g, si, p: dedupedUnion(pGroups), m: firstVisibleMisc ?? [] };
 }
 
 // True when at least one sense restricts which kana reading(s) it applies to
@@ -254,7 +279,7 @@ for (const w of raw.words) {
   const r = readings[0];
 
   const senseBudget = isFunctionWordPrimary(w.sense) ? FUNCTION_WORD_SENSE_BUDGET : 3;
-  const { g, p, m } = selectSensesView(w.sense, senseBudget);
+  const { g, si, p, m } = selectSensesView(w.sense, senseBudget);
   const ki = w.kana[0]?.tags ?? [];
   // Excludes rK/sK/oK/iK-tagged forms (rare/search-only/out-dated/irregular
   // kanji — confirmed real counts in the raw release: sK 14831, rK 5732,
@@ -283,6 +308,7 @@ for (const w of raw.words) {
   if (m.length > 0) entry.m = m;
   if (ki.length > 0) entry.ki = ki;
   if (kanjiSpellings.length > 0) entry.k = kanjiSpellings;
+  if (si.some((x) => x)) entry.si = si;
 
   const idx = entries.length;
   entries.push(entry);
@@ -340,6 +366,7 @@ for (const w of raw.words) {
     if (view.m.length > 0) variant.m = view.m;
     if (ki.length > 0) variant.ki = ki;
     if (kanjiSpellings.length > 0) variant.k = kanjiSpellings;
+    if (view.si.some((x) => x)) variant.si = view.si;
     const variantIdx = entries.length;
     entries.push(variant);
     addToIndex(readingText, variantIdx);

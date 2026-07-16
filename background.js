@@ -13,12 +13,73 @@ const JIMAKU_API_BASE = "https://jimaku.cc/api";
 // which `files[0]` would have picked blindly and failed to parse).
 const ARCHIVE_RE = /\.(7z|zip|rar|gz|tar|bz2)$/i;
 
+// "Best subtitle" selection (Phase 4.5, 2026-07-15) — a hardcoded uploader-
+// preference list, not real popularity-based ranking. Confirmed directly
+// against the real Jimaku API before building this that no per-file or
+// per-entry popularity/usage signal exists at all (view count, downloads,
+// favorites — nothing), so ranking by real usage data isn't an option here;
+// see project-plan.md Decisions Log 2026-07-15. Seeded from uploaders
+// actually seen working well across this project's own live-testing so far
+// (SubsPlease: Bocchi/Frieren; Haruhana: Witch Hat Atelier; VCB-Studio:
+// confirmed real via the half-width-katakana releases fix) — a living list
+// to extend as more shows surface reliable uploaders, not a general "best
+// fansub groups" ranking pulled from outside knowledge. There's no
+// structured uploader field in Jimaku's file objects (confirmed same
+// session: only `url`/`name`/`size`/`last_modified`) — a release group only
+// appears as a bracket tag baked into the filename (e.g. "[Haruhana] ..."),
+// so matching is filename-substring, same mechanism `fileHint` already uses.
+const PREFERRED_UPLOADERS = ["SubsPlease", "Haruhana", "VCB-Studio"];
+
+// Sorts ALL candidate files by uploader preference (preferred uploaders
+// first, in list order; everything else keeps Jimaku's own original relative
+// order after) — not just picking one, so the switcher panel (Phase 4.5,
+// 2026-07-15) can show every candidate ranked, not only the auto-selected
+// winner. `rankFiles(files)[0]` is the same pick the old single-winner
+// `selectPreferredFile` used to return. Doesn't attempt season-level
+// disambiguation for shows whose Jimaku entry restart-numbers per season
+// (e.g. Naruto: Shippuuden's S07E01-style tagging, Decisions Log 2026-07-06)
+// — that needs its own filename-pattern design validated against real
+// multi-season data, a separate problem from uploader trust-ranking, not
+// solved here. `fileHint` is applied on top of this ranking in
+// `fetchSubtitles`, not inside it — this ranking only orders by UPLOADER, not
+// language track, so it can't by itself resolve a same-uploader dual-track
+// case like Witch Hat Atelier's own CHS+JPN release.
+//
+// `preferredUploader` (2026-07-16) — the user's own per-show-per-season pick
+// (content.js's switcher panel, saved via chrome.storage.local), given top
+// priority ahead of the hardcoded PREFERRED_UPLOADERS default when present.
+// Implemented by prepending it to the priority list rather than as a special
+// case, which gets the "sticky fallback" build-order requirement for free:
+// if no candidate file actually matches the user's saved uploader for THIS
+// episode, every file's rank falls through to wherever it'd land in the
+// unmodified default list anyway — same as if no preference existed at all,
+// with nothing written back to storage from here, so a single episode's gap
+// never touches the saved show+season preference.
+function rankFiles(files, preferredUploader = null) {
+  const uploaderPriority = preferredUploader
+    ? [preferredUploader, ...PREFERRED_UPLOADERS.filter((u) => u !== preferredUploader)]
+    : PREFERRED_UPLOADERS;
+  const scored = files.map((f, i) => {
+    const rank = uploaderPriority.findIndex((u) => f.name.includes(`[${u}]`));
+    return { f, rank: rank === -1 ? uploaderPriority.length : rank, i };
+  });
+  scored.sort((a, b) => a.rank - b.rank || a.i - b.i);
+  return scored.map((s) => s.f);
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_SUBTITLES") {
-    fetchSubtitles(message.query, message.episode, message.fileHint)
-      .then((cues) => sendResponse({ cues }))
+    fetchSubtitles(message.query, message.episode, message.fileHint, message.preferredUploader)
+      .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ error: error.message }));
     return true; // keep the message channel open for the async response
+  }
+
+  if (message.type === "FETCH_SUBTITLE_FILE") {
+    fetchSubtitleFile(message.url, message.name)
+      .then((cues) => sendResponse({ cues }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
   }
 
   if (message.type === "LOOKUP_WORD") {
@@ -38,15 +99,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-async function fetchSubtitles(query, episode, fileHint = null) {
+async function getJimakuHeaders() {
   const { jimakuApiKey } = await chrome.storage.local.get("jimakuApiKey");
   if (!jimakuApiKey) {
     throw new Error(
       "No Jimaku API key saved. Click the extension icon and save your key."
     );
   }
-  const headers = { Authorization: jimakuApiKey };
+  return { Authorization: jimakuApiKey };
+}
 
+// Resolves a show/episode query down to the candidate text-file list — the
+// part `fetchSubtitles` (auto-load) and the switcher panel's file listing
+// both need, factored out so a switcher-panel refresh doesn't duplicate this
+// search+files-list round trip inside its own separate function.
+async function resolveTextFiles(query, episode, headers) {
   const searchUrl = `${JIMAKU_API_BASE}/entries/search?anime=true&query=${encodeURIComponent(
     query
   )}`;
@@ -86,6 +153,30 @@ async function fetchSubtitles(query, episode, fileHint = null) {
         .join(", ")}) — use the manual upload fallback instead`
     );
   }
+  return textFiles;
+}
+
+async function fetchAndParseFile(file, headers) {
+  const fileRes = await fetch(file.url, { headers });
+  if (!fileRes.ok) {
+    throw new Error(`Subtitle download failed (${fileRes.status})`);
+  }
+  const rawText = await fileRes.text();
+  const isAss = /\.(ass|ssa)$/i.test(file.name);
+  return isAss ? parseAss(rawText) : parseSrt(rawText);
+}
+
+// Auto-load path: resolves candidates, picks one (fileHint override, else
+// the top-ranked uploader — the user's own saved preference if any, else
+// the hardcoded default), downloads and parses it. Also returns the FULL
+// ranked candidate list and which URL got auto-selected (2026-07-15) — the
+// switcher panel (content.js) uses this same response to render every
+// option without a second, redundant Jimaku round trip, and to pre-select
+// the entry that's actually playing rather than guessing at it separately.
+async function fetchSubtitles(query, episode, fileHint = null, preferredUploader = null) {
+  const headers = await getJimakuHeaders();
+  const textFiles = await resolveTextFiles(query, episode, headers);
+  const ranked = rankFiles(textFiles, preferredUploader);
   // Optional manual override for picking a specific file among several
   // candidates Jimaku returns for the same requested episode — needed since
   // Jimaku's own per-file episode tagging isn't always reliable. Confirmed
@@ -93,23 +184,30 @@ async function fetchSubtitles(query, episode, fileHint = null) {
   // tags an entire season's worth of files (each using a per-season
   // "SxxE01" restart numbering, e.g. S07E01 = 第144話, episode 144) as
   // "episode 1" — the unfiltered first-match pick would silently grab the
-  // wrong episode's subtitles. `fileHint` (a case-insensitive filename
-  // substring) is a stopgap for exactly this until Phase 4.5's real ranked
-  // "best subtitle" selection ships — falls back to the first text file
-  // when no hint is given or nothing matches, same as before.
+  // wrong episode's subtitles. Still kept even now that ranked selection
+  // exists (2026-07-15) — it solves a different axis (same-uploader
+  // language-track disambiguation, e.g. Witch Hat Atelier's own CHS+JPN
+  // dual-track release) that uploader-preference ranking alone can't.
   const hinted = fileHint
     ? textFiles.find((f) => f.name.toLowerCase().includes(fileHint.toLowerCase()))
     : null;
-  const file = hinted ?? textFiles[0];
+  const file = hinted ?? ranked[0];
+  const cues = await fetchAndParseFile(file, headers);
+  return {
+    cues,
+    files: ranked.map((f) => ({ name: f.name, url: f.url, size: f.size })),
+    selectedUrl: file.url,
+  };
+}
 
-  const fileRes = await fetch(file.url, { headers });
-  if (!fileRes.ok) {
-    throw new Error(`Subtitle download failed (${fileRes.status})`);
-  }
-  const rawText = await fileRes.text();
-
-  const isAss = /\.(ass|ssa)$/i.test(file.name);
-  return isAss ? parseAss(rawText) : parseSrt(rawText);
+// Manual switcher-panel pick (Phase 4.5, 2026-07-15) — downloads and parses
+// one SPECIFIC file the user chose from the ranked list `fetchSubtitles`
+// already returned, bypassing the auto-selection entirely. Doesn't need
+// `resolveTextFiles` again since the caller already has the file's `url`/
+// `name` from that earlier response.
+async function fetchSubtitleFile(url, name) {
+  const headers = await getJimakuHeaders();
+  return fetchAndParseFile({ url, name }, headers);
 }
 
 // Lazily loaded once per service worker lifetime, then kept in memory.

@@ -20,13 +20,13 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 4 — Sync tooling & multi-show validation.** See `project-plan.md` Section 6 for the full done/remaining breakdown. Top priority right now:
-1. Live re-test in progress: Bocchi ep 1 done, Frieren rounds done, Witch Hat Atelier ep 1 up to two rounds done (2026-07-12/07-13, swapped in for Naruto: Shippuuden — see `project-plan.md` Decisions Log 2026-07-12). Not yet confirmed closed — check with the user before assuming Phase 4 is done. `content.js`'s `SHOW_QUERY`/`EPISODE`/`FILE_HINT` are already pointed at it. If regenerating `jmdict-compact.json`, both `scripts/fix-jmdict-priority.js` AND `scripts/apply-tubelex-frequency.js` must be re-run after — a regression from skipping the latter shipped and had to be caught mid-testing (see Decisions Log 2026-07-13).
-2. Once this Phase 4 testing pass wraps, a new **Phase 4.5 — Jimaku integration** now sits between Phase 4 and Phase 5 (added 2026-07-05, planning session) — see `project-plan.md` Section 6 for its full task list (show/episode auto-detection first, then ranked subtitle selection, auto-select, switcher panel, and per-show-per-season uploader memory). Phase 5 (Anki export, starting with the DRM feasibility test) now follows Phase 4.5, not Phase 4 directly.
+**Phase 4.5 — Jimaku integration.** Phase 4 is now formally closed (2026-07-15, user's explicit call — see `project-plan.md` Section 6). Every currently-known Phase 4.5 build-order item is now built: show/episode auto-detection, the popularity-signal fact-finding check, the "best subtitle" uploader-ranking algorithm (`rankFiles()`), the SPA-episode-navigation fix (polls `location.pathname` — a `history.pushState` wrapper was tried first and confirmed NOT to work from a content script's isolated JS world, see Decisions Log 2026-07-15), the manual switcher panel (user-confirmed working live 2026-07-16), and per-show-per-season uploader preference memory + sticky fallback (built together 2026-07-16, threaded into `rankFiles()` rather than a second fetch) — see Section 6 Phase 4.5 Done list. Top priority right now:
+1. **Needs live confirmation:** the uploader-memory feature (pick a file in the switcher panel, reload, confirm the same uploader's file auto-loads on a later episode of the same show) is unit-tested but not yet exercised in-browser.
+2. Once confirmed, Phase 4.5 is fully closed and the project moves to Phase 5 — Anki export, starting with the DRM feasibility test (Section 6).
+
+If regenerating `jmdict-compact.json` (any phase), both `scripts/fix-jmdict-priority.js` AND `scripts/apply-tubelex-frequency.js` must be re-run after — a regression from skipping the latter shipped and had to be caught mid-testing (see Decisions Log 2026-07-13).
 
 `JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
-
-Don't start Phase 4.5, 5, or 6 work ahead of finishing the current Phase 4 testing pass unless explicitly told to — check `project-plan.md` Section 6 for the current phase marker if unsure.
 
 ## Scope guardrails — do not build these unless asked
 

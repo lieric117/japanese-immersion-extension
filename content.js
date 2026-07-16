@@ -1,15 +1,71 @@
 // Phase 3: segment subtitle text into words (kuromoji) and let the learner
 // click a word to see its reading + definition (JMdict, looked up in the
-// background worker). Search-by-show UI still doesn't exist — hardcoded.
+// background worker).
 
-const SHOW_QUERY = "Witch Hat Atelier";
-const EPISODE = 1;
-// This entry's first Jimaku file for ep 1 (Haruhana's release) is a dual
-// Chinese+Japanese sub track ("[CHS, JPN]") — background.js's fetchSubtitles
-// would silently grab it via textFiles[0] and feed mixed-language text into
-// the tokenizer. The same uploader also has a Japanese-only cut of the same
-// release ("[JPN]"), so hint toward that one instead.
+// This entry's first Jimaku file for Witch Hat Atelier ep 1 (Haruhana's
+// release) is a dual Chinese+Japanese sub track ("[CHS, JPN]") —
+// background.js's fetchSubtitles would silently grab it via textFiles[0] and
+// feed mixed-language text into the tokenizer. The same uploader also has a
+// Japanese-only cut of the same release ("[JPN]"), so hint toward that one
+// instead. Still a manual stopgap (2026-07-05/06) ahead of Phase 4.5's real
+// ranked file-selection algorithm — hardcoded to this one show/uploader
+// quirk, not a general mechanism. Once auto-detection (below) generalizes to
+// other shows, this hint will only apply on shows where the string happens
+// to appear in a filename, which is harmless (fetchSubtitles falls back to
+// the first text file when nothing matches).
 const FILE_HINT = "[JPN]";
+
+// Show/episode auto-detection (Phase 4.5, 2026-07-15) — replaces the
+// previous hardcoded SHOW_QUERY/EPISODE constants. Reads Crunchyroll's own
+// schema.org JSON-LD (a `TVEpisode` block, present for SEO/rich-results
+// purposes), confirmed present via direct page inspection on a real,
+// logged-in watch page before building this (Crunchyroll's page is behind a
+// Cloudflare bot challenge, so this couldn't be verified by fetching the
+// page directly — a real DevTools console dump was needed).
+// **Real finding that reverses the 2026-07-04 decision this was designed
+// against:** Crunchyroll's page exposes NO external ID (no TMDB/AniList/MAL
+// ID anywhere in the page's meta tags, JSON-LD, or embedded script state) —
+// the "resolve via TMDB/AniList ID from Crunchyroll metadata" plan assumed
+// data that doesn't actually exist on the page. What IS reliably present is
+// the plain series title (`partOfSeries.name`), season number
+// (`partOfSeason.seasonNumber`), and episode number (`episodeNumber`).
+// Verified directly against the real Jimaku API (not assumed) that this is
+// actually sufficient: querying `english_name`-preferring search with the
+// exact title Crunchyroll exposes ("Witch Hat Atelier") returns exactly one
+// clean match (Jimaku id 11793, whose own `name` is the JP-romanized
+// "Tongari Boushi no Atelier" — matched via `english_name`, confirming
+// Jimaku already indexes English titles as an alias, not just JP names).
+// `fetchSubtitles` (background.js) already prefers an exact `name`/
+// `english_name` match over `entries[0]` — that logic is unchanged, this
+// just feeds it a live-detected title instead of a hardcoded one.
+// Returns `seasonNumber` too even though it's not yet threaded into the
+// Jimaku query (Jimaku's `/files?episode=N` endpoint has no season
+// parameter) — kept for Phase 4.5's later ranked-selection step, which needs
+// season context to resolve the already-known per-season restart-numbering
+// problem (Naruto: Shippuuden's S07E01-style Jimaku file tagging, see
+// Decisions Log 2026-07-06). Returns null (not a guess/fallback) when no
+// parseable TVEpisode block is found, so the caller can show a clear error
+// instead of querying Jimaku with a wrong or empty title.
+function detectShowEpisode() {
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    let data;
+    try {
+      data = JSON.parse(script.textContent);
+    } catch {
+      continue;
+    }
+    if (data["@type"] !== "TVEpisode") continue;
+    const seriesTitle = data.partOfSeries?.name;
+    const episodeNumber = data.episodeNumber;
+    if (!seriesTitle || !Number.isInteger(episodeNumber)) continue;
+    return {
+      seriesTitle,
+      episodeNumber,
+      seasonNumber: Number.isInteger(data.partOfSeason?.seasonNumber) ? data.partOfSeason.seasonNumber : null,
+    };
+  }
+  return null;
+}
 
 // JAPANESE_WORD_RE and groupTokens live in tokenize-utils.js (loaded before
 // this file by the manifest) so the batch-testing script can import them too.
@@ -17,6 +73,43 @@ const FILE_HINT = "[JPN]";
 let tokenizer = null;
 let cues = null;
 let activePopup = null;
+// Module-scope (not local to init()'s timeupdate listener) so the
+// SPA-navigation reload below can also reset it — see loadSubtitles/
+// jp-immersion-locationchange.
+let lastText = null;
+
+// SPA-navigation detection (2026-07-15, revised same day after the first
+// attempt failed live testing). Confirmed via live testing that Crunchyroll
+// does NOT reload the page between episodes: clicking to the next episode
+// left the previous episode's subtitles showing until a manual page
+// refresh, since init()'s one-time detectShowEpisode()+FETCH_SUBTITLES call
+// never re-ran.
+//
+// First attempt wrapped `history.pushState`/`replaceState` to dispatch a
+// custom event — shipped, then confirmed NOT working by a second live test
+// (subtitles still stayed stale after switching episodes). Root cause:
+// content scripts run in an ISOLATED JS world, which gets its own separate
+// `history` object wrapping the shared browsing-context navigation state —
+// reassigning `history.pushState` from the isolated world has no effect on
+// Crunchyroll's own (main-world) calls to ITS OWN, unpatched
+// `history.pushState` reference. The DOM/navigation STATE is correctly
+// shared across both worlds (reading `location.pathname` works fine), only
+// FUNCTION OVERRIDES fail to cross the isolated/main-world boundary — so
+// polling the state directly sidesteps the problem entirely instead of
+// trying to intercept whichever world's code changed it.
+let lastPathname = location.pathname;
+function notifyIfPathnameChanged() {
+  if (location.pathname === lastPathname) return;
+  lastPathname = location.pathname;
+  window.dispatchEvent(new Event("jp-immersion-locationchange"));
+}
+setInterval(notifyIfPathnameChanged, 1000);
+// Real back/forward navigation actually does fire a genuine browser-level
+// `popstate` event (not a JS function call Crunchyroll's own code makes),
+// so unlike the pushState/replaceState wrapper this one legitimately
+// crosses the world boundary — kept as a faster-than-1s supplement to the
+// poll above, not the primary mechanism.
+window.addEventListener("popstate", notifyIfPathnameChanged);
 
 // Stage directions like （ドアの開く音） and pure music lines are subtitle
 // annotations, not dialogue — skip them at display time.
@@ -273,9 +366,90 @@ function getContainer() {
 }
 
 // Community subtitle timing drifts inconsistently release to release, so the
-// offset is remembered per watch-page URL rather than globally.
-const OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
+// offset is remembered per watch-page URL rather than globally. `let`, not
+// `const` (2026-07-15) — recomputed on SPA episode navigation (see
+// loadSubtitles) so a saved offset doesn't leak from one episode's storage
+// key into another's session without an intervening page reload.
+let OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
 let offset = 0;
+
+// Per-show-per-season uploader preference memory (Phase 4.5, 2026-07-16).
+// Keyed on the SAME (seriesTitle, seasonNumber) pair detectShowEpisode()
+// already resolves — deliberately NOT per-episode (that's what `fileHint`
+// and the switcher panel's live per-episode pick are for) and NOT scoped to
+// offset memory's existing per-pathname key at all (that's a separate,
+// unrelated mechanism this doesn't touch). Only ever stores an UPLOADER TAG
+// (e.g. "Haruhana"), not a specific file/URL — a saved file URL would go
+// stale the moment the episode changes, but an uploader tag generalizes
+// across every episode of the same show+season, which is the whole point.
+function uploaderPrefKey(seriesTitle, seasonNumber) {
+  return `uploaderPref:${seriesTitle}:${seasonNumber ?? "?"}`;
+}
+
+// Extracts a release group's bracket tag from the START of a Jimaku
+// filename (e.g. "[Haruhana] Tongari Boushi..." → "Haruhana") — the only
+// place uploader identity exists at all, confirmed 2026-07-15 (no
+// structured uploader field in Jimaku's API). Returns null for files with
+// no leading bracket tag (e.g. direct-source rips like "とんがり帽子の
+// アトリエ.S01E01...Netflix...") — there's no uploader identity to
+// remember for those, so a pick landing on one simply doesn't persist a
+// preference, rather than saving something meaningless.
+function extractUploaderTag(filename) {
+  const match = filename.match(/^\[([^\]]+)\]/);
+  return match ? match[1] : null;
+}
+
+// Detects the current show/episode and fetches its subtitles into the
+// shared `cues` variable, which the timeupdate listener below (attached
+// once in init()) already reads from continuously — so reassigning `cues`
+// here is sufficient to make new subtitles appear, no listener re-attachment
+// needed. Called once from init() on initial page load, and again from the
+// jp-immersion-locationchange listener below on every SPA episode change.
+// `switcherPanel` (2026-07-15) is populated with the same response's ranked
+// candidate list, so it doesn't need its own separate Jimaku round trip.
+function loadSubtitles(subtitleBox, switcherPanel) {
+  cues = null;
+  lastText = null;
+  subtitleBox.textContent = "Loading subtitles…";
+  renderSwitcherOptions(switcherPanel, null, null, null);
+  const detected = detectShowEpisode();
+  if (!detected) {
+    subtitleBox.textContent =
+      'Couldn\'t detect the show/episode from this page — use "Upload subtitle file" below instead.';
+    return;
+  }
+  // Saved per-show-per-season uploader preference (if any) is threaded into
+  // the SAME FETCH_SUBTITLES call rather than fetched separately and then
+  // possibly re-fetched — background.js's rankFiles gives it top priority
+  // in the ranking itself, so only one Jimaku round trip is ever needed
+  // regardless of whether a preference exists. A saved preference with no
+  // matching file this episode is a silent no-op there (the "sticky
+  // fallback" requirement) — nothing to handle on this side.
+  chrome.storage.local.get(uploaderPrefKey(detected.seriesTitle, detected.seasonNumber), (stored) => {
+    const preferredUploader = stored[uploaderPrefKey(detected.seriesTitle, detected.seasonNumber)] ?? null;
+    chrome.runtime.sendMessage(
+      {
+        type: "FETCH_SUBTITLES",
+        query: detected.seriesTitle,
+        episode: detected.episodeNumber,
+        fileHint: FILE_HINT,
+        preferredUploader,
+      },
+      (response) => {
+        if (!response) {
+          subtitleBox.textContent = "Extension error: no response from background.";
+          return;
+        }
+        if (response.error) {
+          subtitleBox.textContent = `Subtitle error: ${response.error} — use "Upload subtitle file" below if Jimaku has nothing for this show.`;
+          return;
+        }
+        cues = response.cues;
+        renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected);
+      }
+    );
+  });
+}
 
 function init() {
   const video = document.querySelector("video");
@@ -287,15 +461,20 @@ function init() {
   const subtitleBox = document.createElement("div");
   subtitleBox.id = "jp-immersion-subtitle";
   getContainer().appendChild(subtitleBox);
-  subtitleBox.textContent = "Loading subtitles…";
+  // Text set by loadSubtitles() below, not here — it's called both on
+  // initial load and on every SPA episode change, so it owns this state.
 
   const offsetControl = buildOffsetControl();
   getContainer().appendChild(offsetControl);
+
+  const switcherPanel = buildSwitcherPanel();
+  getContainer().appendChild(switcherPanel);
 
   document.addEventListener("fullscreenchange", () => {
     const target = getContainer();
     target.appendChild(subtitleBox);
     target.appendChild(offsetControl);
+    target.appendChild(switcherPanel);
   });
 
   try {
@@ -314,7 +493,8 @@ function init() {
   // Attached once, unconditionally — reads from the shared `cues` variable so
   // either a Jimaku fetch or a manual file upload (see buildUploadControl)
   // can populate it interchangeably, without each needing its own listener.
-  let lastText = null;
+  // `lastText` is module-scope (not declared here) so an episode change
+  // (loadSubtitles, below) can reset it too.
   video.addEventListener("timeupdate", () => {
     if (!cues) return;
     const adjustedTime = video.currentTime - offset;
@@ -340,20 +520,22 @@ function init() {
     renderCue(subtitleBox, text);
   });
 
-  chrome.runtime.sendMessage(
-    { type: "FETCH_SUBTITLES", query: SHOW_QUERY, episode: EPISODE, fileHint: FILE_HINT },
-    (response) => {
-      if (!response) {
-        subtitleBox.textContent = "Extension error: no response from background.";
-        return;
-      }
-      if (response.error) {
-        subtitleBox.textContent = `Subtitle error: ${response.error} — use "Upload subtitle file" below if Jimaku has nothing for this show.`;
-        return;
-      }
-      cues = response.cues;
-    }
-  );
+  loadSubtitles(subtitleBox, switcherPanel);
+
+  // Re-detect and re-fetch on SPA episode navigation (2026-07-15) — without
+  // this, `cues` keeps pointing at the previous episode's subtitles
+  // indefinitely, since Crunchyroll doesn't reload the page between
+  // episodes (confirmed via live testing). Also recomputes the offset
+  // storage key/value for the new episode's URL, so a saved offset doesn't
+  // leak across episodes.
+  window.addEventListener("jp-immersion-locationchange", () => {
+    OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
+    chrome.storage.local.get(OFFSET_STORAGE_KEY, (stored) => {
+      offset = stored[OFFSET_STORAGE_KEY] ?? 0;
+      updateOffsetDisplay();
+    });
+    loadSubtitles(subtitleBox, switcherPanel);
+  });
 
   const uploadControl = buildUploadControl(video);
   getContainer().appendChild(uploadControl);
@@ -403,6 +585,79 @@ function buildOffsetControl() {
 
   control.append(dec, value, inc, reset);
   return control;
+}
+
+// Manual subtitle switcher panel (Phase 4.5, 2026-07-15) — lets the user
+// override the auto-selected Jimaku file with any other candidate for the
+// same show+episode (background.js's `rankFiles`/`fetchSubtitles` already
+// returns every candidate, ranked, not just the winner — no separate Jimaku
+// round trip needed here). Rough/functional only, no visual polish
+// (deliberately deferred to Phase 6, same as the switcher panel's whole
+// build-order entry) — a single labeled <select>, not a custom dropdown.
+function buildSwitcherPanel() {
+  const control = document.createElement("div");
+  control.id = "jp-immersion-switcher";
+  return control;
+}
+
+// Repopulates the switcher panel from a FETCH_SUBTITLES response (or clears
+// it when `files` is null — no candidates yet, or the auto-fetch failed and
+// there's nothing to switch between). Kept separate from buildSwitcherPanel
+// so loadSubtitles() can refresh the SAME panel element on every episode
+// change instead of rebuilding it. `detected` (2026-07-16) is only needed to
+// derive the uploader-preference storage key when the user picks a file
+// manually — null is fine for the "nothing to show yet" clearing call.
+function renderSwitcherOptions(panel, files, selectedUrl, detected) {
+  panel.textContent = "";
+  if (!files || !files.length) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "flex";
+
+  const label = document.createElement("label");
+  label.textContent = "Subtitle file: ";
+
+  const select = document.createElement("select");
+  for (const file of files) {
+    const option = document.createElement("option");
+    option.value = file.url;
+    option.textContent = file.name;
+    if (file.url === selectedUrl) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => {
+    const chosen = files.find((f) => f.url === select.value);
+    if (!chosen) return;
+    chrome.runtime.sendMessage(
+      { type: "FETCH_SUBTITLE_FILE", url: chosen.url, name: chosen.name },
+      (response) => {
+        if (!response || response.error) {
+          // Revert the dropdown to whatever's still actually loaded rather
+          // than leaving it showing a selection that silently failed.
+          select.value = selectedUrl;
+          return;
+        }
+        cues = response.cues;
+        lastText = null;
+        // A manual pick becomes this show+season's remembered uploader
+        // preference going forward (2026-07-16) — only when the chosen
+        // file actually has an extractable uploader tag; an unbracketed
+        // direct-source file (Netflix/Amazon rip) has no reusable identity
+        // to save, so picking one just applies for this episode, same as
+        // before, with no memory created.
+        const uploaderTag = extractUploaderTag(chosen.name);
+        if (uploaderTag && detected) {
+          chrome.storage.local.set({
+            [uploaderPrefKey(detected.seriesTitle, detected.seasonNumber)]: uploaderTag,
+          });
+        }
+      }
+    );
+  });
+
+  label.appendChild(select);
+  panel.appendChild(label);
 }
 
 // Manual subtitle upload fallback (2026-07-06) — for shows Jimaku has zero
@@ -718,7 +973,7 @@ const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 function renderEntries(container, word, results) {
   const seenFirstGloss = new Set();
   for (const entry of results.slice(0, 3)) {
-    const { r, g, p, c, k } = entry;
+    const { r, g, si, p, c, k } = entry;
 
     // A later entry sharing its first gloss with one already shown above is
     // very likely the same core meaning under a rarer/alternate reading, not
@@ -799,6 +1054,19 @@ function renderEntries(container, word, results) {
       const text = document.createElement("span");
       text.className = "jp-immersion-popup-gloss";
       text.textContent = senseGlosses.join("; ");
+      // JMdict's s_inf annotation for this sense (2026-07-15) — e.g. よ's
+      // first sense is just "hey; you" without it, giving no indication
+      // it's the sentence-final particle used for certainty/emphasis/
+      // contempt/etc. Appended as a child node of the gloss span (not a new
+      // flex sibling in the row) so a long note wraps as ordinary inline
+      // text alongside the gloss instead of as its own layout box.
+      const note = si?.[i];
+      if (note) {
+        const noteSpan = document.createElement("span");
+        noteSpan.className = "jp-immersion-popup-gloss-note";
+        noteSpan.textContent = ` (${note})`;
+        text.appendChild(noteSpan);
+      }
       row.appendChild(number);
       row.appendChild(text);
       glossList.appendChild(row);

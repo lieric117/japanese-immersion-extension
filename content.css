@@ -134,6 +134,11 @@
   color: #333;
 }
 
+.jp-immersion-popup-gloss-note {
+  font-size: 12px;
+  color: #777;
+}
+
 #jp-immersion-offset {
   position: fixed;
   top: 16px;
@@ -188,4 +193,25 @@
 
 #jp-immersion-upload-status {
   overflow-wrap: anywhere;
+}
+
+#jp-immersion-switcher {
+  position: fixed;
+  top: 96px;
+  left: 16px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: sans-serif;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  max-width: 320px;
+}
+
+#jp-immersion-switcher select {
+  max-width: 220px;
 }
