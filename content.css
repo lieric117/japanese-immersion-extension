@@ -139,6 +139,40 @@
   color: #777;
 }
 
+.jp-immersion-popup-anki-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jp-immersion-popup-anki-btn,
+.jp-immersion-popup-anki-undo {
+  font-size: 11px;
+  font-family: inherit;
+  color: #fff;
+  background: #2f6fed;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.jp-immersion-popup-anki-btn:disabled,
+.jp-immersion-popup-anki-undo:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.jp-immersion-popup-anki-undo {
+  background: #777;
+}
+
+.jp-immersion-popup-anki-done {
+  font-size: 11px;
+  color: #1a7f37;
+}
+
 #jp-immersion-offset {
   position: fixed;
   top: 16px;

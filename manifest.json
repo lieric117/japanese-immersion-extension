@@ -6,7 +6,8 @@
   "permissions": ["storage"],
   "host_permissions": [
     "https://*.crunchyroll.com/*",
-    "https://jimaku.cc/*"
+    "https://jimaku.cc/*",
+    "http://127.0.0.1:8765/*"
   ],
   "background": {
     "service_worker": "background.js"

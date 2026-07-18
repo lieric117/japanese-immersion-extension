@@ -38,14 +38,18 @@ const FILE_HINT = "[JPN]";
 // `fetchSubtitles` (background.js) already prefers an exact `name`/
 // `english_name` match over `entries[0]` — that logic is unchanged, this
 // just feeds it a live-detected title instead of a hardcoded one.
-// Returns `seasonNumber` too even though it's not yet threaded into the
-// Jimaku query (Jimaku's `/files?episode=N` endpoint has no season
-// parameter) — kept for Phase 4.5's later ranked-selection step, which needs
-// season context to resolve the already-known per-season restart-numbering
-// problem (Naruto: Shippuuden's S07E01-style Jimaku file tagging, see
-// Decisions Log 2026-07-06). Returns null (not a guess/fallback) when no
-// parseable TVEpisode block is found, so the caller can show a clear error
-// instead of querying Jimaku with a wrong or empty title.
+// `seasonNumber` is threaded into FETCH_SUBTITLES (2026-07-17) so
+// background.js's entry search can pick the right Jimaku ENTRY for a
+// multi-season show — Jimaku splits each season into a separate entry with
+// its own free-text name (e.g. Frieren season 2 is a wholly different entry,
+// "...Season 2", not more files under season 1's entry), which a
+// season-agnostic exact title match can't distinguish. Doesn't resolve the
+// separate, already-known per-FILE restart-numbering problem within a single
+// entry (Naruto: Shippuuden's S07E01-style Jimaku file tagging, see Decisions
+// Log 2026-07-06) — that's a different axis, still unsolved. Returns null
+// (not a guess/fallback) when no parseable TVEpisode block is found, so the
+// caller can show a clear error instead of querying Jimaku with a wrong or
+// empty title.
 function detectShowEpisode() {
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
     let data;
@@ -77,6 +81,38 @@ let activePopup = null;
 // SPA-navigation reload below can also reset it — see loadSubtitles/
 // jp-immersion-locationchange.
 let lastText = null;
+// Module-scope (not a const captured once inside init()), so a full
+// show-to-show navigation can swap it out. Real report 2026-07-17: after
+// switching from one show to a different one, the switcher panel/ranking
+// kept updating correctly under the hood (background.js state is
+// unaffected), but the actual on-screen subtitle text stayed permanently
+// blank until a full page reload, which only re-fixed it by re-running
+// init() from scratch — same-show episode-to-episode navigation was already
+// confirmed NOT to hit this (2026-07-15/17). Diagnosed, not directly
+// observed via devtools: the original code queried
+// `document.querySelector("video")` exactly once and attached the
+// timeupdate listener to that one element forever — the leading theory is
+// that a full show change (unlike same-show episode navigation) swaps in a
+// brand new <video> node, leaving the old element quietly dead (detached,
+// frozen `currentTime`, no more real playback events) with nothing to
+// re-query or re-bind to the new one. This fix (re-query + rebind on every
+// SPA navigation) resolves the symptom either way, whether or not the node
+// swap is the exact mechanism — worth flagging if it recurs after this.
+let video = null;
+// Tracks the (seriesTitle, seasonNumber, episodeNumber) of whatever was last
+// successfully loaded, so a SPA-navigation-triggered reload can tell a
+// genuinely fresh detection apart from Crunchyroll's schema.org block still
+// holding the PREVIOUS episode's data for a brief window after the pathname
+// already changed — a race this project's own 2026-07-17 retry mitigation
+// explicitly flagged as a known, unaddressed gap ("doesn't address the DOM
+// briefly holding the PREVIOUS episode's still-parseable block instead of
+// failing outright"), and a real report the same day (switching Witch Hat
+// Atelier episode 1 → 2 → 1 → 2 landing back on episode 1's default uploader
+// instead of episode 2's) matches this exact shape. See loadSubtitles.
+let lastLoadedIdentity = null;
+function episodeIdentity(detected) {
+  return `${detected.seriesTitle} ${detected.seasonNumber} ${detected.episodeNumber}`;
+}
 
 // SPA-navigation detection (2026-07-15, revised same day after the first
 // attempt failed live testing). Confirmed via live testing that Crunchyroll
@@ -407,17 +443,43 @@ function extractUploaderTag(filename) {
 // jp-immersion-locationchange listener below on every SPA episode change.
 // `switcherPanel` (2026-07-15) is populated with the same response's ranked
 // candidate list, so it doesn't need its own separate Jimaku round trip.
-function loadSubtitles(subtitleBox, switcherPanel) {
+function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange = false) {
   cues = null;
   lastText = null;
+  // Undoes renderCue's `display: none` (see there) for the gap-between-lines
+  // case — every status/error message this function can show below needs to
+  // actually be visible, not silently hidden by a state left over from
+  // whatever the box was doing a moment before this call.
+  subtitleBox.style.display = "";
   subtitleBox.textContent = "Loading subtitles…";
   renderSwitcherOptions(switcherPanel, null, null, null);
   const detected = detectShowEpisode();
+  // `expectChange` is only true from the locationchange listener below,
+  // where the pathname is already known to have just changed — so a
+  // detection that still matches the PREVIOUS episode's identity is stale
+  // data, not a real result, even though it parsed without error. Confirmed
+  // real 2026-07-17: navigating Witch Hat Atelier ep1→ep2→ep1→ep2 landed
+  // back on ep1's default uploader instead of ep2's, consistent with a
+  // stale re-detection silently re-fetching the wrong episode.
+  const stale = expectChange && detected && lastLoadedIdentity === episodeIdentity(detected);
+  if ((!detected || stale) && retriesLeft > 0) {
+    // On SPA episode/show navigation, the pathname can update slightly
+    // before Crunchyroll's own schema.org TVEpisode block for the new
+    // episode is actually in the DOM (or, per `stale` above, still reflects
+    // the old one) — a real report (2026-07-17) of the "couldn't detect"
+    // error appearing intermittently on next-episode navigation, reliably
+    // fixed by a full page reload (which gives the DOM more than enough time
+    // to settle), matches this shape. A bounded retry after a short delay
+    // covers that transient window without requiring a manual reload.
+    setTimeout(() => loadSubtitles(subtitleBox, switcherPanel, retriesLeft - 1, expectChange), 500);
+    return;
+  }
   if (!detected) {
     subtitleBox.textContent =
       'Couldn\'t detect the show/episode from this page — use "Upload subtitle file" below instead.';
     return;
   }
+  lastLoadedIdentity = episodeIdentity(detected);
   // Saved per-show-per-season uploader preference (if any) is threaded into
   // the SAME FETCH_SUBTITLES call rather than fetched separately and then
   // possibly re-fetched — background.js's rankFiles gives it top priority
@@ -432,6 +494,7 @@ function loadSubtitles(subtitleBox, switcherPanel) {
         type: "FETCH_SUBTITLES",
         query: detected.seriesTitle,
         episode: detected.episodeNumber,
+        seasonNumber: detected.seasonNumber,
         fileHint: FILE_HINT,
         preferredUploader,
       },
@@ -446,14 +509,38 @@ function loadSubtitles(subtitleBox, switcherPanel) {
         }
         cues = response.cues;
         renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected);
+        // Forces an immediate re-render via the shared timeupdate listener
+        // (see init()) instead of waiting for the video's own next natural
+        // timeupdate tick — otherwise a paused video (or one that hasn't
+        // started its next tick yet) shows no change until the user seeks or
+        // presses play. Same fix already applied to the manual-upload path
+        // (buildUploadControl) when this was first caught there; this path
+        // had the identical gap, confirmed real 2026-07-17 (reported as
+        // subtitles "stuck on Loading subtitles…" inconsistently).
+        if (video) video.dispatchEvent(new Event("timeupdate"));
       }
     );
   });
 }
 
+// The manifest matches every crunchyroll.com page, not just watch pages
+// (needed so `jp-immersion-locationchange` can detect navigating INTO a
+// watch page without a full reload) — but the homepage/search page also
+// often has an unrelated `<video>` element (an autoplay hero banner/promo),
+// which the old `document.querySelector("video")` check alone couldn't tell
+// apart from a real episode player. Confirmed real 2026-07-17: the
+// "couldn't detect the show/episode" error was showing up on the homepage
+// and search page, where it's not just wrong but actively confusing (there's
+// no video to have subtitles for at all). `/watch/` is Crunchyroll's real
+// watch-page URL segment — not independently re-verified against the live
+// site this session, flag if this turns out wrong for some URL shape.
+function isWatchPage() {
+  return location.pathname.includes("/watch/");
+}
+
 function init() {
-  const video = document.querySelector("video");
-  if (!video) {
+  video = document.querySelector("video");
+  if (!video || !isWatchPage()) {
     setTimeout(init, 1000);
     return;
   }
@@ -490,12 +577,17 @@ function init() {
     updateOffsetDisplay();
   });
 
-  // Attached once, unconditionally — reads from the shared `cues` variable so
-  // either a Jimaku fetch or a manual file upload (see buildUploadControl)
-  // can populate it interchangeably, without each needing its own listener.
-  // `lastText` is module-scope (not declared here) so an episode change
-  // (loadSubtitles, below) can reset it too.
-  video.addEventListener("timeupdate", () => {
+  // Named (not inline) so it can be detached from an old <video> node and
+  // reattached to a new one — see the rebinding logic in the
+  // jp-immersion-locationchange listener below. Reads the module-scope
+  // `video` variable rather than closing over this function's own local
+  // parameter, so it always reflects whichever element is CURRENTLY bound,
+  // even though the function reference itself never changes. Reads from the
+  // shared `cues` variable so either a Jimaku fetch or a manual file upload
+  // (see buildUploadControl) can populate it interchangeably, without each
+  // needing its own listener. `lastText` is module-scope (not declared here)
+  // so an episode change (loadSubtitles, below) can reset it too.
+  function handleTimeUpdate() {
     if (!cues) return;
     const adjustedTime = video.currentTime - offset;
     // ASS files often split one visual subtitle across multiple simultaneous
@@ -518,7 +610,8 @@ function init() {
     if (text === lastText) return;
     lastText = text;
     renderCue(subtitleBox, text);
-  });
+  }
+  video.addEventListener("timeupdate", handleTimeUpdate);
 
   loadSubtitles(subtitleBox, switcherPanel);
 
@@ -529,15 +622,45 @@ function init() {
   // storage key/value for the new episode's URL, so a saved offset doesn't
   // leak across episodes.
   window.addEventListener("jp-immersion-locationchange", () => {
+    // Navigating away from a watch page (e.g. back to browse/search) via SPA
+    // navigation, not a full reload — hide the UI rather than letting
+    // loadSubtitles run and eventually show "couldn't detect the
+    // show/episode" on a page that was never showing an episode to begin
+    // with. See `isWatchPage` above for the same-day report this addresses.
+    if (!isWatchPage()) {
+      subtitleBox.style.display = "none";
+      switcherPanel.style.display = "none";
+      offsetControl.style.display = "none";
+      uploadControl.style.display = "none";
+      return;
+    }
+    subtitleBox.style.display = "";
+    switcherPanel.style.display = "";
+    offsetControl.style.display = "";
+    uploadControl.style.display = "";
     OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
     chrome.storage.local.get(OFFSET_STORAGE_KEY, (stored) => {
       offset = stored[OFFSET_STORAGE_KEY] ?? 0;
       updateOffsetDisplay();
     });
-    loadSubtitles(subtitleBox, switcherPanel);
+    // Re-query for the <video> element and rebind if Crunchyroll swapped in
+    // a different one — see the `video` declaration above for the real
+    // report this addresses (switching shows entirely left subtitles
+    // permanently blank until a full reload). A same-show episode change
+    // appears to reuse the existing <video> node (this branch is then just a
+    // same-element no-op, confirmed via the 2026-07-15/17 episode-nav
+    // testing never hitting this issue), so this mainly matters for the
+    // heavier show-to-show case.
+    const freshVideo = document.querySelector("video");
+    if (freshVideo && freshVideo !== video) {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video = freshVideo;
+      video.addEventListener("timeupdate", handleTimeUpdate);
+    }
+    loadSubtitles(subtitleBox, switcherPanel, 2, true);
   });
 
-  const uploadControl = buildUploadControl(video);
+  const uploadControl = buildUploadControl();
   getContainer().appendChild(uploadControl);
   document.addEventListener("fullscreenchange", () => {
     getContainer().appendChild(uploadControl);
@@ -652,6 +775,12 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected) {
             [uploaderPrefKey(detected.seriesTitle, detected.seasonNumber)]: uploaderTag,
           });
         }
+        // Same forced-re-render fix as loadSubtitles() above — a manual
+        // switch while paused (the common case: you pause to go fiddle with
+        // the dropdown) would otherwise leave the OLD file's last-rendered
+        // line on screen indefinitely, since `cues` changed but nothing ever
+        // told the timeupdate listener to re-check it.
+        if (video) video.dispatchEvent(new Event("timeupdate"));
       }
     );
   });
@@ -667,8 +796,12 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected) {
 // also loaded as a content script, see manifest.json) — no new parsing
 // logic, just a new input path alongside the existing FETCH_SUBTITLES one.
 // Always visible (not just shown on a Jimaku failure), since a per-episode
-// override is a real, expected use case even when Jimaku succeeds.
-function buildUploadControl(video) {
+// override is a real, expected use case even when Jimaku succeeds. Reads the
+// module-scope `video` (2026-07-17, no longer a captured parameter) so a
+// pick made after a show-to-show navigation swapped the active element still
+// targets the CURRENT one, not whatever was active when this control was
+// first built.
+function buildUploadControl() {
   const control = document.createElement("div");
   control.id = "jp-immersion-upload";
 
@@ -750,7 +883,23 @@ function renderCue(subtitleBox, text) {
   const myGeneration = ++renderGeneration;
   closePopup();
   subtitleBox.textContent = "";
-  if (!text) return;
+  if (!text) {
+    // A real, confirmed bug (2026-07-17), not just cosmetic: `#jp-immersion-
+    // subtitle` has real padding/border-radius/background in content.css,
+    // so an EMPTY-but-still-`display: block` div renders as a small visible
+    // dark rounded box even with no text — reported as a stray "oval" over
+    // whatever happens to be on screen at that exact fixed viewport spot
+    // (bottom-60px, horizontally centered) during any gap between subtitle
+    // lines, which is most of the runtime for typical dialogue pacing.
+    // Confirmed as ours, not Crunchyroll's: disappeared when the extension
+    // was disabled. Went unnoticed initially because `pointer-events: none`
+    // (deliberate, so it never blocks clicking the video underneath) also
+    // means a right-click on it inspects whatever's BEHIND it instead — the
+    // element itself never showed up as inspectable, despite being real.
+    subtitleBox.style.display = "none";
+    return;
+  }
+  subtitleBox.style.display = "";
 
   if (!tokenizer) {
     subtitleBox.textContent = text;
@@ -834,9 +983,17 @@ function renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups) {
 }
 
 function renderGroups(subtitleBox, groups) {
+  // Running character offset within the full rendered line (2026-07-17,
+  // Phase 5) — every group's surface concatenates in order to exactly
+  // reproduce `lastText`, so tracking this here gives the Anki-capture flow
+  // an EXACT position to bold the clicked word at, rather than a substring
+  // search that could match the wrong occurrence if the same word appears
+  // twice in one line.
+  let offset = 0;
   for (const group of groups) {
     if (group.word === null) {
       subtitleBox.appendChild(document.createTextNode(group.surface));
+      offset += group.surface.length;
       continue;
     }
 
@@ -845,6 +1002,7 @@ function renderGroups(subtitleBox, groups) {
     span.textContent = group.surface;
     span.dataset.word = group.word;
     span.dataset.surface = group.surface;
+    span.dataset.startOffset = offset;
     span._inflections = group.inflections;
     span._isParticle = group.isParticle ?? false;
     span._isHonorificSuffix = group.isHonorificSuffix ?? false;
@@ -853,11 +1011,42 @@ function renderGroups(subtitleBox, groups) {
     span._idiomWord = group.idiomWord ?? null;
     span.addEventListener("click", onWordClick);
     subtitleBox.appendChild(span);
+    offset += group.surface.length;
   }
 }
 
 // groupTokens, findKanaMergeCandidates, applyKanaMerges, findPhraseMatchCandidates,
 // classifyAndSelectPhraseMatches, applyPhraseMatches are defined in tokenize-utils.js.
+
+// Shared by buildSentenceHtml and renderEntries's own fallback below — both
+// need to embed plain subtitle/dictionary text into an Anki field's HTML.
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Builds the HTML the Anki "Sentence" field expects (the clicked word
+// wrapped in <b>) from the exact position `renderGroups` recorded on the
+// span, not a substring search — robust against the same word appearing
+// twice in one line, unlike indexOf(). Captured once, synchronously, at
+// click time (2026-07-17) — NOT re-read later when the "+ Anki" button
+// itself is clicked, since `lastText` is module-scope and the video may
+// have advanced to a new line during the async LOOKUP_WORD round-trip (or
+// while the user is still reading the popup) by the time that happens.
+// Returns null if the offset is missing/invalid rather than guessing, so
+// the caller can fall back to no sentence rather than a corrupted one.
+function buildSentenceHtml(sentenceText, startOffset, surface) {
+  if (!sentenceText || !Number.isInteger(startOffset) || startOffset < 0) return null;
+  const end = startOffset + surface.length;
+  if (end > sentenceText.length || sentenceText.slice(startOffset, end) !== surface) return null;
+  return escapeHtml(sentenceText.slice(0, startOffset)) + "<b>" + escapeHtml(surface) + "</b>" + escapeHtml(sentenceText.slice(end));
+}
+
+// Matches the popup's own numbered-sense display (renderEntries below) so
+// the Anki card's Gloss field shows the same thing the learner already saw
+// when they clicked "+ Anki", not a differently-formatted summary.
+function formatGlossForAnki(g) {
+  return g.map((senseGlosses, i) => `${i + 1}. ${senseGlosses.join("; ")}`).join("<br>");
+}
 
 function onWordClick(event) {
   event.stopPropagation();
@@ -869,6 +1058,7 @@ function onWordClick(event) {
   const pos = span._pos ?? null;
   const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
+  const sentenceHtml = buildSentenceHtml(lastText, Number(span.dataset.startOffset), span.dataset.surface);
 
   closePopup();
   const popup = document.createElement("div");
@@ -905,7 +1095,7 @@ function onWordClick(event) {
       popup.appendChild(inflectionLine);
     }
 
-    renderEntries(popup, word, response.results);
+    renderEntries(popup, word, response.results, sentenceHtml, response.showPos);
 
     // Dual-view: this word is also the start of a matched multi-word set
     // phrase (see tokenize-utils.js's isDualViewMatch) whose meaning isn't a
@@ -920,7 +1110,7 @@ function onWordClick(event) {
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
         popup.appendChild(label);
-        renderEntries(popup, idiomWord, idiomResponse.results);
+        renderEntries(popup, idiomWord, idiomResponse.results, sentenceHtml, response.showPos);
       });
     }
   });
@@ -970,7 +1160,12 @@ function archaicTagLabel(entry) {
 // visible in the ruby headword itself.
 const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
-function renderEntries(container, word, results) {
+function renderEntries(container, word, results, sentenceHtml, showPos) {
+  // Falls back to just the bolded word alone when the exact-offset lookup in
+  // buildSentenceHtml couldn't confirm a match (rare: only if lastText and
+  // the span's own recorded surface/offset somehow disagree) — degrades to
+  // less context rather than disabling capture entirely for that click.
+  const effectiveSentenceHtml = sentenceHtml ?? `<b>${escapeHtml(word)}</b>`;
   const seenFirstGloss = new Set();
   for (const entry of results.slice(0, 3)) {
     const { r, g, si, p, c, k } = entry;
@@ -1028,12 +1223,21 @@ function renderEntries(container, word, results) {
     }
     cardEl.appendChild(headerRow);
 
+    // Gated behind the opt-in toggle (Phase 5, 2026-07-17) — this is the
+    // ONLY thing the toggle controls; `p` (POS codes) is still read
+    // unconditionally elsewhere in this function (formatPosChips itself,
+    // for the Anki capture below, and archaicTagLabel's own internal
+    // POS-based archaic-verb-type check above) — those aren't "showing POS
+    // metadata" in the sense the toggle means, they're using the codes for
+    // an unrelated correctness signal that has nothing to do with whether
+    // the user opted in to seeing POS labels.
+    let posChips = null;
     if (p && p.length > 0) {
-      const chips = formatPosChips(p, word);
-      if (chips) {
+      posChips = formatPosChips(p, word);
+      if (showPos && posChips) {
         const posLine = document.createElement("div");
         posLine.className = "jp-immersion-popup-pos";
-        posLine.textContent = chips;
+        posLine.textContent = posChips;
         cardEl.appendChild(posLine);
       }
     }
@@ -1072,6 +1276,73 @@ function renderEntries(container, word, results) {
       glossList.appendChild(row);
     });
     cardEl.appendChild(glossList);
+
+    // Add to Anki (Phase 5, 2026-07-17) — per-card, not once per popup, so a
+    // homograph with multiple cards shown lets the user pick exactly which
+    // reading/sense actually matches what they saw. Instant send on click
+    // (no separate confirm step, per the 2026-07-02 capture-UX decision);
+    // success replaces the button with an inline "Added to Anki" + Undo
+    // (calls AnkiConnect's deleteNotes with the returned note ID) rather than
+    // a separate toast component — the popup card IS already the transient,
+    // dismissible surface a toast would otherwise be, so a second one would
+    // be redundant. "Edit last card" from the original build-order item is
+    // NOT built here — deferred as a smaller follow-up, see project-plan.md.
+    const ankiRow = document.createElement("div");
+    ankiRow.className = "jp-immersion-popup-anki-row";
+    const ankiBtn = document.createElement("button");
+    ankiBtn.className = "jp-immersion-popup-anki-btn";
+    ankiBtn.textContent = "+ Anki";
+    ankiBtn.addEventListener("click", () => {
+      ankiBtn.disabled = true;
+      ankiBtn.textContent = "Adding…";
+      chrome.runtime.sendMessage(
+        {
+          type: "ADD_ANKI_NOTE",
+          word,
+          reading: r,
+          gloss: formatGlossForAnki(g),
+          sentenceHtml: effectiveSentenceHtml,
+          // Only sent when the user has actually opted in — matches the
+          // popup's own display exactly (same `posChips` string, not
+          // separately recomputed), so the card can never show POS info the
+          // in-page popup itself didn't also show for this same capture.
+          pos: showPos ? posChips : null,
+        },
+        (response) => {
+          if (!response || response.error) {
+            ankiBtn.textContent = "Failed — retry";
+            ankiBtn.title = response?.error ?? "Unknown error";
+            ankiBtn.disabled = false;
+            return;
+          }
+          const noteId = response.result;
+          ankiRow.textContent = "";
+          const doneLabel = document.createElement("span");
+          doneLabel.className = "jp-immersion-popup-anki-done";
+          doneLabel.textContent = "Added to Anki";
+          const undoBtn = document.createElement("button");
+          undoBtn.className = "jp-immersion-popup-anki-undo";
+          undoBtn.textContent = "Undo";
+          undoBtn.addEventListener("click", () => {
+            undoBtn.disabled = true;
+            chrome.runtime.sendMessage({ type: "DELETE_ANKI_NOTE", noteId }, (delResponse) => {
+              if (!delResponse || delResponse.error) {
+                undoBtn.disabled = false;
+                undoBtn.title = delResponse?.error ?? "Undo failed";
+                return;
+              }
+              doneLabel.textContent = "Removed from Anki";
+              undoBtn.remove();
+            });
+          });
+          ankiRow.appendChild(doneLabel);
+          ankiRow.appendChild(undoBtn);
+        }
+      );
+    });
+    ankiRow.appendChild(ankiBtn);
+    cardEl.appendChild(ankiRow);
+
     container.appendChild(cardEl);
   }
 }

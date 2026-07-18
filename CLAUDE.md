@@ -20,9 +20,10 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 4.5 — Jimaku integration.** Phase 4 is now formally closed (2026-07-15, user's explicit call — see `project-plan.md` Section 6). Every currently-known Phase 4.5 build-order item is now built: show/episode auto-detection, the popularity-signal fact-finding check, the "best subtitle" uploader-ranking algorithm (`rankFiles()`), the SPA-episode-navigation fix (polls `location.pathname` — a `history.pushState` wrapper was tried first and confirmed NOT to work from a content script's isolated JS world, see Decisions Log 2026-07-15), the manual switcher panel (user-confirmed working live 2026-07-16), and per-show-per-season uploader preference memory + sticky fallback (built together 2026-07-16, threaded into `rankFiles()` rather than a second fetch) — see Section 6 Phase 4.5 Done list. Top priority right now:
-1. **Needs live confirmation:** the uploader-memory feature (pick a file in the switcher panel, reload, confirm the same uploader's file auto-loads on a later episode of the same show) is unit-tested but not yet exercised in-browser.
-2. Once confirmed, Phase 4.5 is fully closed and the project moves to Phase 5 — Anki export, starting with the DRM feasibility test (Section 6).
+**Phase 5 — Anki export.** Core loop is built and confirmed live end-to-end (2026-07-17): DRM test, AnkiConnect wiring, the dedicated "Japanese Immersion" deck/note type, the "Add to Anki" button with exact-offset sentence bolding, and an opt-in POS toggle — see `project-plan.md` Section 6 Phase 5 for the full done list. Paused here at the user's call. Next, in priority order (none started, each needs real work before it's a quick pickup):
+1. Frequency-rank badge — needs a `jmdict-compact.json` regeneration (the raw TUBELEX score is currently never persisted per-entry, only used to sort during generation) plus real percentile-based tier thresholds derived from the actual data, confirmed with the user before hardcoding.
+2. JLPT level — needs an external data source chosen first (jmdict-compact.json has none); a real decision, not a build task.
+3. Audio field placement/design — confirmed technically viable (Decisions Log 2026-07-17), but where it fits in the build order and its capture-timing/UI design is the user's call, still pending.
 
 If regenerating `jmdict-compact.json` (any phase), both `scripts/fix-jmdict-priority.js` AND `scripts/apply-tubelex-frequency.js` must be re-run after — a regression from skipping the latter shipped and had to be caught mid-testing (see Decisions Log 2026-07-13).
 
@@ -35,7 +36,7 @@ If regenerating `jmdict-compact.json` (any phase), both `scripts/fix-jmdict-prio
 - **No other video platforms (Netflix, YouTube, etc.), manga OCR, or general web support.** Crunchyroll-only by design, not a Netflix-specific gap.
 - **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
 - **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)
-- **Don't build audio/screenshot Anki fields, or their UI, until the DRM feasibility test (Phase 5) resolves.**
+- **Screenshot Anki field is dropped from the roadmap entirely (2026-07-17, confirmed DRM-blocked, not deferred) — don't build it.** Audio field is confirmed technically viable (2026-07-17) but not yet scheduled or designed — ask the user before building it (`project-plan.md` Section 8).
 - **The frequency-rank badge is now a real feature, not a placeholder** — 3 text tiers (Common/Uncommon/Rare), no raw numbers, no badge when there's no data (decided 2026-07-04). It replaces the old common-word toggle entirely — don't build both. Numeric thresholds per tier are still TBD; confirm with the user before hardcoding them. See `project-plan.md` Section 5.
 
 Full reasoning for all of these is in `project-plan.md` Section 4 (V1 Scope) and Section 7 (Decisions Log) — check there before assuming an exception applies.

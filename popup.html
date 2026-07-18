@@ -29,6 +29,30 @@
         color: #1a7f37;
         min-height: 14px;
       }
+      hr {
+        margin: 14px 0;
+        border: none;
+        border-top: 1px solid #ddd;
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+      .toggle-row label {
+        cursor: pointer;
+      }
+      .toggle-row input {
+        width: auto;
+        margin: 0;
+      }
+      .toggle-hint {
+        font-size: 11px;
+        color: #888;
+        margin: -2px 0 8px 22px;
+      }
     </style>
   </head>
   <body>
@@ -36,6 +60,22 @@
     <input type="password" id="apiKeyInput" placeholder="Paste your Jimaku API key" />
     <button id="saveBtn">Save</button>
     <p id="status"></p>
+    <hr />
+    <h3>Extra info (popup + Anki cards)</h3>
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-pos" />
+      <label for="toggle-pos">Part of speech</label>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-frequency" disabled />
+      <label for="toggle-frequency">Frequency rank</label>
+    </div>
+    <p class="toggle-hint">Coming soon</p>
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-jlpt" disabled />
+      <label for="toggle-jlpt">JLPT level</label>
+    </div>
+    <p class="toggle-hint">Coming soon</p>
     <script src="popup.js"></script>
   </body>
 </html>

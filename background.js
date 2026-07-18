@@ -6,6 +6,163 @@ importScripts("subtitle-parser.js", "tokenize-utils.js");
 
 const JIMAKU_API_BASE = "https://jimaku.cc/api";
 
+// Phase 5 — Anki export. AnkiConnect (a local Anki add-on, not a hosted
+// service) runs an HTTP server on the user's own machine while Anki is open;
+// every action (listing decks, adding a note, etc.) is one POST request with
+// an `action`/`version`/`params` body, responding `{result, error}` — `error`
+// is non-null on failure rather than an HTTP error status, so a successful
+// fetch() doesn't by itself mean the action succeeded. This one helper is the
+// only place that talks to AnkiConnect directly; every later Phase 5 feature
+// (card creation, deck/model listing, the "Anki isn't open" error state)
+// calls through it rather than building its own fetch.
+const ANKICONNECT_URL = "http://127.0.0.1:8765";
+const ANKICONNECT_VERSION = 6;
+
+async function invokeAnkiConnect(action, params = {}) {
+  let response;
+  try {
+    response = await fetch(ANKICONNECT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action, version: ANKICONNECT_VERSION, params }),
+    });
+  } catch {
+    // A network-level failure here (not an AnkiConnect `error` field) means
+    // there was nothing listening on the port at all — Anki isn't open, or
+    // the AnkiConnect add-on isn't installed/enabled. Distinct message from
+    // the `data.error` case below (a real AnkiConnect-level failure, e.g. a
+    // bad deck name) so the eventual UI can tell the two apart.
+    throw new Error("Couldn't reach Anki — make sure Anki is open and the AnkiConnect add-on is installed.");
+  }
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data.result;
+}
+
+// Deliberately a dedicated deck + note type ("Japanese Immersion"), not
+// reusing Anki's stock "Basic" (only 2 fields — not enough room to keep
+// word/reading/gloss/sentence as independently stylable fields) and not the
+// user's own "Kaishi 1.5k" deck (their existing curated study deck — user's
+// explicit call 2026-07-17 to keep immersion-sourced cards separate from it).
+// Card direction is sentence-first (also the user's call, 2026-07-17): the
+// FRONT shows the captured sentence with the target word already bolded
+// (the caller is responsible for wrapping the word in `<b>` before it
+// reaches here — this function doesn't parse or rewrite the sentence HTML
+// itself), testing recall from real context; the BACK reveals word/reading/
+// gloss. Matches this project's core-loop goal (confirm what you half-know
+// from the actual scene) better than a word-first traditional flashcard.
+const ANKI_DECK_NAME = "Japanese Immersion";
+const ANKI_MODEL_NAME = "Japanese Immersion";
+// "POS" (2026-07-17) is the first opt-in metadata field — always PRESENT on
+// the note type, but the caller sends an empty string unless the user has
+// the toggle on (see addAnkiNote), and the template's `{{#POS}}...{{/POS}}`
+// conditional just renders nothing for an empty field, so opting out looks
+// identical to a card created before this field existed at all.
+const ANKI_MODEL_FIELDS = ["Word", "Reading", "Gloss", "Sentence", "POS"];
+
+const ANKI_MODEL_CSS = `
+.card {
+  font-family: sans-serif;
+  font-size: 22px;
+  text-align: center;
+  color: black;
+  background-color: white;
+}
+.sentence {
+  font-size: 26px;
+  margin-bottom: 10px;
+}
+.sentence b {
+  color: #1a7f37;
+}
+.word {
+  font-size: 32px;
+  font-weight: bold;
+  margin-top: 10px;
+}
+.reading {
+  font-size: 20px;
+  color: #555;
+}
+.gloss {
+  font-size: 20px;
+  margin-top: 8px;
+}
+.pos {
+  font-size: 14px;
+  color: #888;
+  margin-top: 6px;
+}
+`;
+
+const ANKI_FRONT_TEMPLATE = `<div class="sentence">{{Sentence}}</div>`;
+const ANKI_BACK_TEMPLATE = `{{FrontSide}}
+<hr id="answer">
+<div class="word">{{Word}}</div>
+<div class="reading">{{Reading}}</div>
+<div class="gloss">{{Gloss}}</div>
+{{#POS}}<div class="pos">{{POS}}</div>{{/POS}}`;
+
+// Idempotent — checks before creating, so it's safe to call before every
+// single card add (e.g. in case the user deletes the deck/note type in
+// Anki later) rather than assuming a one-time setup step already ran.
+async function ensureAnkiSetup() {
+  const [decks, models] = await Promise.all([invokeAnkiConnect("deckNames"), invokeAnkiConnect("modelNames")]);
+  if (!decks.includes(ANKI_DECK_NAME)) {
+    await invokeAnkiConnect("createDeck", { deck: ANKI_DECK_NAME });
+  }
+  if (!models.includes(ANKI_MODEL_NAME)) {
+    await invokeAnkiConnect("createModel", {
+      modelName: ANKI_MODEL_NAME,
+      inOrderFields: ANKI_MODEL_FIELDS,
+      css: ANKI_MODEL_CSS,
+      cardTemplates: [{ Name: "Card 1", Front: ANKI_FRONT_TEMPLATE, Back: ANKI_BACK_TEMPLATE }],
+    });
+    return;
+  }
+  // Model already existed (e.g. created in an earlier session/test before a
+  // new opt-in field like POS existed) — add any missing fields rather than
+  // recreating the model, which would orphan every existing card. Reapplies
+  // the current template on every call regardless of whether a field was
+  // just added (cheap, idempotent), so an older install picks up template
+  // changes (like the new conditional POS line) without needing a fresh
+  // model — the alternative (only updating templates when a field was
+  // added) would silently skip template-only changes with no field change.
+  const existingFields = await invokeAnkiConnect("modelFieldNames", { modelName: ANKI_MODEL_NAME });
+  for (const field of ANKI_MODEL_FIELDS) {
+    if (!existingFields.includes(field)) {
+      await invokeAnkiConnect("modelFieldAdd", { modelName: ANKI_MODEL_NAME, fieldName: field });
+    }
+  }
+  await invokeAnkiConnect("updateModelTemplates", {
+    model: { name: ANKI_MODEL_NAME, templates: { "Card 1": { Front: ANKI_FRONT_TEMPLATE, Back: ANKI_BACK_TEMPLATE } } },
+  });
+}
+
+// `sentenceHtml` is expected to already have the target word wrapped in
+// `<b>...</b>` (Anki fields render as HTML) — this function just moves data
+// into AnkiConnect's `addNote` shape, it doesn't do any text processing of
+// its own. Duplicate detection is AnkiConnect's own default behavior (first
+// field, i.e. Word, must be unique within the note type) — not overridden
+// here, so adding the exact same word twice fails with a clear AnkiConnect
+// error rather than silently creating a duplicate card. `pos` is optional
+// (the opt-in toggle, 2026-07-17) — sent as an empty string when absent, not
+// omitted, since the field must exist on every note either way and the
+// template already renders nothing for an empty value.
+async function addAnkiNote({ word, reading, gloss, sentenceHtml, pos }) {
+  await ensureAnkiSetup();
+  return invokeAnkiConnect("addNote", {
+    note: {
+      deckName: ANKI_DECK_NAME,
+      modelName: ANKI_MODEL_NAME,
+      fields: { Word: word, Reading: reading, Gloss: gloss, Sentence: sentenceHtml, POS: pos ?? "" },
+      options: { allowDuplicate: false },
+      tags: ["japanese-immersion-extension"],
+    },
+  });
+}
+
 // Archive files (bulk multi-episode downloads) can't be parsed as subtitle
 // text directly — same filter already used in scripts/batch-test.js, ported
 // here since production fetchSubtitles never had it (confirmed real gap
@@ -69,7 +226,7 @@ function rankFiles(files, preferredUploader = null) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_SUBTITLES") {
-    fetchSubtitles(message.query, message.episode, message.fileHint, message.preferredUploader)
+    fetchSubtitles(message.query, message.episode, message.fileHint, message.preferredUploader, message.seasonNumber)
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ error: error.message }));
     return true; // keep the message channel open for the async response
@@ -83,8 +240,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "LOOKUP_WORD") {
-    lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix)
-      .then(({ results, posTags }) => sendResponse({ results, posTags }))
+    // `metaShowPos` (Phase 5, 2026-07-17) is bundled into the SAME round trip
+    // rather than a second storage read from content.js — the popup already
+    // waits on this one message before rendering, so there's no benefit to a
+    // separate fetch, and this keeps the toggle's storage key private to
+    // background.js (content.js only ever sees the resolved boolean).
+    Promise.all([lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix), chrome.storage.local.get("metaShowPos")])
+      .then(([{ results, posTags }, { metaShowPos }]) => sendResponse({ results, posTags, showPos: metaShowPos ?? false }))
       .catch((error) => sendResponse({ error: error.message }));
     return true;
   }
@@ -92,6 +254,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "CHECK_KANA_MERGES") {
     checkKanaMergeCandidates(message.texts)
       .then((membership) => sendResponse({ membership }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "ANKICONNECT_PING") {
+    invokeAnkiConnect("version")
+      .then((result) => sendResponse({ result }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "ADD_ANKI_NOTE") {
+    addAnkiNote({
+      word: message.word,
+      reading: message.reading,
+      gloss: message.gloss,
+      sentenceHtml: message.sentenceHtml,
+      pos: message.pos,
+    })
+      .then((result) => sendResponse({ result }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "DELETE_ANKI_NOTE") {
+    invokeAnkiConnect("deleteNotes", { notes: [message.noteId] })
+      .then((result) => sendResponse({ result }))
       .catch((error) => sendResponse({ error: error.message }));
     return true;
   }
@@ -109,13 +298,61 @@ async function getJimakuHeaders() {
   return { Authorization: jimakuApiKey };
 }
 
+// Jimaku's search endpoint returns ZERO results for a multi-word query if any
+// one word's apostrophe doesn't byte-match its own index — confirmed via
+// direct API calls while diagnosing a real "no Jimaku entry found" report for
+// Frieren season 2 (2026-07-17): Crunchyroll's JSON-LD spells the title with
+// a straight apostrophe ("Journey's End"), Jimaku's own entry uses a
+// typographic one ("Journey’s End"), and searching the straight-apostrophe
+// form returns nothing even though "Frieren: Beyond" alone (no apostrophe
+// word) returns both Frieren entries fine. Stripping the apostrophe entirely
+// also returns both entries, and doesn't require guessing which Unicode
+// apostrophe variant Jimaku's own index happens to use for a given title, so
+// that's the fix — applied to the search query AND to both sides of the
+// exact-match comparison below (Jimaku's stored names keep their apostrophe).
+function stripApostrophes(s) {
+  return s.replace(/['’‘`]/g, "");
+}
+
+function normalizeTitle(name) {
+  return stripApostrophes(name?.trim().toLowerCase() ?? "");
+}
+
+// Jimaku indexes each season of a multi-season show as a SEPARATE entry with
+// its own free-text name — no structured season field in the API response
+// (confirmed via a real search while diagnosing the same Frieren report:
+// entry 729 "Sousou no Frieren" / "Frieren: Beyond Journey's End" is season
+// 1, entry 11446 "Sousou no Frieren 2nd Season" / "...Season 2" is season 2).
+// Crunchyroll's own partOfSeries.name is stable across a whole franchise's
+// seasons (confirmed: season 2 episodes still report the plain, un-suffixed
+// title), so the season number has to pick WHICH ENTRY to use, not just
+// which file within one entry — the old season-agnostic exact-match always
+// landed on whichever entry has no season suffix at all (i.e. season 1's),
+// so a season-2 request would have silently served season 1's subtitles
+// under a matching episode NUMBER once the apostrophe bug above is fixed,
+// with no error at all. Heuristic, not a structured lookup (Jimaku has
+// nothing structured to match against instead): strip a trailing "Season N"
+// / "Nth Season" marker before the title comparison, and require the
+// extracted N to equal the detected season, defaulting an entry with no
+// marker to season 1.
+const SEASON_SUFFIX_RE = /\s*(?:(\d+)(?:st|nd|rd|th)?\s*season|season\s*(\d+))\s*$/i;
+
+function stripSeasonSuffix(name) {
+  return name ? name.replace(SEASON_SUFFIX_RE, "").trim() : name;
+}
+
+function entrySeasonNumber(name) {
+  const m = name?.match(SEASON_SUFFIX_RE);
+  return m ? Number(m[1] ?? m[2]) : 1;
+}
+
 // Resolves a show/episode query down to the candidate text-file list — the
 // part `fetchSubtitles` (auto-load) and the switcher panel's file listing
 // both need, factored out so a switcher-panel refresh doesn't duplicate this
 // search+files-list round trip inside its own separate function.
-async function resolveTextFiles(query, episode, headers) {
+async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
   const searchUrl = `${JIMAKU_API_BASE}/entries/search?anime=true&query=${encodeURIComponent(
-    query
+    stripApostrophes(query)
   )}`;
   const searchRes = await fetch(searchUrl, { headers });
   if (!searchRes.ok) {
@@ -127,14 +364,25 @@ async function resolveTextFiles(query, episode, headers) {
   }
   // A plain substring search often returns films/specials/OVAs sharing the
   // main series' name (e.g. "One Piece" matches 26 entries). Prefer an exact
-  // case-insensitive name match over just taking the first hit.
-  const normalizedQuery = query.trim().toLowerCase();
-  const entry =
-    entries.find(
-      (e) =>
-        e.name?.trim().toLowerCase() === normalizedQuery ||
-        e.english_name?.trim().toLowerCase() === normalizedQuery
-    ) ?? entries[0];
+  // case-insensitive name match over just taking the first hit — and among
+  // exact matches, prefer one whose season suffix (if any) matches the
+  // detected season, so a multi-season show doesn't default to season 1's
+  // entry when season 2+ is requested (see comments above).
+  const normalizedQuery = normalizeTitle(query);
+  const wantedSeason = seasonNumber ?? 1;
+  const seasonMatch = entries.find((e) => {
+    const seasonOk =
+      entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
+    if (!seasonOk) return false;
+    return (
+      normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
+      normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
+    );
+  });
+  const plainMatch = entries.find(
+    (e) => normalizeTitle(e.name) === normalizedQuery || normalizeTitle(e.english_name) === normalizedQuery
+  );
+  const entry = seasonMatch ?? plainMatch ?? entries[0];
 
   const filesUrl = `${JIMAKU_API_BASE}/entries/${entry.id}/files?episode=${episode}`;
   const filesRes = await fetch(filesUrl, { headers });
@@ -173,9 +421,9 @@ async function fetchAndParseFile(file, headers) {
 // switcher panel (content.js) uses this same response to render every
 // option without a second, redundant Jimaku round trip, and to pre-select
 // the entry that's actually playing rather than guessing at it separately.
-async function fetchSubtitles(query, episode, fileHint = null, preferredUploader = null) {
+async function fetchSubtitles(query, episode, fileHint = null, preferredUploader = null, seasonNumber = null) {
   const headers = await getJimakuHeaders();
-  const textFiles = await resolveTextFiles(query, episode, headers);
+  const textFiles = await resolveTextFiles(query, episode, headers, seasonNumber);
   const ranked = rankFiles(textFiles, preferredUploader);
   // Optional manual override for picking a specific file among several
   // candidates Jimaku returns for the same requested episode — needed since
@@ -188,9 +436,30 @@ async function fetchSubtitles(query, episode, fileHint = null, preferredUploader
   // exists (2026-07-15) — it solves a different axis (same-uploader
   // language-track disambiguation, e.g. Witch Hat Atelier's own CHS+JPN
   // dual-track release) that uploader-preference ranking alone can't.
-  const hinted = fileHint
-    ? textFiles.find((f) => f.name.toLowerCase().includes(fileHint.toLowerCase()))
-    : null;
+  //
+  // Scoped to the TOP-RANKED file's own uploader (2026-07-17), not searched
+  // across every candidate — confirmed real via a live report ("stuck on
+  // Haruhana no matter what I pick or how I navigate") plus direct Jimaku API
+  // verification: Witch Hat Atelier's `FILE_HINT` ("[JPN]") only ever matches
+  // Haruhana's own release ("[Haruhana] ... [JPN].ass"), and the old
+  // unscoped `textFiles.find(...)` would return that file regardless of
+  // `ranked[0]` — silently overriding BOTH the default ranking AND a saved
+  // uploader preference for this show, every single time, since nothing
+  // about the override respected who `rankFiles` actually chose. `fileHint`
+  // was only ever meant to disambiguate BETWEEN one uploader's own multiple
+  // releases (Haruhana's dual CHS+JPN cut vs. its JPN-only cut), not compete
+  // with uploader selection itself — this restores that original scope by
+  // only matching within files that share the top-ranked pick's own bracket
+  // tag. Falls through to no hint at all (matching pre-fileHint behavior)
+  // when the top pick has no bracket tag to scope by (an unbracketed
+  // direct-source file, e.g. Netflix/Amazon).
+  const topTag = ranked[0]?.name.match(/^\[([^\]]+)\]/)?.[1];
+  const hinted =
+    fileHint && topTag
+      ? textFiles.find(
+          (f) => f.name.startsWith(`[${topTag}]`) && f.name.toLowerCase().includes(fileHint.toLowerCase())
+        )
+      : null;
   const file = hinted ?? ranked[0];
   const cues = await fetchAndParseFile(file, headers);
   return {
