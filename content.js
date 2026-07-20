@@ -1095,7 +1095,7 @@ function onWordClick(event) {
       popup.appendChild(inflectionLine);
     }
 
-    renderEntries(popup, word, response.results, sentenceHtml, response.showPos);
+    renderEntries(popup, word, response.results, sentenceHtml, response.showPos, response.showFreq);
 
     // Dual-view: this word is also the start of a matched multi-word set
     // phrase (see tokenize-utils.js's isDualViewMatch) whose meaning isn't a
@@ -1110,7 +1110,7 @@ function onWordClick(event) {
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
         popup.appendChild(label);
-        renderEntries(popup, idiomWord, idiomResponse.results, sentenceHtml, response.showPos);
+        renderEntries(popup, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq);
       });
     }
   });
@@ -1160,7 +1160,7 @@ function archaicTagLabel(entry) {
 // visible in the ruby headword itself.
 const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
-function renderEntries(container, word, results, sentenceHtml, showPos) {
+function renderEntries(container, word, results, sentenceHtml, showPos, showFreq) {
   // Falls back to just the bolded word alone when the exact-offset lookup in
   // buildSentenceHtml couldn't confirm a match (rare: only if lastText and
   // the span's own recorded surface/offset somehow disagree) — degrades to
@@ -1168,7 +1168,7 @@ function renderEntries(container, word, results, sentenceHtml, showPos) {
   const effectiveSentenceHtml = sentenceHtml ?? `<b>${escapeHtml(word)}</b>`;
   const seenFirstGloss = new Set();
   for (const entry of results.slice(0, 3)) {
-    const { r, g, si, p, c, k } = entry;
+    const { r, g, si, p, c, k, fr } = entry;
 
     // A later entry sharing its first gloss with one already shown above is
     // very likely the same core meaning under a rarer/alternate reading, not
@@ -1209,10 +1209,17 @@ function renderEntries(container, word, results, sentenceHtml, showPos) {
       kanjiSpan.textContent = k.join("・");
       headerRow.appendChild(kanjiSpan);
     }
-    if (c) {
+    // Frequency-rank badge (Phase 5, 2026-07-19) replaces the old binary
+    // common-word flag entirely, per the 2026-07-04 decision — a graduated
+    // 3-tier signal supersedes a boolean one, keeping both would just be
+    // redundant UI. Gated behind the opt-in toggle like POS; no badge at all
+    // when `fr` is absent (no TUBELEX data for this word) — absence of data
+    // isn't evidence of rarity, so this deliberately does NOT default to
+    // showing "rare".
+    if (showFreq && fr) {
       const badge = document.createElement("span");
-      badge.className = "jp-immersion-popup-common-badge";
-      badge.textContent = "common word";
+      badge.className = "jp-immersion-popup-freq-badge";
+      badge.textContent = fr;
       headerRow.appendChild(badge);
     }
     if (tagLabel) {
@@ -1307,6 +1314,10 @@ function renderEntries(container, word, results, sentenceHtml, showPos) {
           // separately recomputed), so the card can never show POS info the
           // in-page popup itself didn't also show for this same capture.
           pos: showPos ? posChips : null,
+          // Same pattern as `pos` above (2026-07-19) — matches the badge
+          // text exactly (`fr`, e.g. "common"), only sent when the toggle is
+          // on and the entry actually has a tier.
+          frequency: showFreq && fr ? fr : null,
         },
         (response) => {
           if (!response || response.error) {

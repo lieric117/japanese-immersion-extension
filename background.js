@@ -54,12 +54,13 @@ async function invokeAnkiConnect(action, params = {}) {
 // from the actual scene) better than a word-first traditional flashcard.
 const ANKI_DECK_NAME = "Japanese Immersion";
 const ANKI_MODEL_NAME = "Japanese Immersion";
-// "POS" (2026-07-17) is the first opt-in metadata field — always PRESENT on
-// the note type, but the caller sends an empty string unless the user has
-// the toggle on (see addAnkiNote), and the template's `{{#POS}}...{{/POS}}`
-// conditional just renders nothing for an empty field, so opting out looks
-// identical to a card created before this field existed at all.
-const ANKI_MODEL_FIELDS = ["Word", "Reading", "Gloss", "Sentence", "POS"];
+// "POS" (2026-07-17) and "Frequency" (2026-07-19) are opt-in metadata
+// fields — always PRESENT on the note type, but the caller sends an empty
+// string unless the user has the corresponding toggle on (see addAnkiNote),
+// and the template's `{{#POS}}...{{/POS}}` / `{{#Frequency}}...{{/Frequency}}`
+// conditionals just render nothing for an empty field, so opting out looks
+// identical to a card created before that field existed at all.
+const ANKI_MODEL_FIELDS = ["Word", "Reading", "Gloss", "Sentence", "POS", "Frequency"];
 
 const ANKI_MODEL_CSS = `
 .card {
@@ -94,6 +95,11 @@ const ANKI_MODEL_CSS = `
   color: #888;
   margin-top: 6px;
 }
+.frequency {
+  font-size: 14px;
+  color: #888;
+  margin-top: 6px;
+}
 `;
 
 const ANKI_FRONT_TEMPLATE = `<div class="sentence">{{Sentence}}</div>`;
@@ -102,7 +108,8 @@ const ANKI_BACK_TEMPLATE = `{{FrontSide}}
 <div class="word">{{Word}}</div>
 <div class="reading">{{Reading}}</div>
 <div class="gloss">{{Gloss}}</div>
-{{#POS}}<div class="pos">{{POS}}</div>{{/POS}}`;
+{{#POS}}<div class="pos">{{POS}}</div>{{/POS}}
+{{#Frequency}}<div class="frequency">{{Frequency}}</div>{{/Frequency}}`;
 
 // Idempotent — checks before creating, so it's safe to call before every
 // single card add (e.g. in case the user deletes the deck/note type in
@@ -150,13 +157,13 @@ async function ensureAnkiSetup() {
 // (the opt-in toggle, 2026-07-17) — sent as an empty string when absent, not
 // omitted, since the field must exist on every note either way and the
 // template already renders nothing for an empty value.
-async function addAnkiNote({ word, reading, gloss, sentenceHtml, pos }) {
+async function addAnkiNote({ word, reading, gloss, sentenceHtml, pos, frequency }) {
   await ensureAnkiSetup();
   return invokeAnkiConnect("addNote", {
     note: {
       deckName: ANKI_DECK_NAME,
       modelName: ANKI_MODEL_NAME,
-      fields: { Word: word, Reading: reading, Gloss: gloss, Sentence: sentenceHtml, POS: pos ?? "" },
+      fields: { Word: word, Reading: reading, Gloss: gloss, Sentence: sentenceHtml, POS: pos ?? "", Frequency: frequency ?? "" },
       options: { allowDuplicate: false },
       tags: ["japanese-immersion-extension"],
     },
@@ -240,13 +247,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "LOOKUP_WORD") {
-    // `metaShowPos` (Phase 5, 2026-07-17) is bundled into the SAME round trip
-    // rather than a second storage read from content.js — the popup already
-    // waits on this one message before rendering, so there's no benefit to a
-    // separate fetch, and this keeps the toggle's storage key private to
-    // background.js (content.js only ever sees the resolved boolean).
-    Promise.all([lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix), chrome.storage.local.get("metaShowPos")])
-      .then(([{ results, posTags }, { metaShowPos }]) => sendResponse({ results, posTags, showPos: metaShowPos ?? false }))
+    // `metaShowPos`/`metaShowFreq` (Phase 5, 2026-07-17 / 2026-07-19) are
+    // bundled into the SAME round trip rather than a second storage read
+    // from content.js — the popup already waits on this one message before
+    // rendering, so there's no benefit to a separate fetch, and this keeps
+    // the toggle's storage key private to background.js (content.js only
+    // ever sees the resolved booleans).
+    Promise.all([lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix), chrome.storage.local.get(["metaShowPos", "metaShowFreq"])])
+      .then(([{ results, posTags }, { metaShowPos, metaShowFreq }]) =>
+        sendResponse({ results, posTags, showPos: metaShowPos ?? false, showFreq: metaShowFreq ?? false })
+      )
       .catch((error) => sendResponse({ error: error.message }));
     return true;
   }
@@ -272,6 +282,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       gloss: message.gloss,
       sentenceHtml: message.sentenceHtml,
       pos: message.pos,
+      frequency: message.frequency,
     })
       .then((result) => sendResponse({ result }))
       .catch((error) => sendResponse({ error: error.message }));

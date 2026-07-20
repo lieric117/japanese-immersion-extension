@@ -20,12 +20,11 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export.** Core loop is built and confirmed live end-to-end (2026-07-17): DRM test, AnkiConnect wiring, the dedicated "Japanese Immersion" deck/note type, the "Add to Anki" button with exact-offset sentence bolding, and an opt-in POS toggle — see `project-plan.md` Section 6 Phase 5 for the full done list. Paused here at the user's call. Next, in priority order (none started, each needs real work before it's a quick pickup):
-1. Frequency-rank badge — needs a `jmdict-compact.json` regeneration (the raw TUBELEX score is currently never persisted per-entry, only used to sort during generation) plus real percentile-based tier thresholds derived from the actual data, confirmed with the user before hardcoding.
-2. JLPT level — needs an external data source chosen first (jmdict-compact.json has none); a real decision, not a build task.
-3. Audio field placement/design — confirmed technically viable (Decisions Log 2026-07-17), but where it fits in the build order and its capture-timing/UI design is the user's call, still pending.
+**Phase 5 — Anki export.** Core loop plus the frequency-rank badge are built and confirmed live end-to-end (2026-07-19, all three tiers verified in both the popup and Anki) — see `project-plan.md` Section 6 Phase 5 for the full done list. Next, in priority order (none started):
+1. JLPT level — needs an external data source chosen first (jmdict-compact.json has none); a real decision, not a build task.
+2. Audio field placement/design — confirmed technically viable (Decisions Log 2026-07-17), but where it fits in the build order and its capture-timing/UI design is the user's call, still pending.
 
-If regenerating `jmdict-compact.json` (any phase), both `scripts/fix-jmdict-priority.js` AND `scripts/apply-tubelex-frequency.js` must be re-run after — a regression from skipping the latter shipped and had to be caught mid-testing (see Decisions Log 2026-07-13).
+If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last — see its own header). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
 `JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
 
@@ -37,7 +36,7 @@ If regenerating `jmdict-compact.json` (any phase), both `scripts/fix-jmdict-prio
 - **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
 - **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)
 - **Screenshot Anki field is dropped from the roadmap entirely (2026-07-17, confirmed DRM-blocked, not deferred) — don't build it.** Audio field is confirmed technically viable (2026-07-17) but not yet scheduled or designed — ask the user before building it (`project-plan.md` Section 8).
-- **The frequency-rank badge is now a real feature, not a placeholder** — 3 text tiers (Common/Uncommon/Rare), no raw numbers, no badge when there's no data (decided 2026-07-04). It replaces the old common-word toggle entirely — don't build both. Numeric thresholds per tier are still TBD; confirm with the user before hardcoding them. See `project-plan.md` Section 5.
+- **The frequency-rank badge is built (2026-07-19)** — 3 text tiers (Common/Uncommon/Rare), no raw numbers, no badge when there's no data. It replaced the old common-word badge entirely, gated behind the opt-in `metaShowFreq` toggle. Thresholds are locked in (see `project-plan.md` Section 7, 2026-07-19) — don't re-derive or re-ask about them without a real reason to revisit. See `project-plan.md` Section 5 (Phase 5) for the full pipeline.
 
 Full reasoning for all of these is in `project-plan.md` Section 4 (V1 Scope) and Section 7 (Decisions Log) — check there before assuming an exception applies.
 

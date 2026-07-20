@@ -32,12 +32,38 @@
 //      "import lzma,shutil; shutil.copyfileobj(lzma.open('tubelex-ja-lemma-pos.tsv.xz'), open('tubelex-ja-lemma-pos.tsv','wb'))"`)
 //   3. node apply-tubelex-frequency.js <path-to-decompressed-tsv>
 //
-// Doesn't regenerate entries/posTags (unaffected by this) — only reorders
-// each index[] array, same footprint-conscious approach as
-// fix-jmdict-priority.js (no new per-entry fields persisted).
-
+// Also persists a `fr` (frequency-rank) tier per entry — "common"/"uncommon"/
+// "rare" — added 2026-07-19 for the frequency-rank badge (Phase 5). Prior to
+// this, the TUBELEX score was used only to SORT the index during generation
+// and then discarded; there was no way to look up "how frequent is this
+// word" at runtime at all. Thresholds are absolute TUBELEX occurrence counts,
+// confirmed with the user against the real score distribution and boundary
+// word spot-checks (not picked blind): score >= 500 -> common, >= 20 ->
+// uncommon, >= 1 -> rare, 0 -> no field at all (no badge — absence of data
+// isn't evidence of rarity, matches the 2026-07-04 tier-design decision).
+//
+// A `common:true` entry with score 0 (JMdict's own editors marked it common,
+// but TUBELEX has literally no data — confirmed 2026-07-19: 3,224 such
+// entries, e.g. でしょう/かもしれない/おかね, because TUBELEX's tokenizer
+// doesn't lemmatize these as single units at all, unrelated to real
+// frequency) is NOT left unbadged — it consults orphaned-tier-overrides.json
+// (built separately by build-orphaned-tier-overrides.js, see that file's own
+// header for the full corpus/nf-priority fallback methodology) instead of
+// falling through to "no data". Every other 0-score entry (not JMdict-common)
+// gets no `fr` field, same as before.
+//
+// Pipeline order matters: run generate-jmdict-compact.js, then
+// fix-jmdict-priority.js, then build-orphaned-tier-overrides.js (produces
+// orphaned-tier-overrides.json — needs its OWN inputs, see that file's
+// header), THEN this script last. If orphaned-tier-overrides.json doesn't
+// exist yet (e.g. a regen done before ever running that script), this
+// silently skips the fallback rather than erroring — every entry still gets
+// whatever tier its raw TUBELEX score alone would produce.
 const fs = require("fs");
 const path = require("path");
+
+const overridesPath = path.join(__dirname, "orphaned-tier-overrides.json");
+const orphanedOverrides = fs.existsSync(overridesPath) ? JSON.parse(fs.readFileSync(overridesPath, "utf8")) : {};
 
 const tsvPath = process.argv[2];
 if (!tsvPath) {
@@ -214,6 +240,7 @@ for (const [idx, keys] of entryToKeys) {
     scored++;
   }
 }
+
 console.log(`${scored} of ${compact.entries.length} entries matched a nonzero TUBELEX frequency.`);
 
 console.log("Re-sorting index arrays (own-reading match, then frequency, then common+kana-primary tiebreak)...");
@@ -263,6 +290,69 @@ for (const key of Object.keys(compact.index)) {
   if (compact.index[key].join(",") !== before) reordered++;
 }
 console.log(`Re-ordered ${reordered} index keys.`);
+
+// Assigning the `fr` (frequency-rank) tier runs AFTER the re-sort above, not
+// alongside the raw scoreByEntry computation — deliberately, to avoid a real
+// bug caught 2026-07-19 during testing: scoreByEntry trusts ANY kanji-key
+// match unconditionally (by design — see the KANA-ONLY-key comment above,
+// kanji spellings aren't reading-gated because that's needed for the common
+// case of an ordinary word being scored via its own kanji). But that means a
+// RARE alternate reading sharing a kanji with a common one inherits the
+// common reading's entire score: 僕's archaic やつがれ/やつこ readings (both
+// c: undefined, real words but obscure) matched key "僕" and inherited ぼく's
+// huge TUBELEX count, scoring high enough for a false "Common" tier — even
+// though the existing index-ORDER logic already correctly ranks ぼく first
+// for key "僕" (common flag beats score in the tiebreak above), the raw score
+// itself doesn't know that. For tiering (a per-entry LABEL a learner sees,
+// not just a display-order tiebreak), that distinction matters: only trust a
+// kanji key's score for THIS entry if it's the entry the just-finished
+// re-sort actually put first for that exact kanji spelling — i.e. the same
+// signal already used to pick the "real" entry for display order, reused
+// here so the badge can't disagree with which entry the popup treats as
+// primary. Kana-key contributions don't need this (already own-reading-
+// gated, so た can't inherit だ's score or vice versa).
+console.log("Assigning frequency-rank tiers (fr field)...");
+const KANJI_PRIMARY_FOR_KEY = new Map(); // kanji key -> idx index[0] resolves to
+for (const key of Object.keys(compact.index)) {
+  if (KANA_ONLY_RE.test(key)) continue;
+  KANJI_PRIMARY_FOR_KEY.set(key, compact.index[key][0]);
+}
+let tierCounts = { common: 0, uncommon: 0, rare: 0, orphanFallback: 0 };
+for (let idx = 0; idx < compact.entries.length; idx++) {
+  const entry = compact.entries[idx];
+  const ownReading = toHiragana(entry.r ?? "");
+  const categories = entryCategories(idx);
+  let trustedScore = 0;
+  for (const key of entryToKeys.get(idx) ?? []) {
+    if (KANA_ONLY_RE.test(key)) {
+      if (toHiragana(key) !== ownReading) continue;
+    } else if (KANJI_PRIMARY_FOR_KEY.get(key) !== idx) {
+      continue; // a rarer homograph riding on a more common entry's kanji — don't trust it for tiering
+    }
+    const f = freqMap.get(key);
+    if (f === undefined) continue;
+    if (categories.size > 0 && f.category && !categories.has(f.category)) continue;
+    if (f.count > trustedScore) trustedScore = f.count;
+  }
+
+  let tier;
+  if (trustedScore >= 500) tier = "common";
+  else if (trustedScore >= 20) tier = "uncommon";
+  else if (trustedScore >= 1) tier = "rare";
+  else if (entry.c && entry.id !== undefined && orphanedOverrides[entry.id]) {
+    tier = orphanedOverrides[entry.id];
+    tierCounts.orphanFallback++;
+  }
+  if (tier) {
+    entry.fr = tier;
+    tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+  } else {
+    delete entry.fr;
+  }
+}
+console.log(
+  `Tiers assigned — common: ${tierCounts.common}, uncommon: ${tierCounts.uncommon}, rare: ${tierCounts.rare} (of which ${tierCounts.orphanFallback} via the orphaned-entry override, not a raw TUBELEX score).`
+);
 
 console.log("Writing jmdict-compact.json...");
 fs.writeFileSync(COMPACT_PATH, JSON.stringify(compact));

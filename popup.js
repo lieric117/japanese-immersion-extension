@@ -34,3 +34,13 @@ chrome.storage.local.get("metaShowPos", ({ metaShowPos }) => {
 posToggle.addEventListener("change", () => {
   chrome.storage.local.set({ metaShowPos: posToggle.checked });
 });
+
+// Frequency-rank graduated from a disabled placeholder to a real toggle
+// (2026-07-19) — same shared-toggle-set pattern as POS above.
+const freqToggle = document.getElementById("toggle-frequency");
+chrome.storage.local.get("metaShowFreq", ({ metaShowFreq }) => {
+  freqToggle.checked = metaShowFreq ?? false;
+});
+freqToggle.addEventListener("change", () => {
+  chrome.storage.local.set({ metaShowFreq: freqToggle.checked });
+});

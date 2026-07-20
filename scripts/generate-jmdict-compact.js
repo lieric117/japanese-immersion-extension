@@ -102,6 +102,13 @@
 //     regardless of POS. Cost is negligible either way: only 6,668 of
 //     252,198 senses in the whole raw release carry a note at all (2.6%),
 //     ~160KB of raw text total.
+//   - `id`: the raw JMdict ent_seq (w.id), added 2026-07-19 so a later pass
+//     can cross-reference an entry back against data this compact format
+//     doesn't carry itself (e.g. apply-tubelex-frequency.js's orphaned-entry
+//     priority-tag fallback, matching against the raw EDRDG XML's news/ichi/
+//     spec/gai/nf tags) without re-deriving the match by kanji/kana text.
+//     Shared across a primary entry and its kana-restricted variants (both
+//     originate from the same raw word).
 // Does NOT compute `kp` (kana-primary boost) — that's a separate, already-
 // working pass (fix-jmdict-priority.js), meant to run again after this script
 // against a fresh raw-release copy.
@@ -302,7 +309,7 @@ for (const w of raw.words) {
 
   const common = w.kanji.some((k) => k.common) || w.kana.some((k) => k.common);
 
-  const entry = { r, g, p };
+  const entry = { r, g, p, id: w.id };
   if (common) entry.c = true;
   if (readings.length > 1) entry.rs = readings;
   if (m.length > 0) entry.m = m;
@@ -360,7 +367,7 @@ for (const w of raw.words) {
       addToIndex(readingText, idx);
       continue;
     }
-    const variant = { r, g: view.g, p: view.p };
+    const variant = { r, g: view.g, p: view.p, id: w.id };
     if (common) variant.c = true;
     if (readings.length > 1) variant.rs = readings;
     if (view.m.length > 0) variant.m = view.m;
