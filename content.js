@@ -77,10 +77,46 @@ function detectShowEpisode() {
 let tokenizer = null;
 let cues = null;
 let activePopup = null;
+
+// English captions (Phase 5, 2026-07-23) — sourced from Crunchyroll's own
+// caption file, found by caption-url-sniffer.js (a MAIN-world content script
+// observing the page's own network traffic, see project-plan.md Decisions
+// Log) and forwarded here via postMessage. `englishCues` uses the SAME
+// {start, end, text} shape as the Japanese `cues` above, but is matched
+// against RAW video.currentTime in handleTimeUpdate below, NOT the
+// offset-adjusted time Japanese cues use — Crunchyroll's own captions are
+// synced to the video by construction, unlike community fansub files, so
+// applying the manual per-episode offset would actively misalign them.
+let englishCues = null;
+let lastEnglishText = null;
+// Module-scope, not a local in init() (2026-07-23) — same reasoning as
+// `video`: loadSubtitles below needs to clear/hide it on episode change
+// without every function in the chain needing it threaded through as a
+// parameter.
+let subtitleBoxEn = null;
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window) return;
+  const url = event.data?.__jpImmersionCaptionUrl;
+  if (!url) return;
+  const format = event.data.__jpImmersionCaptionFormat ?? "ass";
+  chrome.runtime.sendMessage({ type: "FETCH_ENGLISH_SUBTITLES", url, format }, (response) => {
+    if (!response || response.error) {
+      console.warn("[jp-immersion] English subtitle fetch failed:", response?.error);
+      return;
+    }
+    englishCues = response.cues;
+  });
+});
 // Module-scope (not local to init()'s timeupdate listener) so the
 // SPA-navigation reload below can also reset it — see loadSubtitles/
 // jp-immersion-locationchange.
 let lastText = null;
+// The audio-capture cue-timeline entry for whatever `lastText` currently
+// refers to (Phase 5, 2026-07-22, see audio-capture.js) — updated in lockstep
+// with `lastText` itself so a word click can capture a direct reference to
+// it synchronously, the same reasoning as `lastText` being module-scope.
+let lastCueEntry = null;
 // Module-scope (not a const captured once inside init()), so a full
 // show-to-show navigation can swap it out. Real report 2026-07-17: after
 // switching from one show to a different one, the switcher panel/ranking
@@ -112,6 +148,26 @@ let video = null;
 let lastLoadedIdentity = null;
 function episodeIdentity(detected) {
   return `${detected.seriesTitle} ${detected.seasonNumber} ${detected.episodeNumber}`;
+}
+
+// Show/episode opt-in Anki field (Phase 5, 2026-07-23) — the currently-loaded
+// show/episode, set alongside lastLoadedIdentity in loadSubtitles below so a
+// word click always has access to the same detection data without needing
+// its own separate call to detectShowEpisode(). Deliberately content.js-only
+// state, not round-tripped through background.js — background.js has no way
+// to know which episode is currently loaded, unlike POS/frequency/JLPT which
+// are properties of the word itself and come from the dictionary lookup.
+let currentShowEpisode = null;
+
+// Season included only when set and not 1 — Crunchyroll's own partOfSeries.name
+// is stable across an entire franchise's seasons (confirmed in background.js's
+// own rankFiles comments: Frieren season 2 episodes still report the plain,
+// un-suffixed title), so a season-less string would be genuinely ambiguous
+// for any multi-season show, not just a cosmetic omission.
+function formatShowEpisode(info) {
+  if (!info) return null;
+  const seasonPart = info.seasonNumber && info.seasonNumber !== 1 ? `Season ${info.seasonNumber}, ` : "";
+  return `${info.seriesTitle} — ${seasonPart}Episode ${info.episodeNumber}`;
 }
 
 // SPA-navigation detection (2026-07-15, revised same day after the first
@@ -446,6 +502,14 @@ function extractUploaderTag(filename) {
 function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange = false) {
   cues = null;
   lastText = null;
+  // English captions come from an entirely separate pipeline (the
+  // caption-url-sniffer postMessage listener, triggered by Crunchyroll's own
+  // network activity for the NEW episode) — reset here too so a stale line
+  // from the previous episode doesn't stay frozen on screen through the
+  // loading gap, or worse, into the new episode before fresh cues arrive.
+  englishCues = null;
+  lastEnglishText = null;
+  if (subtitleBoxEn) renderEnglishCue(subtitleBoxEn, "");
   // Undoes renderCue's `display: none` (see there) for the gap-between-lines
   // case — every status/error message this function can show below needs to
   // actually be visible, not silently hidden by a state left over from
@@ -480,6 +544,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
     return;
   }
   lastLoadedIdentity = episodeIdentity(detected);
+  currentShowEpisode = detected;
   // Saved per-show-per-season uploader preference (if any) is threaded into
   // the SAME FETCH_SUBTITLES call rather than fetched separately and then
   // possibly re-fetched — background.js's rankFiles gives it top priority
@@ -545,11 +610,25 @@ function init() {
     return;
   }
 
+  initAudioCapture(video);
+
   const subtitleBox = document.createElement("div");
   subtitleBox.id = "jp-immersion-subtitle";
   getContainer().appendChild(subtitleBox);
   // Text set by loadSubtitles() below, not here — it's called both on
   // initial load and on every SPA episode change, so it owns this state.
+
+  // English caption display (Phase 5, 2026-07-23) — plain text, no
+  // click-to-lookup (per the original dual-display spec: "Japanese clickable,
+  // English non-clickable"), positioned below the Japanese line. Its own
+  // element rather than sharing subtitleBox since the two are independently
+  // driven (different cue sources, different timing reference — see
+  // englishCues above) and dual-display means both need to be visible at once,
+  // not toggled between.
+  subtitleBoxEn = document.createElement("div");
+  subtitleBoxEn.id = "jp-immersion-subtitle-en";
+  subtitleBoxEn.style.display = "none";
+  getContainer().appendChild(subtitleBoxEn);
 
   const offsetControl = buildOffsetControl();
   getContainer().appendChild(offsetControl);
@@ -560,8 +639,14 @@ function init() {
   document.addEventListener("fullscreenchange", () => {
     const target = getContainer();
     target.appendChild(subtitleBox);
+    target.appendChild(subtitleBoxEn);
     target.appendChild(offsetControl);
     target.appendChild(switcherPanel);
+    // A live (not yet chipped) word-click popup needs the same re-parenting
+    // — confirmed real bug via live testing (2026-07-22, same root cause the
+    // chip was fixed for above): created before a fullscreen toggle, it was
+    // left behind in the old container and stopped rendering.
+    if (activePopup) target.appendChild(activePopup);
   });
 
   try {
@@ -609,7 +694,26 @@ function init() {
       .join("\n");
     if (text === lastText) return;
     lastText = text;
+    lastCueEntry = markCueBoundary(text);
     renderCue(subtitleBox, text);
+
+    // English caption matching (2026-07-23) — deliberately independent of
+    // the Japanese pipeline above: RAW video.currentTime, not adjustedTime
+    // (see englishCues' own comment for why), no tokenizer/click-handling,
+    // and doesn't participate in the popup/chip lifecycle at all (chipifyPopup
+    // is only ever triggered by the JAPANESE line changing, since that's what
+    // the user is actually interacting with).
+    if (englishCues) {
+      const enText = englishCues
+        .filter((c) => video.currentTime >= c.start && video.currentTime <= c.end)
+        .map((c) => c.text.trim())
+        .filter(Boolean)
+        .join("\n");
+      if (enText !== lastEnglishText) {
+        lastEnglishText = enText;
+        renderEnglishCue(subtitleBoxEn, enText);
+      }
+    }
   }
   video.addEventListener("timeupdate", handleTimeUpdate);
 
@@ -632,6 +736,8 @@ function init() {
       switcherPanel.style.display = "none";
       offsetControl.style.display = "none";
       uploadControl.style.display = "none";
+      removeChip();
+      closePopup();
       return;
     }
     subtitleBox.style.display = "";
@@ -656,6 +762,8 @@ function init() {
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video = freshVideo;
       video.addEventListener("timeupdate", handleTimeUpdate);
+      initAudioCapture(video);
+      removeChip(); // anchored to the old <video> element's rect, now stale
     }
     loadSubtitles(subtitleBox, switcherPanel, 2, true);
   });
@@ -879,9 +987,25 @@ function buildTokenizer() {
 // viewer scrubbed past it) and skip rendering into a stale subtitleBox state.
 let renderGeneration = 0;
 
+// Plain-text English caption rendering (2026-07-23) — no tokenization, no
+// click handlers, per the dual-display spec (Japanese clickable, English
+// non-clickable). Hides on empty text rather than leaving a blank styled box
+// visible, same fix as the Japanese box's own stray-empty-box bug
+// (2026-07-17) — this box has the same padding/background in content.css and
+// would show the same artifact otherwise.
+function renderEnglishCue(subtitleBoxEn, text) {
+  if (!text) {
+    subtitleBoxEn.style.display = "none";
+    subtitleBoxEn.textContent = "";
+    return;
+  }
+  subtitleBoxEn.style.display = "";
+  subtitleBoxEn.textContent = text;
+}
+
 function renderCue(subtitleBox, text) {
   const myGeneration = ++renderGeneration;
-  closePopup();
+  chipifyPopup();
   subtitleBox.textContent = "";
   if (!text) {
     // A real, confirmed bug (2026-07-17), not just cosmetic: `#jp-immersion-
@@ -1059,7 +1183,20 @@ function onWordClick(event) {
   const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
   const sentenceHtml = buildSentenceHtml(lastText, Number(span.dataset.startOffset), span.dataset.surface);
+  // Captured synchronously at click time, same reasoning as sentenceHtml
+  // above (2026-07-22) — lastCueEntry is module-scope and the video may
+  // advance to a new line before the "+ Anki" button is actually clicked.
+  const cueEntry = lastCueEntry;
+  // Show/episode opt-in field (2026-07-23) — captured the same way, though
+  // in practice this one is stable for an entire episode's worth of clicks,
+  // not just until the next line.
+  const showEpisodeText = formatShowEpisode(currentShowEpisode);
+  // English translation (2026-07-23) — captured the same way as the
+  // Japanese sentence above, same reasoning: lastEnglishText is module-scope
+  // and can change before the "+ Anki" button is actually clicked.
+  const translationText = lastEnglishText || null;
 
+  removeChip(); // a new lookup replaces whatever chip is currently showing
   closePopup();
   const popup = document.createElement("div");
   popup.id = "jp-immersion-popup";
@@ -1087,15 +1224,29 @@ function onWordClick(event) {
     }
     popup.innerHTML = "";
 
+    // Wraps everything below in one toggleable unit — the chip-hover CSS
+    // (content.css) shows/hides this whole div at once, so the popup can
+    // later be converted into a chip (see chipifyPopup) without needing a
+    // separately-designed mini view: hovering the chip re-reveals exactly
+    // this same content, "+ Anki" button included.
+    const body = document.createElement("div");
+    body.className = "jp-immersion-popup-body";
+    popup.appendChild(body);
+
     const inflectionText = describeInflection(inflections, pos, conjugatedForm, word);
     if (inflectionText) {
       const inflectionLine = document.createElement("div");
       inflectionLine.className = "jp-immersion-popup-inflection";
       inflectionLine.textContent = inflectionText;
-      popup.appendChild(inflectionLine);
+      body.appendChild(inflectionLine);
     }
 
-    renderEntries(popup, word, response.results, sentenceHtml, response.showPos, response.showFreq);
+    renderEntries(body, word, response.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, cueEntry, response.showSource, showEpisodeText, translationText);
+
+    // Marks this popup as eligible to become a chip once the next line rolls
+    // in (see chipifyPopup) — only set once real content has actually
+    // rendered, so a still-loading or error-state popup never gets chipped.
+    popup._chipLabel = `${word}${response.results[0]?.r ? ` (${response.results[0].r})` : ""}`;
 
     // Dual-view: this word is also the start of a matched multi-word set
     // phrase (see tokenize-utils.js's isDualViewMatch) whose meaning isn't a
@@ -1109,8 +1260,8 @@ function onWordClick(event) {
         const label = document.createElement("div");
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
-        popup.appendChild(label);
-        renderEntries(popup, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq);
+        body.appendChild(label);
+        renderEntries(body, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, cueEntry, response.showSource, showEpisodeText, translationText);
       });
     }
   });
@@ -1160,7 +1311,7 @@ function archaicTagLabel(entry) {
 // visible in the ruby headword itself.
 const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
-function renderEntries(container, word, results, sentenceHtml, showPos, showFreq) {
+function renderEntries(container, word, results, sentenceHtml, showPos, showFreq, showJlpt, cueEntry, showSource, showEpisodeText, translationText) {
   // Falls back to just the bolded word alone when the exact-offset lookup in
   // buildSentenceHtml couldn't confirm a match (rare: only if lastText and
   // the span's own recorded surface/offset somehow disagree) — degrades to
@@ -1168,7 +1319,7 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
   const effectiveSentenceHtml = sentenceHtml ?? `<b>${escapeHtml(word)}</b>`;
   const seenFirstGloss = new Set();
   for (const entry of results.slice(0, 3)) {
-    const { r, g, si, p, c, k, fr } = entry;
+    const { r, g, si, p, c, k, fr, jlpt } = entry;
 
     // A later entry sharing its first gloss with one already shown above is
     // very likely the same core meaning under a rarer/alternate reading, not
@@ -1220,6 +1371,17 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
       const badge = document.createElement("span");
       badge.className = "jp-immersion-popup-freq-badge";
       badge.textContent = fr;
+      headerRow.appendChild(badge);
+    }
+    // JLPT-level badge (Phase 5, 2026-07-22) — same opt-in-toggle/no-badge-
+    // without-data pattern as the frequency-rank badge above. Sourced from an
+    // external, explicitly unofficial "educated guess" list (see
+    // scripts/apply-jlpt-level.js) — absence of a tag isn't evidence the word
+    // is off-list, just that this JMdict entry's id didn't match the source.
+    if (showJlpt && jlpt) {
+      const badge = document.createElement("span");
+      badge.className = "jp-immersion-popup-jlpt-badge";
+      badge.textContent = jlpt;
       headerRow.appendChild(badge);
     }
     if (tagLabel) {
@@ -1299,9 +1461,19 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
     const ankiBtn = document.createElement("button");
     ankiBtn.className = "jp-immersion-popup-anki-btn";
     ankiBtn.textContent = "+ Anki";
-    ankiBtn.addEventListener("click", () => {
+    ankiBtn.addEventListener("click", async () => {
       ankiBtn.disabled = true;
       ankiBtn.textContent = "Adding…";
+      // Waits for the cue to actually finish before slicing, not just
+      // "whatever's played so far" — fixes a real bug caught via live
+      // testing (2026-07-22): clicking before the line ended produced a clip
+      // cut off mid-sentence. Bounded (audio-capture.js's own maxWaitMs, 8s)
+      // so a cue that never cleanly finishes (last line of an episode, a
+      // long pause) doesn't hang the button forever — the video keeps
+      // playing normally the whole time this awaits, nothing is paused or
+      // interrupted, matching the "keep watching" positioning that ruled out
+      // rewind-and-recapture in the first place.
+      const audio = await sliceClipWavWhenReady(cueEntry);
       chrome.runtime.sendMessage(
         {
           type: "ADD_ANKI_NOTE",
@@ -1318,6 +1490,25 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           // text exactly (`fr`, e.g. "common"), only sent when the toggle is
           // on and the entry actually has a tier.
           frequency: showFreq && fr ? fr : null,
+          // Same pattern again (2026-07-22) — matches the JLPT badge exactly.
+          jlpt: showJlpt && jlpt ? jlpt : null,
+          // Null when capture was never available (DRM/browser-policy
+          // failure) or the clip has already aged out of the ring buffer —
+          // the field is simply left empty either way, same silent-degrade
+          // pattern as a missing frequency/JLPT tag.
+          audio,
+          // Show/episode opt-in field (2026-07-23) — no popup badge (unlike
+          // POS/frequency/JLPT), since "which episode is this" is redundant
+          // in-context while already watching that exact episode; only
+          // relevant later, reviewing the card out of context.
+          source: showSource && showEpisodeText ? showEpisodeText : null,
+          // English translation (2026-07-23) — not opt-in-toggle-gated
+          // (unlike Source), same as Sentence/Gloss: one of the originally
+          // deferred core fields, not a metadata add-on. Null whenever no
+          // English cue was captured for this moment (Crunchyroll caption
+          // fetch still pending, failed, or this word was clicked during a
+          // gap between English lines).
+          translation: translationText,
         },
         (response) => {
           if (!response || response.error) {
@@ -1395,6 +1586,85 @@ function closePopup() {
     activePopup.remove();
     activePopup = null;
   }
+}
+
+// "Last looked-up word" chip (Phase 5, 2026-07-22) — the popup still
+// auto-dismisses the instant the next subtitle line rolls in (unchanged,
+// keeps the next line readable), but if it had already finished loading real
+// content, it gets converted into a small persistent chip instead of just
+// discarded, giving the user a few more seconds to still act on it. Reuses
+// the SAME popup DOM element/listeners rather than building a separate chip
+// component — reading (hover) and committing (the "+ Anki" button already
+// inside it) stay the same interaction, not two.
+let activeChip = null;
+let chipTimer = null;
+let chipRepositionHandler = null;
+const CHIP_LIFETIME_MS = 15000; // ~15s, per the 2026-07-22 decision
+
+// Called from renderCue right before a new cue's text takes over. Only ever
+// converts a popup that actually finished loading real entries (`_chipLabel`
+// is set once renderEntries has run, see onWordClick) — a still-loading
+// "Looking up…" or a "No dictionary entry" popup just closes normally, same
+// as before this feature existed.
+function chipifyPopup() {
+  if (!activePopup || !activePopup._chipLabel) {
+    closePopup();
+    return;
+  }
+  removeChip(); // single-slot — a new chip always replaces whatever's showing
+  const chip = activePopup;
+  activePopup = null; // ownership transfers to the chip; no longer "the" active popup
+  chip.classList.add("jp-immersion-popup-chip");
+  const label = document.createElement("div");
+  label.className = "jp-immersion-popup-chip-label";
+  label.textContent = chip._chipLabel;
+  chip.insertBefore(label, chip.firstChild);
+  positionChip(chip);
+  activeChip = chip;
+  // Re-parents into the current fullscreen element (or back to body) on
+  // every toggle, not just repositions — confirmed real bug via live testing
+  // (2026-07-22): the Fullscreen API only renders elements inside whichever
+  // element is currently fullscreen, so a chip created before entering
+  // fullscreen (parented to body) simply stops rendering once fullscreen
+  // starts, even though it's still alive in the DOM. Same root cause the
+  // subtitle box was already fixed for (2026-06-30) — the chip/popup never
+  // got the equivalent fix until now.
+  chipRepositionHandler = () => {
+    getContainer().appendChild(chip);
+    positionChip(chip);
+  };
+  window.addEventListener("resize", chipRepositionHandler);
+  document.addEventListener("fullscreenchange", chipRepositionHandler);
+  chipTimer = setTimeout(removeChip, CHIP_LIFETIME_MS);
+}
+
+function removeChip() {
+  if (chipTimer) {
+    clearTimeout(chipTimer);
+    chipTimer = null;
+  }
+  if (chipRepositionHandler) {
+    window.removeEventListener("resize", chipRepositionHandler);
+    document.removeEventListener("fullscreenchange", chipRepositionHandler);
+    chipRepositionHandler = null;
+  }
+  if (activeChip) {
+    activeChip.remove();
+    activeChip = null;
+  }
+}
+
+// Anchored to the <video> element's own current bounding rect (bottom-right
+// corner), not a fixed viewport coordinate computed once — recomputed on
+// resize/fullscreenchange while the chip is alive (see chipifyPopup), so it
+// can't end up drifting over unrelated page content the way the old
+// empty-subtitle-box bug did (2026-07-17, see project-plan.md).
+function positionChip(chip) {
+  if (!video) return;
+  const rect = video.getBoundingClientRect();
+  chip.style.left = "";
+  chip.style.right = `${window.innerWidth - rect.right + 8}px`;
+  chip.style.bottom = `${window.innerHeight - rect.bottom + 8}px`;
 }
 
 init();

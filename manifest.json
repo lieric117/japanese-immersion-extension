@@ -6,6 +6,7 @@
   "permissions": ["storage"],
   "host_permissions": [
     "https://*.crunchyroll.com/*",
+    "https://*.crunchyrollcdn.com/*",
     "https://jimaku.cc/*",
     "http://127.0.0.1:8765/*"
   ],
@@ -18,9 +19,15 @@
   "content_scripts": [
     {
       "matches": ["https://*.crunchyroll.com/*"],
-      "js": ["vendor/kuromoji.js", "tokenize-utils.js", "subtitle-parser.js", "content.js"],
+      "js": ["vendor/kuromoji.js", "tokenize-utils.js", "subtitle-parser.js", "audio-capture.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.crunchyroll.com/*"],
+      "js": ["caption-url-sniffer.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [

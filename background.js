@@ -54,13 +54,35 @@ async function invokeAnkiConnect(action, params = {}) {
 // from the actual scene) better than a word-first traditional flashcard.
 const ANKI_DECK_NAME = "Japanese Immersion";
 const ANKI_MODEL_NAME = "Japanese Immersion";
-// "POS" (2026-07-17) and "Frequency" (2026-07-19) are opt-in metadata
-// fields — always PRESENT on the note type, but the caller sends an empty
-// string unless the user has the corresponding toggle on (see addAnkiNote),
-// and the template's `{{#POS}}...{{/POS}}` / `{{#Frequency}}...{{/Frequency}}`
-// conditionals just render nothing for an empty field, so opting out looks
-// identical to a card created before that field existed at all.
-const ANKI_MODEL_FIELDS = ["Word", "Reading", "Gloss", "Sentence", "POS", "Frequency"];
+// "POS" (2026-07-17), "Frequency" (2026-07-19), and "JLPT" (2026-07-22) are
+// opt-in metadata fields — always PRESENT on the note type, but the caller
+// sends an empty string unless the user has the corresponding toggle on (see
+// addAnkiNote), and the template's `{{#POS}}...{{/POS}}` /
+// `{{#Frequency}}...{{/Frequency}}` / `{{#JLPT}}...{{/JLPT}}` conditionals
+// just render nothing for an empty field, so opting out looks identical to a
+// card created before that field existed at all.
+//
+// "Audio" (2026-07-22) is NOT gated by a toggle the same way — it's simply
+// empty whenever content.js couldn't produce a clip (capture unavailable, or
+// the requested slice had already aged out of the ring buffer), same
+// silent-degrade pattern, but there's no separate opt-in setting for it.
+// Unlike the other three, its content isn't written directly into the field
+// here — AnkiConnect's own `audio` note param (see addAnkiNote) stores the
+// file and writes a `[sound:...]` reference into this field itself.
+// "Source" (2026-07-23) is the fourth opt-in toggle field, same empty-string-
+// when-off pattern as POS/Frequency/JLPT — the show/episode a word was
+// encountered in, threaded in from content.js's own detectShowEpisode()
+// result (not background.js, which has no way to know which episode is
+// currently loaded).
+//
+// "Translation" (2026-07-23) is NOT opt-in-toggle-gated like Source — it's
+// one of the originally-deferred core card fields (grouped with Sentence in
+// the 2026-07-02 core-fields decision, not with the POS/Frequency/JLPT
+// metadata toggles), simply empty whenever content.js has no matching
+// English cue for the capture. Sourced from Crunchyroll's own captions (see
+// project-plan.md Decisions Log, 2026-07-23) via content.js's own English-cue
+// tracking, not background.js.
+const ANKI_MODEL_FIELDS = ["Word", "Reading", "Gloss", "Sentence", "POS", "Frequency", "JLPT", "Audio", "Source", "Translation"];
 
 const ANKI_MODEL_CSS = `
 .card {
@@ -100,16 +122,43 @@ const ANKI_MODEL_CSS = `
   color: #888;
   margin-top: 6px;
 }
+.jlpt {
+  font-size: 14px;
+  color: #888;
+  margin-top: 6px;
+}
+.audio {
+  margin-top: 8px;
+}
+.source {
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 6px;
+}
+.translation {
+  font-size: 18px;
+  color: #555;
+  margin-top: 8px;
+  font-style: italic;
+}
 `;
 
-const ANKI_FRONT_TEMPLATE = `<div class="sentence">{{Sentence}}</div>`;
+// Audio placed on the FRONT template (not back-only like POS/Frequency/JLPT)
+// so it plays as part of the recall prompt itself, not just a reveal — and
+// via {{FrontSide}} below, it still shows on the back too, available
+// throughout review either way.
+const ANKI_FRONT_TEMPLATE = `<div class="sentence">{{Sentence}}</div>
+{{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}`;
 const ANKI_BACK_TEMPLATE = `{{FrontSide}}
 <hr id="answer">
 <div class="word">{{Word}}</div>
 <div class="reading">{{Reading}}</div>
 <div class="gloss">{{Gloss}}</div>
 {{#POS}}<div class="pos">{{POS}}</div>{{/POS}}
-{{#Frequency}}<div class="frequency">{{Frequency}}</div>{{/Frequency}}`;
+{{#Frequency}}<div class="frequency">{{Frequency}}</div>{{/Frequency}}
+{{#JLPT}}<div class="jlpt">{{JLPT}}</div>{{/JLPT}}
+{{#Translation}}<div class="translation">{{Translation}}</div>{{/Translation}}
+{{#Source}}<div class="source">{{Source}}</div>{{/Source}}`;
 
 // Idempotent — checks before creating, so it's safe to call before every
 // single card add (e.g. in case the user deletes the deck/note type in
@@ -157,15 +206,33 @@ async function ensureAnkiSetup() {
 // (the opt-in toggle, 2026-07-17) — sent as an empty string when absent, not
 // omitted, since the field must exist on every note either way and the
 // template already renders nothing for an empty value.
-async function addAnkiNote({ word, reading, gloss, sentenceHtml, pos, frequency }) {
+// `audioBase64` is a base64-encoded WAV clip (see content.js's sliceClipWav)
+// or null when no capture was available for this word — AnkiConnect's own
+// `audio` note param (not the `fields` map) is what actually stores the file
+// into Anki's media folder and writes the resulting `[sound:...]` reference
+// into the Audio field; `Audio: ""` in `fields` below is just the field's
+// starting value before that happens; AnkiConnect appends to it.
+async function addAnkiNote({ word, reading, gloss, sentenceHtml, pos, frequency, jlpt, audio: audioBase64, source, translation }) {
   await ensureAnkiSetup();
   return invokeAnkiConnect("addNote", {
     note: {
       deckName: ANKI_DECK_NAME,
       modelName: ANKI_MODEL_NAME,
-      fields: { Word: word, Reading: reading, Gloss: gloss, Sentence: sentenceHtml, POS: pos ?? "", Frequency: frequency ?? "" },
+      fields: {
+        Word: word,
+        Reading: reading,
+        Gloss: gloss,
+        Sentence: sentenceHtml,
+        POS: pos ?? "",
+        Frequency: frequency ?? "",
+        JLPT: jlpt ?? "",
+        Audio: "",
+        Source: source ?? "",
+        Translation: translation ?? "",
+      },
       options: { allowDuplicate: false },
       tags: ["japanese-immersion-extension"],
+      audio: audioBase64 ? [{ data: audioBase64, filename: `jp-immersion-${Date.now()}.wav`, fields: ["Audio"] }] : undefined,
     },
   });
 }
@@ -246,16 +313,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "FETCH_ENGLISH_SUBTITLES") {
+    fetchEnglishSubtitles(message.url, message.format)
+      .then((cues) => sendResponse({ cues }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
   if (message.type === "LOOKUP_WORD") {
-    // `metaShowPos`/`metaShowFreq` (Phase 5, 2026-07-17 / 2026-07-19) are
-    // bundled into the SAME round trip rather than a second storage read
+    // `metaShowPos`/`metaShowFreq`/`metaShowJlpt`/`metaShowSource` (Phase 5,
+    // 2026-07-17 / 2026-07-19 / 2026-07-22 / 2026-07-23) are bundled into the
+    // SAME round trip rather than a second storage read
     // from content.js — the popup already waits on this one message before
     // rendering, so there's no benefit to a separate fetch, and this keeps
     // the toggle's storage key private to background.js (content.js only
     // ever sees the resolved booleans).
-    Promise.all([lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix), chrome.storage.local.get(["metaShowPos", "metaShowFreq"])])
-      .then(([{ results, posTags }, { metaShowPos, metaShowFreq }]) =>
-        sendResponse({ results, posTags, showPos: metaShowPos ?? false, showFreq: metaShowFreq ?? false })
+    Promise.all([
+      lookupWord(message.word, message.isParticle, message.pos, message.isHonorificSuffix),
+      chrome.storage.local.get(["metaShowPos", "metaShowFreq", "metaShowJlpt", "metaShowSource"]),
+    ])
+      .then(([{ results, posTags }, { metaShowPos, metaShowFreq, metaShowJlpt, metaShowSource }]) =>
+        sendResponse({
+          results,
+          posTags,
+          showPos: metaShowPos ?? false,
+          showFreq: metaShowFreq ?? false,
+          showJlpt: metaShowJlpt ?? false,
+          showSource: metaShowSource ?? false,
+        })
       )
       .catch((error) => sendResponse({ error: error.message }));
     return true;
@@ -283,6 +368,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sentenceHtml: message.sentenceHtml,
       pos: message.pos,
       frequency: message.frequency,
+      jlpt: message.jlpt,
+      audio: message.audio,
+      source: message.source,
+      translation: message.translation,
     })
       .then((result) => sendResponse({ result }))
       .catch((error) => sendResponse({ error: error.message }));
@@ -488,6 +577,42 @@ async function fetchSubtitles(query, episode, fileHint = null, preferredUploader
 async function fetchSubtitleFile(url, name) {
   const headers = await getJimakuHeaders();
   return fetchAndParseFile({ url, name }, headers);
+}
+
+// English subtitles (Phase 5, 2026-07-23) — the URL comes from
+// caption-url-sniffer.js (a MAIN-world content script observing Crunchyroll's
+// own `play` API response, see project-plan.md Decisions Log), already
+// time-signed and requiring no auth headers of our own, unlike the Jimaku
+// fetch above. `format` ("ass" or anything else, treated as srt) comes
+// straight from that same API response rather than sniffed from a filename,
+// since this URL has no real filename/extension to sniff (see fetchAndParseFile's
+// isAss check, which this deliberately doesn't reuse).
+// The URL here ultimately comes from a page-context window.postMessage (see
+// caption-url-sniffer.js) — any script on the page (a malicious ad, an XSS
+// payload) could broadcast a spoofed message with an arbitrary URL, since
+// postMessage has no way to authenticate the sender beyond same-window
+// origin. Validated here, right before the one place that actually acts on
+// it (an unrestricted fetch), rather than trusting content.js's forwarding —
+// only a real crunchyrollcdn.com URL is fetched at all.
+function isTrustedCrunchyrollCdnUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && /(^|\.)crunchyrollcdn\.com$/.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function fetchEnglishSubtitles(url, format) {
+  if (!isTrustedCrunchyrollCdnUrl(url)) {
+    throw new Error("Refused to fetch English subtitles from an untrusted URL");
+  }
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`English subtitle fetch failed (${res.status})`);
+  }
+  const rawText = await res.text();
+  return format === "ass" ? parseAss(rawText) : parseSrt(rawText);
 }
 
 // Lazily loaded once per service worker lifetime, then kept in memory.

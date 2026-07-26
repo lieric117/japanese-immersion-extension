@@ -20,11 +20,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export.** Core loop plus the frequency-rank badge are built and confirmed live end-to-end (2026-07-19, all three tiers verified in both the popup and Anki) — see `project-plan.md` Section 6 Phase 5 for the full done list. Next, in priority order (none started):
-1. JLPT level — needs an external data source chosen first (jmdict-compact.json has none); a real decision, not a build task.
-2. Audio field placement/design — confirmed technically viable (Decisions Log 2026-07-17), but where it fits in the build order and its capture-timing/UI design is the user's call, still pending.
+**Phase 5 — Anki export.** Core loop, frequency-rank badge, JLPT-level tag, and the audio field + chip (including its two live-testing bug fixes) are all built and confirmed live. Show/episode toggle and English subtitle dual-display + Anki "Translation" field are both built (2026-07-23) but not yet live-tested — see `project-plan.md` Section 6 Phase 5. The English-caption feature took real fact-finding to land: six DOM-inspection techniques all failed to find Crunchyroll's rendered caption text, so it's sourced instead from a signed `.ass` URL inside Crunchyroll's own `play` API response, observed passively via a MAIN-world fetch/XHR interceptor (`caption-url-sniffer.js`) rather than calling that API ourselves — see Decisions Log if this needs revisiting. Next, in priority order:
+1. **Live-test the show/episode toggle and the English subtitle/Translation feature** — neither has had a real-browser pass yet; the English feature also depends on Crunchyroll's undocumented API response shape staying stable.
+2. "Edit last card" — explicitly last in this phase.
+3. The audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
 
-If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last — see its own header). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
+If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
 `JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key.
 

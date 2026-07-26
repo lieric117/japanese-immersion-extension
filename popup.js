@@ -44,3 +44,25 @@ chrome.storage.local.get("metaShowFreq", ({ metaShowFreq }) => {
 freqToggle.addEventListener("change", () => {
   chrome.storage.local.set({ metaShowFreq: freqToggle.checked });
 });
+
+// JLPT level graduated from a disabled placeholder to a real toggle
+// (2026-07-22) — same shared-toggle-set pattern as POS/frequency above.
+const jlptToggle = document.getElementById("toggle-jlpt");
+chrome.storage.local.get("metaShowJlpt", ({ metaShowJlpt }) => {
+  jlptToggle.checked = metaShowJlpt ?? false;
+});
+jlptToggle.addEventListener("change", () => {
+  chrome.storage.local.set({ metaShowJlpt: jlptToggle.checked });
+});
+
+// Show/episode source (2026-07-23) — same shared-toggle-set pattern, but
+// Anki-only: there's no corresponding popup badge, since "which episode is
+// this" is redundant while already watching that exact episode (only useful
+// later, reviewing the card out of context) — see project-plan.md.
+const sourceToggle = document.getElementById("toggle-source");
+chrome.storage.local.get("metaShowSource", ({ metaShowSource }) => {
+  sourceToggle.checked = metaShowSource ?? false;
+});
+sourceToggle.addEventListener("change", () => {
+  chrome.storage.local.set({ metaShowSource: sourceToggle.checked });
+});

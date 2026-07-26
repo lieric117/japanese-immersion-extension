@@ -48,11 +48,6 @@
         width: auto;
         margin: 0;
       }
-      .toggle-hint {
-        font-size: 11px;
-        color: #888;
-        margin: -2px 0 8px 22px;
-      }
     </style>
   </head>
   <body>
@@ -71,10 +66,13 @@
       <label for="toggle-frequency">Frequency rank</label>
     </div>
     <div class="toggle-row">
-      <input type="checkbox" id="toggle-jlpt" disabled />
+      <input type="checkbox" id="toggle-jlpt" />
       <label for="toggle-jlpt">JLPT level</label>
     </div>
-    <p class="toggle-hint">Coming soon</p>
+    <div class="toggle-row">
+      <input type="checkbox" id="toggle-source" />
+      <label for="toggle-source">Show/episode (Anki only)</label>
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>
