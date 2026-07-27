@@ -20,10 +20,10 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export.** Core loop, frequency-rank badge, JLPT-level tag, and the audio field + chip (including its two live-testing bug fixes) are all built and confirmed live. Show/episode toggle and English subtitle dual-display + Anki "Translation" field are both built (2026-07-23) but not yet live-tested — see `project-plan.md` Section 6 Phase 5. The English-caption feature took real fact-finding to land: six DOM-inspection techniques all failed to find Crunchyroll's rendered caption text, so it's sourced instead from a signed `.ass` URL inside Crunchyroll's own `play` API response, observed passively via a MAIN-world fetch/XHR interceptor (`caption-url-sniffer.js`) rather than calling that API ourselves — see Decisions Log if this needs revisiting. Next, in priority order:
-1. **Live-test the show/episode toggle and the English subtitle/Translation feature** — neither has had a real-browser pass yet; the English feature also depends on Crunchyroll's undocumented API response shape staying stable.
-2. "Edit last card" — explicitly last in this phase.
-3. The audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
+**Phase 5 — Anki export.** The English caption pipeline is working end to end and the core loop is confirmed live. Two live-testing rounds on 2026-07-26 produced a large batch of fixes (desync, vertical order, audio loudness, Translation field, dual-language stripping, English layering, split-sentence Anki merge, wrong-season Jimaku entry) — all built, most verified only offline. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Work through the live-test checklist for the 2026-07-26 batch** — `project-plan.md` Section 8, Ongoing #11–14. Nothing new should be built until that reporting comes back.
+2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
+3. "Edit last card" — explicitly last in this phase.
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 

@@ -149,7 +149,20 @@ const ANKI_MODEL_CSS = `
 // throughout review either way.
 const ANKI_FRONT_TEMPLATE = `<div class="sentence">{{Sentence}}</div>
 {{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}`;
+// Translation sits immediately under {{FrontSide}} — i.e. directly below the
+// Japanese sentence, above the answer rule — rather than down among the
+// metadata fields (2026-07-26). Two things drove the move: it keeps the
+// translation adjacent to the sentence it translates instead of separated
+// from it by the word/reading/gloss block, and it puts Japanese above
+// English in the same order the live subtitle stack uses (see content.css's
+// #jp-immersion-subtitle-stack), so the card reads the way the screen did.
+// It stays OFF the front template, unchanged from the original 2026-07-23
+// design and reaffirmed in live testing: showing the English translation as
+// part of the recall prompt would give away the answer before the attempt.
+// Each field is its own block-level <div>, so the sentence and translation
+// always render on separate lines rather than running together.
 const ANKI_BACK_TEMPLATE = `{{FrontSide}}
+{{#Translation}}<div class="translation">{{Translation}}</div>{{/Translation}}
 <hr id="answer">
 <div class="word">{{Word}}</div>
 <div class="reading">{{Reading}}</div>
@@ -157,7 +170,6 @@ const ANKI_BACK_TEMPLATE = `{{FrontSide}}
 {{#POS}}<div class="pos">{{POS}}</div>{{/POS}}
 {{#Frequency}}<div class="frequency">{{Frequency}}</div>{{/Frequency}}
 {{#JLPT}}<div class="jlpt">{{JLPT}}</div>{{/JLPT}}
-{{#Translation}}<div class="translation">{{Translation}}</div>{{/Translation}}
 {{#Source}}<div class="source">{{Source}}</div>{{/Source}}`;
 
 // Idempotent — checks before creating, so it's safe to call before every
@@ -191,8 +203,21 @@ async function ensureAnkiSetup() {
       await invokeAnkiConnect("modelFieldAdd", { modelName: ANKI_MODEL_NAME, fieldName: field });
     }
   }
+  // Targets the note type's ACTUAL card-template name rather than assuming
+  // the "Card 1" this code created it with (2026-07-26). updateModelTemplates
+  // matches templates by name and silently ignores a name the note type
+  // doesn't have — it does not error — so on any collection where that card
+  // ended up named something else (renamed in Anki's Cards screen, or the
+  // note type recreated by hand under the same name), every template update
+  // this function has ever pushed was a no-op, leaving the card rendering
+  // from a stale template indefinitely while every add still reported
+  // success. Only the first template is touched: this note type is
+  // single-card by design, and blindly overwriting a second template the
+  // user added themselves would destroy their own work.
+  const templates = await invokeAnkiConnect("modelTemplates", { modelName: ANKI_MODEL_NAME });
+  const templateName = Object.keys(templates ?? {})[0] ?? "Card 1";
   await invokeAnkiConnect("updateModelTemplates", {
-    model: { name: ANKI_MODEL_NAME, templates: { "Card 1": { Front: ANKI_FRONT_TEMPLATE, Back: ANKI_BACK_TEMPLATE } } },
+    model: { name: ANKI_MODEL_NAME, templates: { [templateName]: { Front: ANKI_FRONT_TEMPLATE, Back: ANKI_BACK_TEMPLATE } } },
   });
 }
 
@@ -435,15 +460,81 @@ function normalizeTitle(name) {
 // / "Nth Season" marker before the title comparison, and require the
 // extracted N to equal the detected season, defaulting an entry with no
 // marker to season 1.
-const SEASON_SUFFIX_RE = /\s*(?:(\d+)(?:st|nd|rd|th)?\s*season|season\s*(\d+))\s*$/i;
+// A trailing "Part N" / "Cour N" is a COUR marker, not a season, and is
+// stripped and ignored before season parsing (2026-07-26). It has to be
+// handled explicitly rather than left alone, because otherwise the bare-number
+// rule below reads its number as the season: real Jimaku names where that goes
+// wrong are "Shingeki no Kyojin 3 Part 2" (season 3 cour 2, would read as
+// season 2), "SPY×FAMILY Part 2" (season 1 cour 2, would read as season 2) and
+// "BOCCHI THE ROCK! Recap Part 2" (a recap, would read as season 2).
+const PART_SUFFIX_RE = /\s+(?:part|cour)\s*\d+\s*$/i;
+
+const SEASON_ROMAN = { II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9 };
+
+// Upper bound on the BARE trailing-number form only. A number this large is
+// far more likely to be part of the title than a season count — "Mob Psycho
+// 100" and "Jujutsu Kaisen 0" are the real cases this protects (the first
+// would otherwise parse as season 100, the second as season 0). Seasons past
+// this are still detected via the explicit "Season N" wording.
+const MAX_BARE_SEASON_NUMBER = 20;
+
+// Jimaku names seasons in several different conventions, and which one a show
+// uses is not predictable — all four of these are live on the site right now:
+//   "Sousou no Frieren 2nd Season"                 -> ordinal + the word season
+//   "SPY×FAMILY Season 2"                          -> the word season + number
+//   "Overlord II", "Mob Psycho 100 III"            -> roman numeral
+//   "Kono Subarashii Sekai ni Shukufuku wo! 3"     -> bare trailing number
+// Ordered most-specific first so "…2nd Season" is consumed by the ordinal rule
+// before the bare-number rule can see its digits.
+// Every pattern anchors on WHITESPACE before the marker and never consumes a
+// leading separator character. Allowing an optional ":"/"-" there looks
+// harmless but isn't: `String.match` returns the LEFTMOST match, so on
+// "Re:ZERO -Starting Life in Another World- Season 2" it would start the match
+// at the title's own trailing dash and strip it, leaving a base title that no
+// longer equals what Crunchyroll reports — silently falling back to season 1
+// for the exact multi-season show this is meant to fix.
+const SEASON_PATTERNS = [
+  { re: /\s+(\d+)(?:st|nd|rd|th)\s+season\s*$/i, value: (m) => Number(m[1]) },
+  { re: /\s+season\s+(\d+)\s*$/i, value: (m) => Number(m[1]) },
+  { re: /\s+(II|III|IV|V|VI|VII|VIII|IX)\s*$/, value: (m) => SEASON_ROMAN[m[1]] },
+  {
+    re: /\s+(\d+)\s*$/,
+    value: (m) => {
+      const n = Number(m[1]);
+      return n >= 2 && n <= MAX_BARE_SEASON_NUMBER ? n : null;
+    },
+  },
+];
+
+// Splits a Jimaku entry name into its season number and the base title with
+// the season/cour marker removed. An entry with no marker is season 1 — that's
+// how Jimaku names first seasons (no suffix at all), not a fallback guess.
+//
+// The bare-number rule is only safe because of how its result is USED: callers
+// require the returned `base` to still match the show title Crunchyroll
+// reported before accepting the season. So a title that genuinely ends in a
+// number ("Mob Psycho 100") strips down to something that no longer matches
+// ("Mob Psycho") and is rejected, while a real season suffix strips down to
+// exactly the franchise title and is accepted. Parsing alone is not trusted.
+function parseSeasonMarker(name) {
+  if (!name) return { season: 1, base: name ?? "" };
+  const withoutPart = name.replace(PART_SUFFIX_RE, "").trim();
+  for (const pattern of SEASON_PATTERNS) {
+    const m = withoutPart.match(pattern.re);
+    if (!m) continue;
+    const season = pattern.value(m);
+    if (season == null) continue; // matched the shape but not a plausible season number
+    return { season, base: withoutPart.slice(0, m.index).trim() };
+  }
+  return { season: 1, base: withoutPart };
+}
 
 function stripSeasonSuffix(name) {
-  return name ? name.replace(SEASON_SUFFIX_RE, "").trim() : name;
+  return name ? parseSeasonMarker(name).base : name;
 }
 
 function entrySeasonNumber(name) {
-  const m = name?.match(SEASON_SUFFIX_RE);
-  return m ? Number(m[1] ?? m[2]) : 1;
+  return parseSeasonMarker(name).season;
 }
 
 // Resolves a show/episode query down to the candidate text-file list — the
@@ -484,6 +575,23 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
   );
   const entry = seasonMatch ?? plainMatch ?? entries[0];
 
+  // A show whose seasons Jimaku does NOT split into separate entries keeps
+  // everything under one season-1-looking entry, and picking it for a season-3
+  // episode is correct — so a mismatch here can't be treated as an error.
+  // But when it IS wrong it has been silently wrong (reported 2026-07-26:
+  // season 3 of KonoSuba loading season 1's files, noticed only by reading the
+  // subtitles), so it is surfaced instead of passed over: logged here, and the
+  // resolved entry name is returned to the caller so the switcher panel can
+  // show which Jimaku entry these files actually came from.
+  const resolvedSeason = Math.max(entrySeasonNumber(entry.name), entrySeasonNumber(entry.english_name));
+  if (!seasonMatch && wantedSeason !== resolvedSeason) {
+    console.warn(
+      `[jp-immersion] no Jimaku entry matched season ${wantedSeason} of "${query}" — ` +
+        `falling back to "${entry.english_name ?? entry.name}" (reads as season ${resolvedSeason}). ` +
+        `If these are the wrong season's subtitles, the show's seasons are indexed under a name this can't match.`
+    );
+  }
+
   const filesUrl = `${JIMAKU_API_BASE}/entries/${entry.id}/files?episode=${episode}`;
   const filesRes = await fetch(filesUrl, { headers });
   if (!filesRes.ok) {
@@ -501,7 +609,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
         .join(", ")}) — use the manual upload fallback instead`
     );
   }
-  return textFiles;
+  return { textFiles, entryName: entry.english_name ?? entry.name, entrySeason: resolvedSeason };
 }
 
 async function fetchAndParseFile(file, headers) {
@@ -511,7 +619,13 @@ async function fetchAndParseFile(file, headers) {
   }
   const rawText = await fileRes.text();
   const isAss = /\.(ass|ssa)$/i.test(file.name);
-  return isAss ? parseAss(rawText) : parseSrt(rawText);
+  const cues = isAss ? parseAss(rawText) : parseSrt(rawText);
+  // Applied to the JAPANESE track only — never to fetchEnglishSubtitles
+  // below, which is the English file by definition and would be stripped to
+  // nothing. Every Japanese-subtitle consumer (on-screen box, Anki Sentence
+  // field, audio-capture cue boundaries) reads from this one parsed list, so
+  // doing it here fixes all of them at once. See stripDualLanguageCues.
+  return stripDualLanguageCues(cues);
 }
 
 // Auto-load path: resolves candidates, picks one (fileHint override, else
@@ -523,7 +637,7 @@ async function fetchAndParseFile(file, headers) {
 // the entry that's actually playing rather than guessing at it separately.
 async function fetchSubtitles(query, episode, fileHint = null, preferredUploader = null, seasonNumber = null) {
   const headers = await getJimakuHeaders();
-  const textFiles = await resolveTextFiles(query, episode, headers, seasonNumber);
+  const { textFiles, entryName } = await resolveTextFiles(query, episode, headers, seasonNumber);
   const ranked = rankFiles(textFiles, preferredUploader);
   // Optional manual override for picking a specific file among several
   // candidates Jimaku returns for the same requested episode — needed since
@@ -566,6 +680,11 @@ async function fetchSubtitles(query, episode, fileHint = null, preferredUploader
     cues,
     files: ranked.map((f) => ({ name: f.name, url: f.url, size: f.size })),
     selectedUrl: file.url,
+    // Which Jimaku entry these files came from (2026-07-26) — shown in the
+    // switcher panel so the season actually being used is visible at a
+    // glance, rather than only discoverable by noticing the subtitles are
+    // wrong partway into an episode.
+    entryName,
   };
 }
 
@@ -605,14 +724,30 @@ function isTrustedCrunchyrollCdnUrl(url) {
 
 async function fetchEnglishSubtitles(url, format) {
   if (!isTrustedCrunchyrollCdnUrl(url)) {
-    throw new Error("Refused to fetch English subtitles from an untrusted URL");
+    // Names the actual hostname (2026-07-26). The allowlist and
+    // manifest.json's host_permissions both hardcode `*.crunchyrollcdn.com`,
+    // which was the assumed CDN host when this was built and has never been
+    // confirmed against a real signed subtitle URL — if Crunchyroll serves
+    // these from any other host, this is where the feature dies, and the old
+    // message gave no way to tell that apart from a genuine spoof attempt.
+    let host = "(unparseable)";
+    try {
+      host = new URL(url).hostname;
+    } catch {}
+    throw new Error(
+      `Refused to fetch English subtitles from untrusted host "${host}" — only *.crunchyrollcdn.com is allowed (see isTrustedCrunchyrollCdnUrl)`
+    );
   }
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`English subtitle fetch failed (${res.status})`);
   }
   const rawText = await res.text();
-  return format === "ass" ? parseAss(rawText) : parseSrt(rawText);
+  const cues = format === "ass" ? parseAss(rawText) : parseSrt(rawText);
+  if (!cues.length) {
+    throw new Error(`English subtitle file parsed to 0 cues (format "${format}", ${rawText.length} bytes)`);
+  }
+  return cues;
 }
 
 // Lazily loaded once per service worker lifetime, then kept in memory.

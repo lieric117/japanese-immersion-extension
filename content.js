@@ -95,19 +95,75 @@ let lastEnglishText = null;
 // parameter.
 let subtitleBoxEn = null;
 
+// Bumped every time loadSubtitles resets for a new episode, so an English
+// subtitle fetch still in flight from the PREVIOUS episode can't land after
+// the reset and repopulate `englishCues` with the old episode's lines
+// (2026-07-26). Same guard-by-generation pattern renderCue already uses for
+// its own async round-trip (`renderGeneration`).
+let englishCueEpoch = 0;
+// The URL currently fetched or being fetched, so the sniffer's replay (see
+// caption-url-sniffer.js) doesn't trigger a duplicate fetch of a file we
+// already have.
+let englishCueUrl = null;
+
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
   const url = event.data?.__jpImmersionCaptionUrl;
   if (!url) return;
+  if (url === englishCueUrl) return; // already fetched (or fetching) this exact file
   const format = event.data.__jpImmersionCaptionFormat ?? "ass";
+  englishCueUrl = url;
+  const epoch = englishCueEpoch;
   chrome.runtime.sendMessage({ type: "FETCH_ENGLISH_SUBTITLES", url, format }, (response) => {
+    if (epoch !== englishCueEpoch) return; // episode changed while this was in flight
     if (!response || response.error) {
-      console.warn("[jp-immersion] English subtitle fetch failed:", response?.error);
+      // Left as a console warning rather than on-screen UI, but deliberately
+      // explicit about which stage failed: this feature spent an entire
+      // live-testing cycle (2026-07-26) showing nothing with no indication
+      // anywhere of whether the URL was never found, was found and refused,
+      // or was fetched and parsed to zero cues.
+      console.warn("[jp-immersion] English subtitle fetch failed:", response?.error ?? "no response from background");
+      englishCueUrl = null; // allow a retry if the sniffer sees the URL again
       return;
     }
     englishCues = response.cues;
+    console.log(`[jp-immersion] English subtitles loaded: ${response.cues?.length ?? 0} cues`);
   });
 });
+
+// Tells caption-url-sniffer.js (MAIN world) that the listener above is now
+// live, so it can replay a caption URL it already found. Without this, a
+// `play` response that resolved before this content script loaded was lost
+// outright — see the sniffer's own `lastFound` comment for the full bug.
+window.postMessage({ __jpImmersionContentReady: true }, "*");
+
+// Clears English caption state for an EPISODE CHANGE — and only that
+// (2026-07-26). This used to live inside loadSubtitles(), which was wrong in
+// a way that live testing caught precisely: loadSubtitles runs on initial
+// page load and on every internal Jimaku retry, not just on episode change,
+// so a successfully-loaded set of English cues was being wiped by an
+// unrelated Japanese-subtitle load. The console showed it exactly —
+// "English subtitles loaded: 317 cues" arriving BEFORE init() ran, then
+// init()'s own loadSubtitles() call discarding them, leaving englishCues
+// null with no English on screen and an empty Anki Translation field, even
+// though every earlier stage of the pipeline had succeeded. Nothing re-posts
+// the URL afterwards (the sniffer only replays on the ready handshake, which
+// has already happened by then), so the loss was permanent for the page.
+//
+// Deliberately does NOT ask the sniffer to replay its cached URL: on an
+// episode change that cached URL is still the PREVIOUS episode's until
+// Crunchyroll's own new `play` request lands, so replaying it would load the
+// wrong episode's translations.
+function resetEnglishCaptions() {
+  englishCues = null;
+  lastEnglishText = null;
+  // Invalidates any in-flight fetch from the previous episode, and clears the
+  // dedupe key so the new episode's own caption URL is fetched even in the
+  // (unlikely) case Crunchyroll reuses the same signed URL.
+  englishCueEpoch++;
+  englishCueUrl = null;
+  if (subtitleBoxEn) renderEnglishCue(subtitleBoxEn, "");
+}
 // Module-scope (not local to init()'s timeupdate listener) so the
 // SPA-navigation reload below can also reset it — see loadSubtitles/
 // jp-immersion-locationchange.
@@ -117,6 +173,15 @@ let lastText = null;
 // with `lastText` itself so a word click can capture a direct reference to
 // it synchronously, the same reasoning as `lastText` being module-scope.
 let lastCueEntry = null;
+// The window (in SUBTITLE-FILE time, i.e. before the offset is added back)
+// spanned by whatever Japanese text is on screen right now, or null when
+// nothing is. Set every tick by updateJapaneseCue and consumed by
+// updateEnglishCue, which pairs English cues against it rather than running
+// its own independent time match — see there for why. Module-scope rather
+// than local to init() (2026-07-26) so click-time code can read it too: the
+// Anki sentence merge (see buildMergedAnkiSentence) needs to know which cue
+// window the clicked word was in.
+let activeJpWindow = null;
 // Module-scope (not a const captured once inside init()), so a full
 // show-to-show navigation can swap it out. Real report 2026-07-17: after
 // switching from one show to a different one, the switcher panel/ranking
@@ -502,14 +567,12 @@ function extractUploaderTag(filename) {
 function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange = false) {
   cues = null;
   lastText = null;
-  // English captions come from an entirely separate pipeline (the
-  // caption-url-sniffer postMessage listener, triggered by Crunchyroll's own
-  // network activity for the NEW episode) — reset here too so a stale line
-  // from the previous episode doesn't stay frozen on screen through the
-  // loading gap, or worse, into the new episode before fresh cues arrive.
-  englishCues = null;
-  lastEnglishText = null;
-  if (subtitleBoxEn) renderEnglishCue(subtitleBoxEn, "");
+  // NOTE: English captions are deliberately NOT reset here (moved out
+  // 2026-07-26 — see resetEnglishCaptions below for the bug this caused).
+  // They come from an entirely separate pipeline driven by Crunchyroll's own
+  // network activity, on its own schedule, with no relationship to this
+  // Jimaku fetch — including this reset here meant a perfectly good set of
+  // English cues was destroyed by an unrelated Japanese-subtitle load.
   // Undoes renderCue's `display: none` (see there) for the gap-between-lines
   // case — every status/error message this function can show below needs to
   // actually be visible, not silently hidden by a state left over from
@@ -573,7 +636,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           return;
         }
         cues = response.cues;
-        renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected);
+        renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected, response.entryName);
         // Forces an immediate re-render via the shared timeupdate listener
         // (see init()) instead of waiting for the video's own next natural
         // timeupdate tick — otherwise a paused video (or one that hasn't
@@ -612,9 +675,26 @@ function init() {
 
   initAudioCapture(video);
 
+  // Both subtitle boxes live inside one bottom-anchored flex column
+  // (2026-07-26) rather than each being independently `position: fixed` at
+  // its own viewport offset. That's the fix for the JP/EN vertical-order bug
+  // found in live testing: previously the Japanese box was pinned at
+  // bottom:60px and the English box at bottom:20px, which only kept English
+  // visually below Japanese as long as the English caption stayed short. A
+  // two- or three-line English caption grows UPWARD from its own 20px anchor
+  // straight into the Japanese box's space, and since both boxes carry the
+  // same max z-index, the later sibling (English) paints on top — so a long
+  // English line renders over the Japanese one and reads as the two having
+  // swapped places. Stacking them as flex children of a single anchor makes
+  // the order structural: Japanese is the first child, English the second,
+  // and neither can overlap the other at any caption length. Per the
+  // 2026-07-26 decision, Japanese-on-top is fixed intent, not configurable.
+  const subtitleStack = document.createElement("div");
+  subtitleStack.id = "jp-immersion-subtitle-stack";
+
   const subtitleBox = document.createElement("div");
   subtitleBox.id = "jp-immersion-subtitle";
-  getContainer().appendChild(subtitleBox);
+  subtitleStack.appendChild(subtitleBox);
   // Text set by loadSubtitles() below, not here — it's called both on
   // initial load and on every SPA episode change, so it owns this state.
 
@@ -628,7 +708,9 @@ function init() {
   subtitleBoxEn = document.createElement("div");
   subtitleBoxEn.id = "jp-immersion-subtitle-en";
   subtitleBoxEn.style.display = "none";
-  getContainer().appendChild(subtitleBoxEn);
+  subtitleStack.appendChild(subtitleBoxEn);
+
+  getContainer().appendChild(subtitleStack);
 
   const offsetControl = buildOffsetControl();
   getContainer().appendChild(offsetControl);
@@ -638,8 +720,9 @@ function init() {
 
   document.addEventListener("fullscreenchange", () => {
     const target = getContainer();
-    target.appendChild(subtitleBox);
-    target.appendChild(subtitleBoxEn);
+    // One re-parent for the whole stack — the two boxes are its children now
+    // (see above), so moving them individually would tear them back out of it.
+    target.appendChild(subtitleStack);
     target.appendChild(offsetControl);
     target.appendChild(switcherPanel);
     // A live (not yet chipped) word-click popup needs the same re-parenting
@@ -673,47 +756,118 @@ function init() {
   // needing its own listener. `lastText` is module-scope (not declared here)
   // so an episode change (loadSubtitles, below) can reset it too.
   function handleTimeUpdate() {
-    if (!cues) return;
+    updateJapaneseCue();
+    updateEnglishCue();
+  }
+
+  // Split out of handleTimeUpdate (2026-07-26) — see updateEnglishCue below
+  // for the desync bug this split fixes.
+  function updateJapaneseCue() {
+    if (!cues) {
+      activeJpWindow = null;
+      return;
+    }
     const adjustedTime = video.currentTime - offset;
     // ASS files often split one visual subtitle across multiple simultaneous
     // Dialogue events — collect all that match the current time and join them.
-    const text = cues
-      .filter((c) => adjustedTime >= c.start && adjustedTime <= c.end)
-      .map((c) => c.text.trim())
-      .filter((t) => t && !STAGE_RE.test(t))
-      .map((t) => t.replace(SPEAKER_PREFIX_RE, "").trim())
-      .map((t) => t.replace(INLINE_FURIGANA_RE, "$1"))
-      .map((t) => t.replace(FANSUB_MARKUP_RE, "").trim())
-      .filter((t) => t)
+    //
+    // Written as an explicit loop rather than the chained .filter/.map it
+    // used to be (2026-07-26) purely so each surviving piece of text stays
+    // paired with the CUE it came from — the chain discarded that link at the
+    // first .map, and updateEnglishCue now needs the timing of the cues that
+    // actually contributed visible text (not merely the ones that matched the
+    // clock, which includes stage directions that get filtered out below).
+    // The order of operations is identical to the old chain.
+    const parts = [];
+    for (const cue of cues) {
+      if (adjustedTime < cue.start || adjustedTime > cue.end) continue;
+      let t = cue.text.trim();
+      if (!t || STAGE_RE.test(t)) continue;
+      t = t.replace(SPEAKER_PREFIX_RE, "").trim();
+      t = t.replace(INLINE_FURIGANA_RE, "$1");
+      t = t.replace(FANSUB_MARKUP_RE, "").trim();
+      if (!t) continue;
       // Normalizes half-width katakana (some fansub releases, e.g.
       // VCB-Studio, encode katakana this way) to full-width BEFORE
       // tokenization — the 2026-07-01 fix only normalized at the JMdict
       // lookup layer, so a half-width word resolved correctly on click
       // but still displayed half-width on screen (スマホ shown as ｽﾏﾎ).
-      .map((t) => normalizeHalfwidthKatakana(t))
-      .join("\n");
+      parts.push({ cue, text: normalizeHalfwidthKatakana(t) });
+    }
+    const text = parts.map((p) => p.text).join("\n");
+    activeJpWindow = parts.length
+      ? {
+          start: Math.min(...parts.map((p) => p.cue.start)),
+          end: Math.max(...parts.map((p) => p.cue.end)),
+        }
+      : null;
     if (text === lastText) return;
     lastText = text;
     lastCueEntry = markCueBoundary(text);
     renderCue(subtitleBox, text);
+  }
 
-    // English caption matching (2026-07-23) — deliberately independent of
-    // the Japanese pipeline above: RAW video.currentTime, not adjustedTime
-    // (see englishCues' own comment for why), no tokenizer/click-handling,
-    // and doesn't participate in the popup/chip lifecycle at all (chipifyPopup
-    // is only ever triggered by the JAPANESE line changing, since that's what
-    // the user is actually interacting with).
-    if (englishCues) {
-      const enText = englishCues
-        .filter((c) => video.currentTime >= c.start && video.currentTime <= c.end)
+  // English caption matching (2026-07-23) — deliberately independent of the
+  // Japanese pipeline above: RAW video.currentTime, not adjustedTime (see
+  // englishCues' own comment for why), no tokenizer/click-handling, and
+  // doesn't participate in the popup/chip lifecycle at all (chipifyPopup is
+  // only ever triggered by the JAPANESE line changing, since that's what the
+  // user is actually interacting with).
+  //
+  // Its own function, called unconditionally from handleTimeUpdate, rather
+  // than a trailing block inside updateJapaneseCue's body (2026-07-26) —
+  // that's the JP/EN desync bug found in live testing. Sitting there, this
+  // code was unreachable on any tick where the Japanese line hadn't just
+  // changed, because updateJapaneseCue's own `if (text === lastText) return`
+  // (and its `if (!cues) return`) bailed out first. The English box therefore
+  // only ever redrew AT a Japanese cue boundary: an English line whose real
+  // start/end fell mid-Japanese-line appeared late or lingered on screen
+  // until the Japanese line happened to change, which is exactly the
+  // "one lingers after the other has cleared" symptom. Nothing to do with
+  // the offset (confirmed by the user at offset=0, where the two time
+  // references are identical) — the two boxes simply weren't being evaluated
+  // on the same ticks. They now both re-evaluate on every timeupdate, so a
+  // boundary either box crosses is picked up on the same tick.
+  //
+  // Paired to the JAPANESE cue window rather than matched against the clock
+  // on its own (2026-07-26). Matching independently is what live testing
+  // reported as the two lines appearing and disappearing at visibly different
+  // moments even at offset 0: the two files are authored separately, so the
+  // same spoken line carries boundaries that differ by a few hundred
+  // milliseconds, and `timeupdate` only fires ~4x/second — so a 150ms
+  // difference in the source data lands the two changes on DIFFERENT ticks
+  // and becomes a ~250ms visible stagger. No amount of fixing our own timing
+  // helps, because the discrepancy is in the source files.
+  //
+  // Slaving the English line to the Japanese one makes them simultaneous by
+  // construction: there is now a single decision ("is Japanese text showing,
+  // and which cue window does it span") driving both boxes, so they can only
+  // ever change together. It also preserves the case live testing explicitly
+  // flagged as correct — one English sentence spanning two consecutive
+  // Japanese cues: each Japanese window pairs with that same English cue, the
+  // rendered text is therefore identical across both, and renderEnglishCue
+  // no-ops on unchanged text, so the English line simply stays on screen
+  // across the transition instead of blinking.
+  //
+  // TRADE-OFF, deliberate: English now shows ONLY while Japanese is showing.
+  // A moment Crunchyroll translates but the Jimaku file has no line for (a
+  // sign, a dropped line), or an episode whose Japanese subtitles failed to
+  // load at all, displays no English either. That is the direct cost of
+  // "they appear and disappear at exactly the same time" — the two cannot be
+  // both independently timed and perfectly simultaneous. Consistent with the
+  // extension being Japanese-first, but flag it if it proves annoying in use.
+  function updateEnglishCue() {
+    if (!englishCues) return;
+    let enText = "";
+    if (activeJpWindow) {
+      enText = pairEnglishCues(activeJpWindow)
         .map((c) => c.text.trim())
         .filter(Boolean)
         .join("\n");
-      if (enText !== lastEnglishText) {
-        lastEnglishText = enText;
-        renderEnglishCue(subtitleBoxEn, enText);
-      }
     }
+    if (enText === lastEnglishText) return;
+    lastEnglishText = enText;
+    renderEnglishCue(subtitleBoxEn, enText);
   }
   video.addEventListener("timeupdate", handleTimeUpdate);
 
@@ -726,13 +880,22 @@ function init() {
   // storage key/value for the new episode's URL, so a saved offset doesn't
   // leak across episodes.
   window.addEventListener("jp-immersion-locationchange", () => {
+    // The one place English caption state should be cleared: the episode
+    // actually changed, so the previous episode's translations are now stale
+    // (2026-07-26 — see resetEnglishCaptions for why this can't live in
+    // loadSubtitles). Runs for both branches below: leaving a watch page
+    // needs the cues dropped just as much as switching episodes does.
+    resetEnglishCaptions();
     // Navigating away from a watch page (e.g. back to browse/search) via SPA
     // navigation, not a full reload — hide the UI rather than letting
     // loadSubtitles run and eventually show "couldn't detect the
     // show/episode" on a page that was never showing an episode to begin
     // with. See `isWatchPage` above for the same-day report this addresses.
     if (!isWatchPage()) {
-      subtitleBox.style.display = "none";
+      // Hides the stack, not just the Japanese box (2026-07-26) — the
+      // English box is a sibling inside it and was previously left visible
+      // on non-watch pages, since this branch predates it existing.
+      subtitleStack.style.display = "none";
       switcherPanel.style.display = "none";
       offsetControl.style.display = "none";
       uploadControl.style.display = "none";
@@ -740,7 +903,7 @@ function init() {
       closePopup();
       return;
     }
-    subtitleBox.style.display = "";
+    subtitleStack.style.display = "";
     switcherPanel.style.display = "";
     offsetControl.style.display = "";
     uploadControl.style.display = "";
@@ -838,7 +1001,7 @@ function buildSwitcherPanel() {
 // change instead of rebuilding it. `detected` (2026-07-16) is only needed to
 // derive the uploader-preference storage key when the user picks a file
 // manually — null is fine for the "nothing to show yet" clearing call.
-function renderSwitcherOptions(panel, files, selectedUrl, detected) {
+function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = null) {
   panel.textContent = "";
   if (!files || !files.length) {
     panel.style.display = "none";
@@ -846,8 +1009,16 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected) {
   }
   panel.style.display = "flex";
 
+  // Names the Jimaku ENTRY the files below came from (2026-07-26). Jimaku
+  // indexes each season as a separate entry, and picking the wrong one has
+  // been a recurring, silent failure — the file names in the dropdown are
+  // usually just "[Uploader] Show - 05.ass", which looks perfectly correct
+  // whether it came from season 1 or season 3. Showing the entry title makes
+  // the season being used visible without having to read the subtitles to
+  // find out. See background.js's resolveTextFiles.
   const label = document.createElement("label");
-  label.textContent = "Subtitle file: ";
+  label.textContent = entryName ? `Subtitle file (${entryName}): ` : "Subtitle file: ";
+  if (entryName) label.title = `Jimaku entry: ${entryName}`;
 
   const select = document.createElement("select");
   for (const file of files) {
@@ -1148,6 +1319,114 @@ function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// Which English cues are this Japanese window's translation. Shared by the
+// on-screen English line (updateEnglishCue) and the Anki sentence merge
+// (buildMergedAnkiSentence) so the two can never disagree about what pairs
+// with what.
+//
+// MIDPOINT containment, both ways: an English cue belongs to this Japanese
+// window if it is CENTRED inside the window, or if the window's own centre
+// falls inside the English cue. The first arm covers ordinary 1:1 pairing and
+// one-Japanese-line-translated-as-two-English-sentences; the second covers
+// two-Japanese-cues-to-one-English-sentence, where the English cue is far
+// longer than either window. `window` is in subtitle-file time, English cues
+// are in raw video time, so the offset is added back to map one onto the
+// other — which also means correcting the Japanese offset re-pairs the
+// English along with it.
+function pairEnglishCues(window) {
+  if (!englishCues || !window) return [];
+  const winStart = window.start + offset;
+  const winEnd = window.end + offset;
+  const winMidpoint = (winStart + winEnd) / 2;
+  return englishCues.filter((c) => {
+    const cueMidpoint = (c.start + c.end) / 2;
+    return (
+      (cueMidpoint >= winStart && cueMidpoint <= winEnd) ||
+      (winMidpoint >= c.start && winMidpoint <= c.end)
+    );
+  });
+}
+
+// Runs one Japanese cue's raw text through exactly the display filter chain
+// updateJapaneseCue applies, so a cue's contribution to a merged sentence is
+// identical to what it would look like on screen. Returns "" for a cue that
+// wouldn't be displayed at all (stage direction, markup-only).
+function cueDisplayText(cue) {
+  let t = cue.text.trim();
+  if (!t || STAGE_RE.test(t)) return "";
+  t = t.replace(SPEAKER_PREFIX_RE, "").trim();
+  t = t.replace(INLINE_FURIGANA_RE, "$1");
+  t = t.replace(FANSUB_MARKUP_RE, "").trim();
+  if (!t) return "";
+  return normalizeHalfwidthKatakana(t);
+}
+
+// One spoken sentence is often split across two consecutive Japanese subtitle
+// cues while Crunchyroll translates it as a single English sentence — measured
+// at ~12% of cues across four episodes (2026-07-26). On screen that's correct
+// and deliberately left alone (the next line is a second away), but it makes a
+// BAD Anki card: the Sentence field captures half a sentence. This rebuilds
+// the full sentence for capture only.
+//
+// Anki-only by the user's explicit choice (2026-07-26): merging the on-screen
+// display too would make the Japanese line depend on Crunchyroll's English
+// track being available, so the same show would read differently depending on
+// whether the caption pipeline fired. Capture is where the split actually
+// hurts, so that's the only place it's corrected.
+//
+// English-driven because it has to be — a Japanese-only rule ("merge when the
+// line doesn't end in 。／？／！") was measured and rejected: sentence-final
+// punctuation turns out to be an artifact of each uploader's transcription
+// style, present on 10% of cues in one file and 87% in another, so such a rule
+// merges ~37% of cues on unpunctuated files and behaves completely differently
+// per provider.
+//
+// Returns null whenever anything is ambiguous — no English cues loaded, the
+// window pairs with zero or several English cues, or nothing neighbours it.
+// The caller then falls back to the single on-screen line, which is today's
+// behaviour and always safe.
+function buildMergedAnkiSentence(displayedText) {
+  if (!cues || !englishCues || !activeJpWindow || !displayedText) return null;
+  const paired = pairEnglishCues(activeJpWindow);
+  // Only merge on an unambiguous 1:1 anchor. If this window already maps to
+  // several English cues, the Japanese line is the longer unit of the two and
+  // there is nothing to join it to.
+  if (paired.length !== 1) return null;
+  const anchor = paired[0];
+
+  const before = [];
+  const after = [];
+  for (const cue of cues) {
+    // Skip the cues making up the window itself — the displayed text is
+    // spliced in verbatim below rather than rebuilt, so that the clicked
+    // word's recorded character offset stays exactly valid.
+    if (cue.end > activeJpWindow.start && cue.start < activeJpWindow.end) continue;
+    const own = pairEnglishCues({ start: cue.start, end: cue.end });
+    if (own.length !== 1 || own[0] !== anchor) continue;
+    const text = cueDisplayText(cue);
+    if (!text) continue;
+    if (cue.end <= activeJpWindow.start) before.push({ start: cue.start, text });
+    else if (cue.start >= activeJpWindow.end) after.push({ start: cue.start, text });
+  }
+  if (!before.length && !after.length) return null;
+
+  before.sort((a, b) => a.start - b.start);
+  after.sort((a, b) => a.start - b.start);
+  const beforeText = before.map((p) => p.text).join("\n");
+  const parts = [...before.map((p) => p.text), displayedText, ...after.map((p) => p.text)];
+  return {
+    text: parts.join("\n"),
+    // How far the displayed line moved within the merged string, so the
+    // caller can shift the clicked word's offset by the same amount. Includes
+    // the "\n" separator that follows the prefix.
+    offsetShift: beforeText ? beforeText.length + 1 : 0,
+    // Display texts of the first and last lines in the merged group, used to
+    // widen the audio clip to match (see sliceMergedClipWavWhenReady).
+    firstText: before.length ? before[0].text : displayedText,
+    lastText: after.length ? after[after.length - 1].text : displayedText,
+  };
+}
+
 // Builds the HTML the Anki "Sentence" field expects (the clicked word
 // wrapped in <b>) from the exact position `renderGroups` recorded on the
 // span, not a substring search — robust against the same word appearing
@@ -1162,7 +1441,15 @@ function buildSentenceHtml(sentenceText, startOffset, surface) {
   if (!sentenceText || !Number.isInteger(startOffset) || startOffset < 0) return null;
   const end = startOffset + surface.length;
   if (end > sentenceText.length || sentenceText.slice(startOffset, end) !== surface) return null;
-  return escapeHtml(sentenceText.slice(0, startOffset)) + "<b>" + escapeHtml(surface) + "</b>" + escapeHtml(sentenceText.slice(end));
+  // Line breaks are converted AFTER escaping and per-slice, so the escaped
+  // offsets the <b> wrapper depends on are never disturbed (2026-07-26).
+  // A cue split across several simultaneous ASS Dialogue events is joined
+  // with "\n" upstream in updateJapaneseCue, and the on-screen box renders
+  // that correctly via `white-space: pre-wrap` — but an Anki field is plain
+  // HTML, where a raw newline collapses to a space, so a two-part line
+  // arrived on the card as one run-on sentence.
+  const toHtml = (s) => escapeHtml(s).replace(/\n/g, "<br>");
+  return toHtml(sentenceText.slice(0, startOffset)) + "<b>" + toHtml(surface) + "</b>" + toHtml(sentenceText.slice(end));
 }
 
 // Matches the popup's own numbered-sense display (renderEntries below) so
@@ -1182,11 +1469,31 @@ function onWordClick(event) {
   const pos = span._pos ?? null;
   const conjugatedForm = span._conjugatedForm ?? null;
   const idiomWord = span._idiomWord ?? null;
-  const sentenceHtml = buildSentenceHtml(lastText, Number(span.dataset.startOffset), span.dataset.surface);
+  // Rebuilds a sentence split across consecutive cues, for the CARD only —
+  // the on-screen line is untouched (2026-07-26, user's call). Falls back to
+  // the displayed line whenever the merge is ambiguous. The clicked word's
+  // recorded offset is shifted by however much the displayed line moved
+  // within the merged string, so the <b> wrapping still lands exactly on the
+  // word that was clicked (buildSentenceHtml verifies this and returns null
+  // rather than guessing if it ever doesn't line up).
+  const merged = buildMergedAnkiSentence(lastText);
+  const sentenceHtml = buildSentenceHtml(
+    merged ? merged.text : lastText,
+    Number(span.dataset.startOffset) + (merged ? merged.offsetShift : 0),
+    span.dataset.surface
+  );
   // Captured synchronously at click time, same reasoning as sentenceHtml
   // above (2026-07-22) — lastCueEntry is module-scope and the video may
   // advance to a new line before the "+ Anki" button is actually clicked.
-  const cueEntry = lastCueEntry;
+  // Bundles everything the audio slice needs, captured synchronously for the
+  // same reason as the sentence above. `firstText`/`lastText` are non-null
+  // only when the sentence was merged, and widen the clip to cover the whole
+  // merged span so the card's audio matches its sentence.
+  const audioRequest = {
+    entry: lastCueEntry,
+    firstText: merged ? merged.firstText : null,
+    lastText: merged ? merged.lastText : null,
+  };
   // Show/episode opt-in field (2026-07-23) — captured the same way, though
   // in practice this one is stable for an entire episode's worth of clicks,
   // not just until the next line.
@@ -1194,7 +1501,15 @@ function onWordClick(event) {
   // English translation (2026-07-23) — captured the same way as the
   // Japanese sentence above, same reasoning: lastEnglishText is module-scope
   // and can change before the "+ Anki" button is actually clicked.
-  const translationText = lastEnglishText || null;
+  //
+  // Escaped and line-broken here (2026-07-26) rather than passed through as
+  // raw text: Anki fields are HTML, so an apostrophe-free caption was fine
+  // but one containing < or & rendered wrong or swallowed text, and a
+  // two-line caption collapsed onto one line — the same fix, for the same
+  // reason, as buildSentenceHtml's own. Preserving the caption's line breaks
+  // also keeps Crunchyroll's own break positions on the card, which live
+  // testing specifically confirmed as worth keeping.
+  const translationText = lastEnglishText ? escapeHtml(lastEnglishText).replace(/\n/g, "<br>") : null;
 
   removeChip(); // a new lookup replaces whatever chip is currently showing
   closePopup();
@@ -1241,7 +1556,7 @@ function onWordClick(event) {
       body.appendChild(inflectionLine);
     }
 
-    renderEntries(body, word, response.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, cueEntry, response.showSource, showEpisodeText, translationText);
+    renderEntries(body, word, response.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText);
 
     // Marks this popup as eligible to become a chip once the next line rolls
     // in (see chipifyPopup) — only set once real content has actually
@@ -1261,7 +1576,7 @@ function onWordClick(event) {
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
         body.appendChild(label);
-        renderEntries(body, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, cueEntry, response.showSource, showEpisodeText, translationText);
+        renderEntries(body, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText);
       });
     }
   });
@@ -1311,7 +1626,7 @@ function archaicTagLabel(entry) {
 // visible in the ruby headword itself.
 const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
-function renderEntries(container, word, results, sentenceHtml, showPos, showFreq, showJlpt, cueEntry, showSource, showEpisodeText, translationText) {
+function renderEntries(container, word, results, sentenceHtml, showPos, showFreq, showJlpt, audioRequest, showSource, showEpisodeText, translationText) {
   // Falls back to just the bolded word alone when the exact-offset lookup in
   // buildSentenceHtml couldn't confirm a match (rare: only if lastText and
   // the span's own recorded surface/offset somehow disagree) — degrades to
@@ -1473,7 +1788,12 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
       // playing normally the whole time this awaits, nothing is paused or
       // interrupted, matching the "keep watching" positioning that ruled out
       // rewind-and-recapture in the first place.
-      const audio = await sliceClipWavWhenReady(cueEntry);
+      const audio = await sliceClipWavWhenReady(
+        audioRequest.entry,
+        undefined,
+        audioRequest.firstText,
+        audioRequest.lastText
+      );
       chrome.runtime.sendMessage(
         {
           type: "ADD_ANKI_NOTE",

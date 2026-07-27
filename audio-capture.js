@@ -38,6 +38,39 @@ const AUDIO_BUFFER_SECONDS = 45; // covers worst-case cue length + chip lifetime
 const AUDIO_PAD_SECONDS = 0.2; // symmetric padding added to each side of a sliced cue window
 const AUDIO_PROCESS_BUFFER_SIZE = 4096; // samples per ScriptProcessorNode callback (~85ms at 48kHz)
 
+// Loudness normalization (2026-07-26), applied to each sliced clip just
+// before WAV encoding. Fixes a real bug found in live testing: the exported
+// Anki audio's loudness tracked Crunchyroll's own in-page volume slider, so
+// a clip captured at low player volume was quiet on the card and one
+// captured at high volume was loud — the same word captured on two different
+// evenings could differ by tens of dB.
+//
+// This is inherent to the capture point, not a mistake in the graph above:
+// per the Web Audio spec, createMediaElementSource taps the media element
+// AFTER its own volume/muted attenuation is applied, and there is no
+// upstream tap available. The obvious alternative — captureStream() on the
+// video element, which is unaffected by the volume property — is already
+// confirmed blocked outright for this DRM content (2026-07-17 feasibility
+// test). So the volume has to be corrected on the captured samples instead
+// of avoided at the source, which is what these do.
+//
+// RMS-targeted rather than peak-only: peak normalization would key the whole
+// clip's level off a single loudest sample, so one incidental transient (a
+// door slam, a sound effect over the line) would leave the dialogue itself
+// quiet. Matching RMS matches roughly what the ear hears as loudness, which
+// is the thing that needs to be consistent card-to-card. The peak ceiling
+// below then reins in the resulting gain so the RMS target can never drive
+// samples into clipping.
+const AUDIO_TARGET_RMS = 0.09; // ~-21 dBFS, a normal speech level
+const AUDIO_PEAK_CEILING = 0.95; // gain is capped so the loudest sample lands no higher than this
+const AUDIO_MAX_GAIN = 32; // ~+30 dB, so a very quiet capture isn't amplified into pure hiss
+// Below this peak the clip is treated as silence and no audio is exported at
+// all (see normalizeLoudness) — the case where the user had Crunchyroll
+// muted outright. Normalizing that would just scale the noise floor up to
+// dialogue level, producing a card with a loud hiss on it, which is worse
+// than the existing no-audio-field degrade path.
+const AUDIO_SILENCE_PEAK = 0.0008;
+
 let audioCtx = null;
 let ringBuffer = null; // Float32Array, mono
 let ringWritePos = 0; // next write index
@@ -130,6 +163,35 @@ function markCueBoundary(text) {
   return entry;
 }
 
+// Scales `samples` in place to a consistent perceived loudness, and returns
+// whether the clip was usable at all — false means it was silent (see
+// AUDIO_SILENCE_PEAK) and the caller should export no audio rather than a
+// clip of amplified noise. Mutates rather than copying: the array is already
+// a freshly-allocated slice owned by the caller, never the ring buffer
+// itself, so there's no shared state to corrupt.
+function normalizeLoudness(samples) {
+  let peak = 0;
+  let sumSquares = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const abs = s < 0 ? -s : s;
+    if (abs > peak) peak = abs;
+    sumSquares += s * s;
+  }
+  if (peak < AUDIO_SILENCE_PEAK) return false;
+  const rms = Math.sqrt(sumSquares / samples.length);
+  // rms can still be ~0 for a clip that's silent apart from one sample above
+  // the floor; the peak cap below is what actually bounds gain in that case,
+  // but guard the division anyway rather than relying on Infinity clamping.
+  let gain = rms > 0 ? AUDIO_TARGET_RMS / rms : AUDIO_MAX_GAIN;
+  gain = Math.min(gain, AUDIO_PEAK_CEILING / peak, AUDIO_MAX_GAIN);
+  // Deliberately applied even when gain < 1 — a capture made at high player
+  // volume gets turned DOWN to the same target, which is the whole point of
+  // normalizing rather than just boosting quiet clips.
+  for (let i = 0; i < samples.length; i++) samples[i] *= gain;
+  return true;
+}
+
 // Encodes a mono Float32Array [-1, 1] as a 16-bit PCM WAV file, returned as a
 // base64 string ready for AnkiConnect's addNote `audio[].data` field. Chosen
 // over webm/opus (2026-07-22): a WAV header plus raw samples is a direct fit
@@ -197,6 +259,17 @@ function sliceClipWav(cueEntry) {
     const idx = ((ringWritePos - samplesAgo) % ringBuffer.length + ringBuffer.length) % ringBuffer.length;
     out[i] = ringBuffer[idx];
   }
+  // Correct for whatever the player's volume slider happened to be at during
+  // capture (2026-07-26) — see normalizeLoudness. A silent clip (player
+  // muted) returns null here, taking the same no-audio-field path every
+  // other capture failure already takes, rather than attaching a WAV of
+  // silence to the card. Logged rather than surfaced in the UI: the "+ Anki"
+  // button has no partial-success state today, and a muted player is a
+  // deliberate act by the user, not an error to interrupt them about.
+  if (!normalizeLoudness(out)) {
+    console.warn("[jp-immersion] captured clip was silent (player muted?) — no audio field added");
+    return null;
+  }
   return encodeWav(out, sampleRate);
 }
 
@@ -210,16 +283,75 @@ function sliceClipWav(cueEntry) {
 // net for a cue that never finishes in a reasonable time (the last line of
 // an episode, or a long pause mid-line) — falls back to slicing with
 // whatever's available rather than hanging the button forever.
-function sliceClipWavWhenReady(cueEntry, maxWaitMs = 8000) {
+//
+// `firstText`/`lastText` (2026-07-26) widen the clip to cover a sentence that
+// was split across consecutive subtitle cues, so a merged Anki sentence gets
+// audio matching the whole sentence rather than only the cue that happened to
+// be on screen when the word was clicked (see content.js's
+// buildMergedAnkiSentence). Both are display texts, matched against this
+// module's own cueTimeline; either being null means no merge, and the
+// single-cue behaviour above applies unchanged.
+//
+// Matching by TEXT rather than by index offset because cueTimeline also
+// records the empty-text entries for gaps between lines — an index step of
+// "one entry back" would land on a gap as often as on the previous line.
+// Searching outward from the clicked entry finds the nearest occurrence,
+// which is the right one even when a show repeats a line verbatim later.
+function sliceClipWavWhenReady(cueEntry, maxWaitMs = 8000, firstText = null, lastText = null) {
   return new Promise((resolve) => {
-    if (!cueEntry || cueEntry.audioEnd !== null) {
-      resolve(sliceClipWav(cueEntry));
+    if (!cueEntry) {
+      resolve(null);
+      return;
+    }
+    const index = cueTimeline.indexOf(cueEntry);
+    const merging = index !== -1 && (firstText || lastText);
+
+    // Widening the START is possible immediately: those cues have already
+    // played, so their timestamps are already recorded.
+    let startEntry = cueEntry;
+    if (merging && firstText && firstText !== cueEntry.text) {
+      for (let i = index - 1; i >= 0; i--) {
+        if (cueTimeline[i].text === firstText) {
+          startEntry = cueTimeline[i];
+          break;
+        }
+      }
+    }
+
+    // Widening the END may mean waiting for a cue that hasn't played yet.
+    const endReady = () => {
+      if (!merging || !lastText || lastText === cueEntry.text) {
+        return cueEntry.audioEnd !== null ? cueEntry : null;
+      }
+      for (let i = index; i < cueTimeline.length; i++) {
+        if (cueTimeline[i].text === lastText) return cueTimeline[i].audioEnd !== null ? cueTimeline[i] : null;
+      }
+      return null;
+    };
+
+    const finish = (endEntry) => {
+      // On timeout, fall back to the clicked cue's own extent for the END
+      // while KEEPING the widened start — a clip that covers the first half
+      // of the sentence plus whatever played is strictly better than
+      // discarding the widening entirely.
+      const end = endEntry ?? cueEntry;
+      resolve(sliceClipWav({ audioStart: startEntry.audioStart, audioEnd: end.audioEnd }));
+    };
+
+    const ready = endReady();
+    if (ready) {
+      finish(ready);
       return;
     }
     const deadline = Date.now() + maxWaitMs;
     const poll = () => {
-      if (cueEntry.audioEnd !== null || Date.now() >= deadline) {
-        resolve(sliceClipWav(cueEntry));
+      const entry = endReady();
+      if (entry) {
+        finish(entry);
+        return;
+      }
+      if (Date.now() >= deadline) {
+        finish(null);
         return;
       }
       setTimeout(poll, 200);
