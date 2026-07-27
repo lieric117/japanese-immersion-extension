@@ -1,0 +1,271 @@
+// Offline test for the split-sentence audio widening (audio-capture.js's
+// sliceClipWavWhenReady) — which stretch of the rolling audio buffer a merged
+// Anki sentence's clip covers.
+//
+// Usage:  node scripts/test-merged-audio-span.js
+//         JIMAKU_API_KEY=... node scripts/test-merged-audio-span.js --live
+//
+// Without --live it runs on the hand-built fixtures below. With --live it also
+// replays two REAL Frieren ep 7 subtitle files from Jimaku — [Moozzi2], which
+// shows one cue at a time, and [NanakoRaws], which stacks several Dialogue
+// events into one visible line 80% of the time. That second shape is what the
+// old text-key matching could not handle (live report 2026-07-27: capturing
+// from the first half of a split sentence sat busy for the full timeout and
+// then wrote audio of the first half only).
+//
+// Reads the real function out of audio-capture.js rather than re-implementing
+// it, with only the WAV encoding stubbed out — there is no audio here, just the
+// question of which [start, end] the clip would be cut from.
+
+"use strict";
+
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.join(__dirname, "..");
+const src = fs.readFileSync(path.join(ROOT, "audio-capture.js"), "utf8");
+
+function grab(re, label) {
+  const m = src.match(re);
+  if (!m) throw new Error(`could not extract ${label} from audio-capture.js — did it get renamed?`);
+  return m[0];
+}
+
+// A test harness around the real markCueBoundary/sliceClipWavWhenReady, with
+// the ring buffer and WAV encoder replaced by a recorder. `audioCtx`/`now` are
+// driven by hand so the whole thing runs instantly instead of in real time.
+function makeHarness() {
+  const setup =
+    grab(/^const AUDIO_BUFFER_SECONDS = .*$/m, "AUDIO_BUFFER_SECONDS") +
+    `
+    let cueTimeline = [];
+    let clock = 0;
+    let audioCtx = { get currentTime() { return clock; } };
+    let sliceCalls = [];
+    function sliceClipWav(entry) {
+      sliceCalls.push({ audioStart: entry.audioStart, audioEnd: entry.audioEnd });
+      return "WAV";
+    }
+  `;
+  return new Function(
+    setup +
+      grab(/^function markCueBoundary\([\s\S]*?\n\}/m, "markCueBoundary") +
+      "\n" +
+      grab(/^function sliceClipWavWhenReady\([\s\S]*?\n\}\n/m, "sliceClipWavWhenReady") +
+      `
+      return {
+        markCueBoundary,
+        sliceClipWavWhenReady,
+        tick: (t) => { clock = t; },
+        timeline: () => cueTimeline,
+        sliceCalls: () => sliceCalls,
+      };`
+  )();
+}
+
+// Replays a cue list through markCueBoundary exactly the way updateJapaneseCue
+// does: at every distinct display window, with the joined text of every cue
+// visible at that moment. Audio time is taken as equal to video time, which is
+// what a straight playthrough gives.
+function replay(h, cues, untilTime = Infinity) {
+  const marks = [...new Set(cues.flatMap((c) => [c.start, c.end]))].sort((a, b) => a - b);
+  let lastText = null;
+  for (const mark of marks) {
+    if (mark > untilTime) break;
+    const t = mark + 0.0005;
+    const showing = cues.filter((c) => t >= c.start && t <= c.end);
+    const text = showing.map((c) => c.text).join("\n");
+    if (text === lastText) continue;
+    lastText = text;
+    h.tick(mark);
+    const window = showing.length
+      ? { start: Math.min(...showing.map((c) => c.start)), end: Math.max(...showing.map((c) => c.end)) }
+      : null;
+    const entry = h.markCueBoundary(text, window);
+    entry._window = window;
+  }
+}
+
+// The distinct display windows a cue list produces, in order.
+function displayWindows(cues) {
+  const marks = [...new Set(cues.flatMap((c) => [c.start, c.end]))].sort((a, b) => a - b);
+  const out = [];
+  let lastText = null;
+  for (const mark of marks) {
+    const t = mark + 0.0005;
+    const showing = cues.filter((c) => t >= c.start && t <= c.end);
+    if (!showing.length) {
+      lastText = null;
+      continue;
+    }
+    const text = showing.map((c) => c.text).join("\n");
+    if (text === lastText) continue;
+    lastText = text;
+    out.push({ start: Math.min(...showing.map((c) => c.start)), end: Math.max(...showing.map((c) => c.end)), text });
+  }
+  return out;
+}
+
+let failed = 0;
+function check(label, got, want) {
+  const ok = Math.abs(got.audioStart - want.start) < 0.01 && Math.abs(got.audioEnd - want.end) < 0.01;
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${label}\n        clip = [${got.audioStart.toFixed(2)}, ${got.audioEnd.toFixed(2)}]` +
+      (ok ? "" : `   want [${want.start.toFixed(2)}, ${want.end.toFixed(2)}]`)
+  );
+}
+
+// ── fixture: one sentence split across two lines, each drawn as a single cue ──
+async function fixtureSingleCuePerLine() {
+  const cues = [
+    { start: 10, end: 12, text: "けれど" },
+    { start: 12.5, end: 14.5, text: "それは違う" },
+    { start: 16, end: 18, text: "次の話" },
+  ];
+  const h = makeHarness();
+  replay(h, cues);
+  const timeline = h.timeline();
+  const first = timeline.find((e) => e.text === "けれど");
+  const clip = await h.sliceClipWavWhenReady(first, 50, 10, 14.5);
+  if (!clip) throw new Error("no clip produced");
+  check("capture from the FIRST half — clip covers both halves", h.sliceCalls().pop(), { start: 10, end: 14.5 });
+
+  const h2 = makeHarness();
+  replay(h2, cues);
+  const second = h2.timeline().find((e) => e.text === "それは違う");
+  await h2.sliceClipWavWhenReady(second, 50, 10, 14.5);
+  check("capture from the SECOND half — same clip", h2.sliceCalls().pop(), { start: 10, end: 14.5 });
+
+  const h3 = makeHarness();
+  replay(h3, cues);
+  const solo = h3.timeline().find((e) => e.text === "次の話");
+  h3.tick(18);
+  h3.markCueBoundary("", null); // the line ends
+  await h3.sliceClipWavWhenReady(solo, 50, null, null);
+  check("no merge — clip is just that line (regression check)", h3.sliceCalls().pop(), { start: 16, end: 18 });
+}
+
+// ── fixture: the [NanakoRaws] shape — a second, simultaneous styled cue means
+//    the displayed text is a JOIN, so it never equals any single cue's text ──
+async function fixtureStackedCues() {
+  const cues = [
+    { start: 10, end: 12, text: "けれど" },
+    { start: 10, end: 12, text: "(overlay)" },
+    { start: 12.5, end: 14.5, text: "それは違う" },
+    { start: 12.5, end: 14.5, text: "(overlay)" },
+    { start: 16, end: 18, text: "次の話" },
+  ];
+  const h = makeHarness();
+  replay(h, cues);
+  const first = h.timeline().find((e) => e.jpStart === 10);
+  await h.sliceClipWavWhenReady(first, 50, 10, 14.5);
+  check("stacked cues — clip still covers both halves", h.sliceCalls().pop(), { start: 10, end: 14.5 });
+}
+
+// ── fixture: the second half has not played yet at capture time ───────────────
+async function fixtureWaitsForSecondHalf() {
+  const cues = [
+    { start: 10, end: 12, text: "けれど" },
+    { start: 12.5, end: 14.5, text: "それは違う" },
+    { start: 16, end: 18, text: "次の話" },
+  ];
+  const h = makeHarness();
+  replay(h, cues, 10); // only the first half has played
+  const first = h.timeline()[h.timeline().length - 1];
+  const pending = h.sliceClipWavWhenReady(first, 5000, 10, 14.5);
+  let settled = false;
+  pending.then(() => (settled = true));
+  await new Promise((r) => setTimeout(r, 250));
+  if (settled) {
+    failed++;
+    console.log("FAIL  waits for the second half — resolved before it played");
+  } else {
+    console.log("PASS  waits for the second half — still pending, as it should be");
+  }
+  replay(h, cues); // the rest of the episode plays out
+  await pending;
+  check("...then resolves covering both halves", h.sliceCalls().pop(), { start: 10, end: 14.5 });
+}
+
+// ── fixture: a merged group whose second half never arrives (end of episode) ──
+async function fixtureTimeout() {
+  const cues = [{ start: 10, end: 12, text: "けれど" }];
+  const h = makeHarness();
+  replay(h, cues);
+  const first = h.timeline().find((e) => e.text === "けれど");
+  await h.sliceClipWavWhenReady(first, 300, 10, 14.5);
+  check("second half never plays — falls back to the clicked line", h.sliceCalls().pop(), { start: 10, end: 12 });
+}
+
+// ── live: replay real Jimaku files and merge every adjacent display pair ──────
+async function live() {
+  const { parseAss } = require(path.join(ROOT, "subtitle-parser.js"));
+  const key = process.env.JIMAKU_API_KEY;
+  if (!key) {
+    console.log("\n(skipping --live: JIMAKU_API_KEY not set)");
+    return;
+  }
+  const res = await fetch("https://jimaku.cc/api/entries/729/files?episode=7", { headers: { Authorization: key } });
+  const files = await res.json();
+  for (const prefix of ["[Moozzi2]", "[NanakoRaws] Sousou no Frieren - 07 (1080p).ass"]) {
+    const f = files.find((x) => x.name.startsWith(prefix));
+    const cues = parseAss(await (await fetch(f.url)).text());
+    const windows = displayWindows(cues);
+    let mismatches = 0;
+    let tested = 0;
+    // Treat every adjacent pair of displayed lines as if it were one sentence
+    // split in two, and capture from the FIRST of the pair. Each pair gets its
+    // own harness fed only its own two lines (plus the gap between them and the
+    // boundary that closes the second) — replaying the whole episode into one
+    // harness instead would see the real ring buffer's 45-second trim drop
+    // every entry but the last few, which is correct behaviour and useless for
+    // testing.
+    for (let i = 0; i + 1 < windows.length; i++) {
+      const a = windows[i];
+      const b = windows[i + 1];
+      // Only pairs close enough in time to plausibly be one spoken sentence.
+      // Pairing lines a minute and a half apart (either side of an OP/ED card)
+      // isn't a case the merge can produce, and the ring buffer genuinely
+      // cannot hold both — the clip correctly falls back to the clicked line
+      // there, which would read as a failure here for the wrong reason.
+      if (b.start - a.end > 5) continue;
+      const h = makeHarness();
+      h.tick(a.start);
+      const entry = h.markCueBoundary(a.text, { start: a.start, end: a.end });
+      if (b.start > a.end) {
+        h.tick(a.end);
+        h.markCueBoundary("", null); // the gap between the two lines
+      }
+      h.tick(b.start);
+      h.markCueBoundary(b.text, { start: b.start, end: b.end });
+      h.tick(b.end);
+      h.markCueBoundary("", null); // closes the second line
+      tested++;
+      await h.sliceClipWavWhenReady(entry, 50, a.start, b.end);
+      const got = h.sliceCalls().pop();
+      if (!got || Math.abs(got.audioStart - a.start) > 0.01 || Math.abs(got.audioEnd - b.end) > 0.01) {
+        mismatches++;
+        if (mismatches <= 3) {
+          console.log(
+            `        e.g. window ${i}: got ${got ? `[${got.audioStart.toFixed(2)}, ${got.audioEnd.toFixed(2)}]` : "no clip"} ` +
+              `want [${a.start.toFixed(2)}, ${b.end.toFixed(2)}]`
+          );
+        }
+      }
+    }
+    const ok = mismatches === 0;
+    if (!ok) failed++;
+    console.log(`${ok ? "PASS" : "FAIL"}  ${f.name}\n        ${tested} adjacent-pair merges, ${mismatches} wrong`);
+  }
+}
+
+(async () => {
+  await fixtureSingleCuePerLine();
+  await fixtureStackedCues();
+  await fixtureWaitsForSecondHalf();
+  await fixtureTimeout();
+  if (process.argv.includes("--live")) await live();
+  console.log(failed ? `\n${failed} FAILED` : `\nall passed`);
+  process.exit(failed ? 1 : 0);
+})();

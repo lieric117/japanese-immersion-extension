@@ -144,13 +144,24 @@ function initAudioCapture(videoEl) {
 // one. Returns the NEW entry (the one `text` now refers to), so a click
 // happening while this cue is on screen can capture a direct reference to it,
 // mirroring how `lastText` itself is captured synchronously at click time.
-function markCueBoundary(text) {
+//
+// `jpWindow` (2026-07-27) is the {start, end} span in SUBTITLE-FILE time that
+// this displayed text came from, or null for a gap between lines. It's what
+// lets sliceClipWavWhenReady locate a neighbouring line by TIMING rather than
+// by matching its text — see there for the bug that motivated it.
+function markCueBoundary(text, jpWindow = null) {
   const now = audioCtx ? audioCtx.currentTime : null;
   if (cueTimeline.length > 0) {
     const prev = cueTimeline[cueTimeline.length - 1];
     if (prev.audioEnd === null) prev.audioEnd = now;
   }
-  const entry = { text, audioStart: now, audioEnd: null };
+  const entry = {
+    text,
+    audioStart: now,
+    audioEnd: null,
+    jpStart: jpWindow ? jpWindow.start : null,
+    jpEnd: jpWindow ? jpWindow.end : null,
+  };
   cueTimeline.push(entry);
   // Trim history older than the ring buffer can possibly still hold —
   // unbounded growth would otherwise leak memory over a long viewing session.
@@ -284,47 +295,68 @@ function sliceClipWav(cueEntry) {
 // an episode, or a long pause mid-line) — falls back to slicing with
 // whatever's available rather than hanging the button forever.
 //
-// `firstText`/`lastText` (2026-07-26) widen the clip to cover a sentence that
+// `mergeStart`/`mergeEnd` (2026-07-26) widen the clip to cover a sentence that
 // was split across consecutive subtitle cues, so a merged Anki sentence gets
 // audio matching the whole sentence rather than only the cue that happened to
 // be on screen when the word was clicked (see content.js's
-// buildMergedAnkiSentence). Both are display texts, matched against this
-// module's own cueTimeline; either being null means no merge, and the
-// single-cue behaviour above applies unchanged.
+// buildMergedAnkiSentence). Both are SUBTITLE-FILE timestamps spanning the
+// merged group; either being null means no merge, and the single-cue behaviour
+// above applies unchanged.
 //
-// Matching by TEXT rather than by index offset because cueTimeline also
-// records the empty-text entries for gaps between lines — an index step of
-// "one entry back" would land on a gap as often as on the previous line.
-// Searching outward from the clicked entry finds the nearest occurrence,
-// which is the right one even when a show repeats a line verbatim later.
-function sliceClipWavWhenReady(cueEntry, maxWaitMs = 8000, firstText = null, lastText = null) {
+// Matched against each timeline entry's own recorded cue window rather than by
+// index offset, because cueTimeline also records the empty-text entries for
+// gaps between lines — an index step of "one entry back" would land on a gap
+// as often as on the previous line.
+//
+// Was matched by display TEXT until 2026-07-27, which live testing found
+// broken: capturing from the first half of a split sentence sat busy for the
+// full timeout and then produced audio of only the first half, while the card's
+// text was correct. Text is not a usable key here. What `markCueBoundary`
+// records is the JOIN of every cue visible at that instant, whereas the merge
+// names ONE cue's text — identical only when nothing else is on screen. That's
+// provider-dependent, not rare: measured on Frieren ep 7, [Moozzi2] shows one
+// cue at a time (0% of display windows have two or more) while [NanakoRaws]
+// shows two or more 80.5% of the time, and both are ordinary Japanese-only
+// releases. Cue TIMING is what the merge is actually built on, is what the
+// clip needs, and is unambiguous regardless of how a provider stacks its
+// Dialogue events.
+function sliceClipWavWhenReady(cueEntry, maxWaitMs = 8000, mergeStart = null, mergeEnd = null) {
   return new Promise((resolve) => {
     if (!cueEntry) {
       resolve(null);
       return;
     }
     const index = cueTimeline.indexOf(cueEntry);
-    const merging = index !== -1 && (firstText || lastText);
+    const merging = index !== -1 && mergeStart !== null && mergeEnd !== null;
+    // Cue boundaries either side of a gap can differ by a few milliseconds
+    // between what the merge computed and what was displayed; compare with a
+    // tolerance rather than for exact equality.
+    const EPS = 0.05;
 
     // Widening the START is possible immediately: those cues have already
-    // played, so their timestamps are already recorded.
+    // played, so their timestamps are already recorded. Walks back to the
+    // EARLIEST displayed window still inside the merged span.
     let startEntry = cueEntry;
-    if (merging && firstText && firstText !== cueEntry.text) {
+    if (merging) {
       for (let i = index - 1; i >= 0; i--) {
-        if (cueTimeline[i].text === firstText) {
-          startEntry = cueTimeline[i];
-          break;
-        }
+        const e = cueTimeline[i];
+        if (e.jpStart === null) continue; // a gap between lines — keep looking past it
+        if (e.jpEnd <= mergeStart + EPS) break; // entirely before the merged span
+        if (e.audioStart !== null) startEntry = e;
       }
     }
 
-    // Widening the END may mean waiting for a cue that hasn't played yet.
+    // Widening the END may mean waiting for a cue that hasn't played yet: the
+    // first displayed window reaching the end of the merged span, once it has
+    // actually finished.
     const endReady = () => {
-      if (!merging || !lastText || lastText === cueEntry.text) {
+      if (!merging) {
         return cueEntry.audioEnd !== null ? cueEntry : null;
       }
       for (let i = index; i < cueTimeline.length; i++) {
-        if (cueTimeline[i].text === lastText) return cueTimeline[i].audioEnd !== null ? cueTimeline[i] : null;
+        const e = cueTimeline[i];
+        if (e.jpEnd === null) continue;
+        if (e.jpEnd + EPS >= mergeEnd) return e.audioEnd !== null ? e : null;
       }
       return null;
     };

@@ -325,7 +325,7 @@ function rankFiles(files, preferredUploader = null) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_SUBTITLES") {
-    fetchSubtitles(message.query, message.episode, message.fileHint, message.preferredUploader, message.seasonNumber)
+    fetchSubtitles(message)
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ error: error.message }));
     return true; // keep the message channel open for the async response
@@ -537,11 +537,75 @@ function entrySeasonNumber(name) {
   return parseSeasonMarker(name).season;
 }
 
+// Crunchyroll's `partOfSeason.seasonNumber` is a POSITIONAL INDEX into its own
+// season list, not the anime's canonical season number — confirmed 2026-07-27
+// against a live report on Re:Zero, where every season from the OVAs onward
+// loaded the NEXT season's subtitles:
+//
+//   Crunchyroll season slot   what Crunchyroll numbers it   what loaded
+//   Season 1                  1                             season 1  (right)
+//   OVAs                      2                             season 2
+//   Season 2                  3                             season 3
+//   Season 3                  4                             season 4
+//   Season 4                  5                             season 1  (fallback)
+//
+// Crunchyroll orders its season list by release date and counts OVA/special
+// collections as seasons; Re:Zero's OVAs came out between seasons 1 and 2, so
+// everything after them is shifted by one. The last row is the same bug, just
+// louder: nothing on Jimaku parses as "season 5", so the existing fallback
+// quietly served season 1. Verified the Jimaku side is NOT at fault — a direct
+// API search returns clean, correctly-named entries for all four seasons plus
+// a separate "…OVAs" entry.
+//
+// No arithmetic fix exists: the size of the shift depends on how many
+// non-season collections Crunchyroll happens to list before the season being
+// watched, which is per-show data this extension has no access to. So the
+// number is demoted to a fallback and the season's NAME is matched instead —
+// Crunchyroll's own season titles and Jimaku's `english_name` are both the
+// official English title ("Re:ZERO -Starting Life in Another World- Season 2"
+// on both sides), which is an exact match with nothing to infer.
+//
+// `query` is the SERIES title. A season name identical to it carries no
+// season information at all (either it genuinely is season 1, or Crunchyroll
+// simply repeats the series name for every season) — matching on it would pin
+// every season of every show to whichever entry is named after the bare
+// franchise, i.e. season 1. That would be a regression for the multi-season
+// shows the number-based path already gets right, so those cases are handed
+// straight back to it instead.
+function matchEntryBySeasonName(entries, seasonName, query) {
+  if (!seasonName) return null;
+  const wanted = normalizeTitle(seasonName);
+  if (!wanted || wanted === normalizeTitle(query)) return null;
+  return (
+    entries.find((e) => normalizeTitle(e.name) === wanted || normalizeTitle(e.english_name) === wanted) ?? null
+  );
+}
+
+// Second chance when the season name doesn't match a Jimaku entry outright:
+// read the real season number out of the NAME (".. Season 2" -> 2) using the
+// same marker patterns Jimaku entry names are parsed with. Crunchyroll's
+// positional index is wrong about which season this is; its own title for that
+// season isn't. Returns null when the name carries no season marker at all —
+// an OVA/special collection, or a first season, both of which fall through to
+// the existing number-based path rather than being guessed at.
+function seasonNumberFromName(seasonName) {
+  if (!seasonName) return null;
+  const { season, base } = parseSeasonMarker(seasonName);
+  // parseSeasonMarker reports an UNMARKED name as season 1 — the right default
+  // for a Jimaku entry (that's how Jimaku names first seasons) but not a usable
+  // signal here: a Crunchyroll season titled "OVAs" or "Director's Cut" has no
+  // season number to read, and answering 1 for it would be a guess dressed up
+  // as data. A number is therefore only returned when a marker was actually
+  // consumed, which is exactly when the base comes back shorter than the name.
+  if (base.length >= seasonName.trim().length) return null;
+  return season;
+}
+
 // Resolves a show/episode query down to the candidate text-file list — the
 // part `fetchSubtitles` (auto-load) and the switcher panel's file listing
 // both need, factored out so a switcher-panel refresh doesn't duplicate this
 // search+files-list round trip inside its own separate function.
-async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
+async function resolveTextFiles(query, episode, headers, seasonNumber = null, seasonName = null) {
   const searchUrl = `${JIMAKU_API_BASE}/entries/search?anime=true&query=${encodeURIComponent(
     stripApostrophes(query)
   )}`;
@@ -560,7 +624,13 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
   // detected season, so a multi-season show doesn't default to season 1's
   // entry when season 2+ is requested (see comments above).
   const normalizedQuery = normalizeTitle(query);
-  const wantedSeason = seasonNumber ?? 1;
+  // Crunchyroll's own title for this season beats its own numbering of it, in
+  // both forms: an outright entry match first, then the season number read out
+  // of the name. Only if neither is available does the positional index get
+  // used. See matchEntryBySeasonName above for the Re:Zero report behind this.
+  const nameMatch = matchEntryBySeasonName(entries, seasonName, query);
+  const namedSeason = seasonNumberFromName(seasonName);
+  const wantedSeason = namedSeason ?? seasonNumber ?? 1;
   const seasonMatch = entries.find((e) => {
     const seasonOk =
       entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
@@ -573,7 +643,16 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
   const plainMatch = entries.find(
     (e) => normalizeTitle(e.name) === normalizedQuery || normalizeTitle(e.english_name) === normalizedQuery
   );
-  const entry = seasonMatch ?? plainMatch ?? entries[0];
+  const entry = nameMatch ?? seasonMatch ?? plainMatch ?? entries[0];
+  if (namedSeason !== null && seasonNumber !== null && namedSeason !== seasonNumber) {
+    // Not an error — this is the fix doing its job, and seeing it fire is how
+    // the Re:Zero shift gets confirmed as gone from a live console rather than
+    // from the subtitles happening to look right.
+    console.log(
+      `[jp-immersion] using season ${namedSeason} from Crunchyroll's season name "${seasonName}" ` +
+        `instead of its season number ${seasonNumber} (Crunchyroll numbers seasons by list position).`
+    );
+  }
 
   // A show whose seasons Jimaku does NOT split into separate entries keeps
   // everything under one season-1-looking entry, and picking it for a season-3
@@ -584,7 +663,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null) {
   // resolved entry name is returned to the caller so the switcher panel can
   // show which Jimaku entry these files actually came from.
   const resolvedSeason = Math.max(entrySeasonNumber(entry.name), entrySeasonNumber(entry.english_name));
-  if (!seasonMatch && wantedSeason !== resolvedSeason) {
+  if (!nameMatch && !seasonMatch && wantedSeason !== resolvedSeason) {
     console.warn(
       `[jp-immersion] no Jimaku entry matched season ${wantedSeason} of "${query}" — ` +
         `falling back to "${entry.english_name ?? entry.name}" (reads as season ${resolvedSeason}). ` +
@@ -635,9 +714,12 @@ async function fetchAndParseFile(file, headers) {
 // switcher panel (content.js) uses this same response to render every
 // option without a second, redundant Jimaku round trip, and to pre-select
 // the entry that's actually playing rather than guessing at it separately.
-async function fetchSubtitles(query, episode, fileHint = null, preferredUploader = null, seasonNumber = null) {
+// Takes the FETCH_SUBTITLES message itself rather than six positional
+// arguments (2026-07-27) — the list had grown past the point where a call site
+// was readable, and adding `seasonName` to it would have made a seventh.
+async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null }) {
   const headers = await getJimakuHeaders();
-  const { textFiles, entryName } = await resolveTextFiles(query, episode, headers, seasonNumber);
+  const { textFiles, entryName } = await resolveTextFiles(query, episode, headers, seasonNumber, seasonName);
   const ranked = rankFiles(textFiles, preferredUploader);
   // Optional manual override for picking a specific file among several
   // candidates Jimaku returns for the same requested episode — needed since

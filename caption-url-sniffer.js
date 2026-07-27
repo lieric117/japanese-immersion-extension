@@ -91,6 +91,12 @@
       return;
     }
     stats.found++;
+    // Stamped with the pathname this response arrived on (2026-07-27) so
+    // content.js can tell a replay of the CURRENT episode's URL from a replay
+    // of the previous one — the two are otherwise indistinguishable, and
+    // getting them mixed up is what previously ruled replay-after-navigation
+    // out entirely. See content.js's own message listener.
+    found.pathname = location.pathname;
     let host = "(unparseable)";
     try {
       host = new URL(found.url).hostname;
@@ -112,13 +118,17 @@
       {
         __jpImmersionCaptionUrl: found.url,
         __jpImmersionCaptionFormat: found.format,
+        __jpImmersionCaptionPath: found.pathname ?? null,
       },
       "*"
     );
   }
 
-  // content.js announces itself once its own message listener is live; replay
-  // whatever was already found before it existed. See `lastFound` above.
+  // content.js announces itself once its own message listener is live, and
+  // again after every SPA navigation reset; replay whatever was already found.
+  // See `lastFound` above. Whether a replayed URL is actually USED is decided
+  // on the content.js side from the pathname stamp — this script deliberately
+  // stays a dumb cache rather than trying to reason about navigation itself.
   //
   // Deliberately does NOT check `event.source === window` the way content.js's
   // own listener does (2026-07-26). That check is a security measure on the
