@@ -281,6 +281,97 @@ function episodeIdentity(detected) {
 // so it never fires a second, competing fetch on top of one already running.
 let subtitleLoadPending = false;
 
+// "Edit last card" (Phase 5, 2026-07-29) — the last note this page session
+// added to Anki, as `{ id, label }`, or null if none yet. Feeds two surfaces:
+// an Edit button in the popup's own success row, and the persistent control
+// below.
+//
+// Kept in memory rather than in `chrome.storage.local`, deliberately. Persisting
+// it would leave the button offering to edit a card added days ago on a
+// different show, which is not what "last card" means to someone who just
+// pressed it — and a stale note id can also have been deleted in Anki
+// meanwhile. Surviving SPA navigation (which is what actually matters, since
+// Crunchyroll doesn't reload between episodes) comes free from module scope; a
+// full page reload clearing it is correct, not a limitation.
+let lastAddedNote = null;
+// The persistent control's elements, module-scope because `renderEntries` (a
+// top-level function, not part of init()) has to refresh them the moment a card
+// is added or undone.
+let editLastCardControl = null;
+let editLastCardButton = null;
+
+// Opens `noteId` in Anki, reporting failure on the button that was clicked
+// rather than in a separate error surface — same pattern as the "+ Anki"
+// button's own "Failed — retry" state. Shared by both surfaces so they can't
+// drift.
+function openAnkiNoteInEditor(noteId, btn, restoreLabel) {
+  btn.disabled = true;
+  btn.textContent = "Opening…";
+  chrome.runtime.sendMessage({ type: "EDIT_ANKI_NOTE", noteId }, (response) => {
+    btn.disabled = false;
+    if (!response || response.error) {
+      btn.textContent = "Couldn't open";
+      btn.title = response?.error ?? "Unknown error";
+      return;
+    }
+    // Anki now has focus, so this button is behind another window — restore it
+    // immediately instead of leaving a stale "Opening…" for the user to come
+    // back to.
+    btn.textContent = restoreLabel;
+    btn.title =
+      response.opened === "browser"
+        ? "Opened in Anki's card browser — this Anki version has no direct edit action"
+        : "Opens this card in Anki's own editor";
+  });
+}
+
+// Sits with the offset/upload/switcher controls (see init) rather than in the
+// subtitle overlay: it's a set-once-and-forget tool like those, not something
+// to put in front of the video. Hidden entirely until a card has actually been
+// added, so it costs nothing for a session where the user never captures.
+// Named with the word so it's obvious WHICH card is about to open — "edit last
+// card" with no referent is a small act of faith on a destructive-looking
+// button.
+function buildEditLastCardControl() {
+  const control = document.createElement("div");
+  control.id = "jp-immersion-edit-last";
+  const btn = document.createElement("button");
+  btn.addEventListener("click", () => {
+    if (!lastAddedNote) return;
+    openAnkiNoteInEditor(lastAddedNote.id, btn, editLastCardLabel());
+  });
+  control.appendChild(btn);
+  editLastCardControl = control;
+  editLastCardButton = btn;
+  refreshEditLastCardControl();
+  return control;
+}
+
+function editLastCardLabel() {
+  return lastAddedNote ? `Edit last card (${lastAddedNote.label})` : "Edit last card";
+}
+
+// Single owner of the control's visibility, so nothing else has to decide
+// whether a card exists — including the SPA-navigation handler, which would
+// otherwise reveal an empty control when returning to a watch page.
+function refreshEditLastCardControl() {
+  if (!editLastCardControl || !editLastCardButton) return;
+  editLastCardControl.style.display = lastAddedNote ? "" : "none";
+  editLastCardButton.textContent = editLastCardLabel();
+  editLastCardButton.title = "Opens this card in Anki's own editor";
+}
+
+// Called when a note is deleted from Anki (Undo). Only forgets it if it's still
+// the note the persistent control refers to: a popup lives on as a chip after
+// the next subtitle line, so a LATER capture may already have replaced this one
+// as "last card" by the time its Undo is pressed, and clearing unconditionally
+// would hide a button that points at a card which still exists.
+function forgetAddedNote(noteId) {
+  if (lastAddedNote?.id !== noteId) return;
+  lastAddedNote = null;
+  refreshEditLastCardControl();
+}
+
 // Show/episode opt-in Anki field (Phase 5, 2026-07-23) — the currently-loaded
 // show/episode, set alongside lastLoadedIdentity in loadSubtitles below so a
 // word click always has access to the same detection data without needing
@@ -821,6 +912,9 @@ function init() {
   const switcherPanel = buildSwitcherPanel();
   getContainer().appendChild(switcherPanel);
 
+  const editLastCard = buildEditLastCardControl();
+  getContainer().appendChild(editLastCard);
+
   document.addEventListener("fullscreenchange", () => {
     const target = getContainer();
     // One re-parent for the whole stack — the two boxes are its children now
@@ -828,6 +922,7 @@ function init() {
     target.appendChild(subtitleStack);
     target.appendChild(offsetControl);
     target.appendChild(switcherPanel);
+    target.appendChild(editLastCard);
     // A live (not yet chipped) word-click popup needs the same re-parenting
     // — confirmed real bug via live testing (2026-07-22, same root cause the
     // chip was fixed for above): created before a fullscreen toggle, it was
@@ -1006,6 +1101,7 @@ function init() {
       switcherPanel.style.display = "none";
       offsetControl.style.display = "none";
       uploadControl.style.display = "none";
+      editLastCard.style.display = "none";
       removeChip();
       closePopup();
       return;
@@ -1014,6 +1110,9 @@ function init() {
     switcherPanel.style.display = "";
     offsetControl.style.display = "";
     uploadControl.style.display = "";
+    // Not set directly: whether this one is visible depends on whether a card
+    // has been added, which refreshEditLastCardControl owns.
+    refreshEditLastCardControl();
     OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
     chrome.storage.local.get(OFFSET_STORAGE_KEY, (stored) => {
       offset = stored[OFFSET_STORAGE_KEY] ?? 0;
@@ -2133,10 +2232,26 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
             return;
           }
           const noteId = response.result;
+          // Becomes the target of the persistent "Edit last card" control
+          // (2026-07-29). Recorded here rather than where the button lives, so
+          // it's set exactly when a card really exists in Anki.
+          lastAddedNote = { id: noteId, label: word };
+          refreshEditLastCardControl();
           ankiRow.textContent = "";
           const doneLabel = document.createElement("span");
           doneLabel.className = "jp-immersion-popup-anki-done";
           doneLabel.textContent = "Added to Anki";
+          // Edit is offered here as well as in the persistent control because
+          // this is the moment the user is most likely to want it — they're
+          // looking at what they just captured. The persistent one exists
+          // because this popup becomes a chip on the next subtitle line, i.e.
+          // within a second or two, which is long gone by the time anyone
+          // notices a card needs fixing.
+          const editBtn = document.createElement("button");
+          editBtn.className = "jp-immersion-popup-anki-edit";
+          editBtn.textContent = "Edit";
+          editBtn.title = "Opens this card in Anki's own editor";
+          editBtn.addEventListener("click", () => openAnkiNoteInEditor(noteId, editBtn, "Edit"));
           const undoBtn = document.createElement("button");
           undoBtn.className = "jp-immersion-popup-anki-undo";
           undoBtn.textContent = "Undo";
@@ -2150,9 +2265,14 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
               }
               doneLabel.textContent = "Removed from Anki";
               undoBtn.remove();
+              // The note no longer exists, so neither Edit surface may keep
+              // pointing at it.
+              editBtn.remove();
+              forgetAddedNote(noteId);
             });
           });
           ankiRow.appendChild(doneLabel);
+          ankiRow.appendChild(editBtn);
           ankiRow.appendChild(undoBtn);
         }
       );

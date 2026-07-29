@@ -258,6 +258,25 @@
   background: #777;
 }
 
+/* "Edit last card" (2026-07-29). Grey like Undo rather than blue like
+   "+ Anki": both are follow-ups to an action that already succeeded, not the
+   primary thing to press. */
+.jp-immersion-popup-anki-edit {
+  font-size: 11px;
+  font-family: inherit;
+  color: #fff;
+  background: #777;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.jp-immersion-popup-anki-edit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .jp-immersion-popup-anki-done {
   font-size: 11px;
   color: #1a7f37;
@@ -338,4 +357,49 @@
 
 #jp-immersion-switcher select {
   max-width: 220px;
+}
+
+/* Fourth in the top-left control column, below the switcher at 96px — same
+   spacing as offset (16px) → upload (56px) → switcher (96px). Hidden until a
+   card has been added, so the column is normally three tall, not four.
+   (Phase 6's settings panel is meant to consolidate all four of these.) */
+#jp-immersion-edit-last {
+  position: fixed;
+  top: 136px;
+  left: 16px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-family: sans-serif;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  max-width: 320px;
+}
+
+#jp-immersion-edit-last button {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 2px 6px;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#jp-immersion-edit-last button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#jp-immersion-edit-last button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

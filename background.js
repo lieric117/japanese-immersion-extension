@@ -323,6 +323,36 @@ function rankFiles(files, preferredUploader = null) {
   return scored.map((s) => s.f);
 }
 
+// Hands a note this session created to Anki's own card editor ("edit last
+// card", Phase 5, 2026-07-29). Deliberately does NOT build any editing UI of
+// its own — the whole point of the item is to hand off to the tool the user
+// already trusts, and an in-page field editor would be a second, worse Anki
+// (see CLAUDE.md's litmus test).
+//
+// Two AnkiConnect actions can do this and they are not equally available.
+// `guiEditNote` opens the Edit dialog directly on the one note, which is
+// exactly what's wanted, but it's a much later addition to the API than the
+// rest of what this extension uses and an older AnkiConnect build simply
+// doesn't implement it. `guiBrowse` has existed from the beginning and can be
+// aimed at a single note with a `nid:` query, landing the user in the Browse
+// window with that card selected — one extra click away from the same place.
+// So the better one is tried first and the older one is a fallback, rather
+// than picking one and hoping the user's install matches.
+//
+// The fallback fires ONLY for an unimplemented action. Any other failure — Anki
+// closed, note already deleted — is surfaced as-is, because `guiBrowse` would
+// happily open an empty search result and look like success.
+async function editAnkiNote(noteId) {
+  try {
+    await invokeAnkiConnect("guiEditNote", { note: noteId });
+    return { opened: "editor" };
+  } catch (err) {
+    if (!/unsupported action|unknown action|not supported/i.test(err.message)) throw err;
+    await invokeAnkiConnect("guiBrowse", { query: `nid:${noteId}` });
+    return { opened: "browser" };
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_SUBTITLES") {
     fetchSubtitles(message)
@@ -406,6 +436,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "DELETE_ANKI_NOTE") {
     invokeAnkiConnect("deleteNotes", { notes: [message.noteId] })
       .then((result) => sendResponse({ result }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "EDIT_ANKI_NOTE") {
+    editAnkiNote(message.noteId)
+      .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ error: error.message }));
     return true;
   }

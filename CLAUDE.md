@@ -20,12 +20,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export.** The English caption pipeline is working end to end and the core loop is confirmed live. Three live-testing rounds (two on 2026-07-26, one on 2026-07-27) plus a 2026-07-29 generality pass and display fix have produced a large batch of changes, all built and verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–18, starting with #15 and #17. Nothing new should be built until that reporting comes back.
+**Phase 5 — Anki export. Every build item is now complete**, including "Edit last card" (2026-07-29); only live verification is left. A large batch of changes from three live-testing rounds plus the 2026-07-29 generality pass, display fix and final build are all verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–19, starting with #15, #17 and #19. Don't start Phase 6 until that reporting comes back.
 2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
-3. "Edit last card" — explicitly last in this phase.
+3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
-Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
+Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
@@ -38,7 +38,7 @@ If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-
 - **No other video platforms (Netflix, YouTube, etc.), manga OCR, or general web support.** Crunchyroll-only by design, not a Netflix-specific gap.
 - **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
 - **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)
-- **Screenshot Anki field is dropped from the roadmap entirely (2026-07-17, confirmed DRM-blocked, not deferred) — don't build it.** Audio field is confirmed technically viable (2026-07-17) but not yet scheduled or designed — ask the user before building it (`project-plan.md` Section 8).
+- **Screenshot Anki field is dropped from the roadmap entirely (2026-07-17, confirmed DRM-blocked, not deferred) — don't build it.** The audio field it was grouped with was built on 2026-07-22 and is no longer an open question.
 - **The frequency-rank badge is built (2026-07-19)** — 3 text tiers (Common/Uncommon/Rare), no raw numbers, no badge when there's no data. It replaced the old common-word badge entirely, gated behind the opt-in `metaShowFreq` toggle. Thresholds are locked in (see `project-plan.md` Section 7, 2026-07-19) — don't re-derive or re-ask about them without a real reason to revisit. See `project-plan.md` Section 5 (Phase 5) for the full pipeline.
 
 Full reasoning for all of these is in `project-plan.md` Section 4 (V1 Scope) and Section 7 (Decisions Log) — check there before assuming an exception applies.
