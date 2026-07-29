@@ -30,10 +30,12 @@ function grab(re, label) {
 const cueDisplayText = new Function(
   "normalizeHalfwidthKatakana",
   [
-    grab(/^const STAGE_RE = .*$/m, "STAGE_RE"),
-    grab(/^const SPEAKER_PREFIX_RE = .*$/m, "SPEAKER_PREFIX_RE"),
-    grab(/^const INLINE_FURIGANA_RE = .*$/m, "INLINE_FURIGANA_RE"),
-    grab(/^const FANSUB_MARKUP_RE = .*$/m, "FANSUB_MARKUP_RE"),
+    // `[\s\S]*?;$` rather than `.*$` so a declaration wrapped across lines is
+    // still picked up whole — FANSUB_MARKUP_RE outgrew one line on 2026-07-29.
+    grab(/^const STAGE_RE =[\s\S]*?;$/m, "STAGE_RE"),
+    grab(/^const SPEAKER_PREFIX_RE =[\s\S]*?;$/m, "SPEAKER_PREFIX_RE"),
+    grab(/^const INLINE_FURIGANA_RE =[\s\S]*?;$/m, "INLINE_FURIGANA_RE"),
+    grab(/^const FANSUB_MARKUP_RE =[\s\S]*?;$/m, "FANSUB_MARKUP_RE"),
     grab(/^function cueDisplayText\(cue\) \{[\s\S]*?\n\}/m, "cueDisplayText"),
     "return cueDisplayText;",
   ].join("\n")
@@ -60,11 +62,28 @@ const cases = [
   ["凱旋(がいせん)する", "凱旋する", "inline furigana"],
   ["ｽﾏﾎを見る", "スマホを見る", "half-width katakana normalized before tokenization"],
 
+  // — 2026-07-29 generality pass: found by scanning 49,592 cues across 48 real
+  //   Jimaku files, all of them cases the enumerated version missed
+  ["♬～", "", "the OTHER music notes — 244 lines in the corpus, all previously displayed as-is"],
+  ["♩", "", "and the rest of the note block"],
+  ["♫", "", "likewise"],
+  ["➨", "", "second continuation-arrow glyph, 48 lines in the corpus"],
+  ["➨行くぞ", "行くぞ", "...with dialogue after it"],
+  ["⚟あの子", "あの子", "off-screen-speech marker, 12 lines in the corpus"],
+  ["⸨そこのあなた⸩", "そこのあなた", "second monologue bracket pair, 11 lines in the corpus"],
+  ["\u{1F44D}\u{1F3FD}", "", "skin-tone modifier goes with its emoji"],
+
   // — things that must NOT be touched
   ["本当か⁉", "本当か⁉", "interrobang is punctuation here, despite being Extended_Pictographic"],
   ["すごい‼", "すごい‼", "double-bang likewise"],
   ["「やめて」", "「やめて」", "quote brackets are real Japanese orthography"],
+  ["『題名』", "『題名』", "and the title brackets"],
+  ["“引用”", "“引用”", "and the curly quotes"],
   ["風の音〜", "風の音〜", "bare wave is vowel elongation, not markup"],
+  ["ヒキニートはやめろ、クソビ○チ。", "ヒキニートはやめろ、クソビ○チ。", "geometric shapes censor a character — real content, not decoration"],
+  ["36°C", "36°C", "degree sign is a unit, though Unicode calls it a symbol"],
+  ["気温は25℃", "気温は25℃", "and the combined form"],
+  ["№5", "№5", "numero sign likewise"],
 ];
 
 let failed = 0;

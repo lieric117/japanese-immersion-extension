@@ -4,12 +4,23 @@
 // Usage:  node scripts/test-season-resolution.js
 //
 // Reads the real selection functions straight out of background.js rather than
-// re-implementing them, so this can't drift from what ships. The entry lists
-// below are real Jimaku search results, captured 2026-07-27 via the live API.
+// re-implementing them, so this can't drift from what ships. Every entry list
+// below is a real Jimaku search result captured via the live API (2026-07-27
+// for Re:Zero and Frieren, 2026-07-29 for the rest).
 //
 // The Re:Zero cases are the 2026-07-27 live-test report: every season from the
 // OVAs onward loaded the NEXT season's subtitles, because Crunchyroll numbers
 // its seasons by list position and counts the OVA collection as season 2.
+//
+// The arc-named and cour-split cases come from a 2026-07-29 generality pass
+// over 12 multi-season franchises, which found two further classes the
+// season-number path cannot handle at all:
+//   - Seasons named by ARC with no season number anywhere (Demon Slayer,
+//     Attack on Titan's Final Season, Dr. STONE) — five seasons across three
+//     popular shows, every one of them silently resolving to season 1.
+//   - Seasons Jimaku splits across cours, where the entry picked for the season
+//     has no files for the back half of it (confirmed live: Re:Zero's
+//     "2nd Season" returns zero files for episodes 14–25).
 
 "use strict";
 
@@ -30,6 +41,7 @@ const {
   entrySeasonNumber,
   matchEntryBySeasonName,
   seasonNumberFromName,
+  courSiblingEntries,
 } = new Function(
   [
     grab(/^function stripApostrophes\([\s\S]*?\n\}/m, "stripApostrophes"),
@@ -43,7 +55,8 @@ const {
     grab(/^function entrySeasonNumber\([\s\S]*?\n\}/m, "entrySeasonNumber"),
     grab(/^function matchEntryBySeasonName\([\s\S]*?\n\}/m, "matchEntryBySeasonName"),
     grab(/^function seasonNumberFromName\([\s\S]*?\n\}/m, "seasonNumberFromName"),
-    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName };",
+    grab(/^function courSiblingEntries\([\s\S]*?\n\}/m, "courSiblingEntries"),
+    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName, courSiblingEntries };",
   ].join("\n")
 )();
 
@@ -118,5 +131,97 @@ for (const c of cases) {
       (ok ? "" : `\n        want entry ${c.want}`)
   );
 }
+
+// Real Jimaku search results for the arc-named shows (live API, 2026-07-29).
+// These are the shows the season-NUMBER path cannot resolve at all: none of
+// their later seasons carries a season marker, so every one of them used to
+// fall through to the exact-title fallback, i.e. season 1's entry.
+const DEMON_SLAYER = [
+  { id: 846, name: "Kimetsu no Yaiba", english_name: "Demon Slayer: Kimetsu no Yaiba" },
+  { id: 4038, name: "Kimetsu no Yaiba: Hashira Geiko-hen", english_name: "Demon Slayer: Kimetsu no Yaiba Hashira Training Arc" },
+  { id: 3336, name: "Kimetsu no Yaiba: Katanakaji no Sato-hen", english_name: "Demon Slayer: Kimetsu no Yaiba Swordsmith Village Arc" },
+  { id: 3337, name: "Kimetsu no Yaiba: Yuukaku-hen", english_name: "Demon Slayer: Kimetsu no Yaiba Entertainment District Arc" },
+];
+
+const AOT = [
+  { id: 1435, name: "Shingeki no Kyojin", english_name: "Attack on Titan" },
+  { id: 3458, name: "Shingeki no Kyojin 2", english_name: "Attack on Titan Season 2" },
+  { id: 3456, name: "Shingeki no Kyojin 3", english_name: "Attack on Titan Season 3" },
+  { id: 3457, name: "Shingeki no Kyojin 3 Part 2", english_name: "Attack on Titan Season 3 Part 2" },
+  { id: 3459, name: "Shingeki no Kyojin: The Final Season", english_name: "Attack on Titan Final Season" },
+  { id: 3460, name: "Shingeki no Kyojin: The Final Season Part 2", english_name: "Attack on Titan Final Season Part 2" },
+  { id: 1597, name: "Shingeki no Kyojin OVA", english_name: "Attack on Titan OVA" },
+];
+
+const DR_STONE = [
+  { id: 730, name: "Dr. STONE", english_name: "Dr. STONE" },
+  { id: 3678, name: "Dr. STONE: STONE WARS", english_name: "Dr. STONE: STONE WARS" },
+  { id: 3679, name: "Dr. STONE: NEW WORLD", english_name: "Dr. STONE New World" },
+  { id: 7845, name: "Dr. STONE: NEW WORLD Part 2", english_name: "Dr. STONE New World Part 2" },
+];
+
+const arcCases = [
+  // Crunchyroll names these seasons by their ARC, with no season number
+  // anywhere. The name is the only usable signal.
+  { why: "Demon Slayer Entertainment District Arc (season name only)", entries: DEMON_SLAYER, query: "Demon Slayer: Kimetsu no Yaiba", seasonNumber: 3, seasonName: "Entertainment District Arc", want: 3337 },
+  { why: "Demon Slayer Swordsmith Village Arc", entries: DEMON_SLAYER, query: "Demon Slayer: Kimetsu no Yaiba", seasonNumber: 5, seasonName: "Swordsmith Village Arc", want: 3336 },
+  { why: "Demon Slayer, Crunchyroll repeating the full title", entries: DEMON_SLAYER, query: "Demon Slayer: Kimetsu no Yaiba", seasonNumber: 3, seasonName: "Demon Slayer: Kimetsu no Yaiba Entertainment District Arc", want: 3337 },
+  { why: "AoT Final Season — must NOT pick the Part 2 entry", entries: AOT, query: "Attack on Titan", seasonNumber: 6, seasonName: "Final Season", want: 3459 },
+  { why: "AoT Final Season Part 2 picks the Part 2 entry", entries: AOT, query: "Attack on Titan", seasonNumber: 7, seasonName: "Final Season Part 2", want: 3460 },
+  { why: "Dr. STONE Stone Wars (punctuation between title and season name)", entries: DR_STONE, query: "Dr. STONE", seasonNumber: 2, seasonName: "Stone Wars", want: 3678 },
+  { why: "Dr. STONE New World", entries: DR_STONE, query: "Dr. STONE", seasonNumber: 3, seasonName: "New World", want: 3679 },
+  { why: "AoT S1 with no season name still resolves by number", entries: AOT, query: "Attack on Titan", seasonNumber: 1, seasonName: null, want: 1435 },
+  { why: "AoT S3 by number (marker present, name path not needed)", entries: AOT, query: "Attack on Titan", seasonNumber: 3, seasonName: null, want: 3456 },
+];
+
+for (const c of arcCases) {
+  const got = selectEntry(c.entries, c.query, c.seasonNumber, c.seasonName);
+  const ok = got && got.id === c.want;
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${c.why}\n        -> entry ${got ? got.id : "(none)"} "${got ? got.english_name : ""}"` +
+      (ok ? "" : `\n        want entry ${c.want}`)
+  );
+  cases.push(c); // count it in the total
+}
+
+// ── cour-split sibling lookup ────────────────────────────────────────────────
+// Jimaku puts the back half of a two-cour season in its own entry, so the entry
+// picked for the season has no files for the later episodes. These check that
+// the right sibling is offered as the retry, and that unrelated entries aren't.
+const courCases = [
+  {
+    why: "Re:Zero 2nd Season offers its Part 2 entry as the retry",
+    entries: REZERO, chosen: 3081, wantSiblings: [3082],
+  },
+  {
+    why: "AoT Season 3 offers its Part 2 entry",
+    entries: AOT, chosen: 3456, wantSiblings: [3457],
+  },
+  {
+    why: "AoT Final Season offers its Part 2 entry (arc-named, no season digit)",
+    entries: AOT, chosen: 3459, wantSiblings: [3460],
+  },
+  {
+    why: "Re:Zero season 1 has no cour siblings — must offer nothing",
+    entries: REZERO, chosen: 332, wantSiblings: [],
+  },
+  {
+    why: "Re:Zero OVAs entry has no cour siblings",
+    entries: REZERO, chosen: 3083, wantSiblings: [],
+  },
+];
+
+for (const c of courCases) {
+  const chosen = c.entries.find((e) => e.id === c.chosen);
+  const got = courSiblingEntries(c.entries, chosen).map((e) => e.id);
+  const ok = got.length === c.wantSiblings.length && got.every((id, i) => id === c.wantSiblings[i]);
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${c.why}\n        -> [${got.join(", ")}]` + (ok ? "" : `   want [${c.wantSiblings.join(", ")}]`)
+  );
+  cases.push(c);
+}
+
 console.log(failed ? `\n${failed} of ${cases.length} FAILED` : `\nall ${cases.length} passed`);
 process.exit(failed ? 1 : 0);

@@ -572,13 +572,81 @@ function entrySeasonNumber(name) {
 // franchise, i.e. season 1. That would be a regression for the multi-season
 // shows the number-based path already gets right, so those cases are handed
 // straight back to it instead.
+// Three forms, because Crunchyroll and Jimaku don't agree on how much of the
+// franchise title a season's name repeats (measured 2026-07-29 against live
+// Jimaku search results for 12 multi-season franchises):
+//   1. The whole name matches: Crunchyroll "…Season 2" / Jimaku english_name
+//      "…Season 2". The Frieren / SPY×FAMILY / Slime / Shield Hero shape.
+//   2. Series title + season name matches: Crunchyroll names the season alone
+//      ("Entertainment District Arc") while Jimaku prefixes the franchise
+//      ("Demon Slayer: Kimetsu no Yaiba Entertainment District Arc").
+//   3. The entry starts with the series title AND ends with the season name.
+//      Same case as 2 but tolerant of punctuation between the two ("Dr. STONE:
+//      STONE WARS" for series "Dr. STONE" + season "Stone Wars").
+// Both halves are required in form 3 — a suffix match alone would let a short
+// season name ("OVA") hit an unrelated show that a fuzzy title search happened
+// to return, and a prefix match alone would hit every season of the franchise.
+// The leading space on the suffix keeps it to a word boundary.
+//
+// **Why this matters beyond tidiness:** arc-named seasons are precisely where
+// the season-NUMBER path fails hardest. Measured across those 12 franchises,
+// Demon Slayer S2/S3, Attack on Titan S4 and Dr. STONE S2/S3 all fall through
+// the number path to the exact-title fallback — which is season 1's entry, the
+// silent-wrong-subtitles bug, on five seasons of three popular shows. Name
+// matching is the only tier that can resolve them at all.
+//
+// `query` is the SERIES title. A season name identical to it carries no season
+// information (either it genuinely is season 1, or Crunchyroll simply repeats
+// the series name for every season) — matching on it would pin every season of
+// every such show to whichever entry is named after the bare franchise, i.e.
+// season 1. That would be a regression for the multi-season shows the
+// number-based path already gets right, so those are handed back to it.
 function matchEntryBySeasonName(entries, seasonName, query) {
   if (!seasonName) return null;
   const wanted = normalizeTitle(seasonName);
-  if (!wanted || wanted === normalizeTitle(query)) return null;
-  return (
-    entries.find((e) => normalizeTitle(e.name) === wanted || normalizeTitle(e.english_name) === wanted) ?? null
-  );
+  const series = normalizeTitle(query);
+  if (!wanted || wanted === series) return null;
+  const withSeries = normalizeTitle(`${query} ${seasonName}`);
+  const matches = (raw) => {
+    const field = normalizeTitle(raw);
+    if (!field) return false;
+    return (
+      field === wanted ||
+      field === withSeries ||
+      (field.startsWith(series) && field.endsWith(` ${wanted}`))
+    );
+  };
+  return entries.find((e) => matches(e.name) || matches(e.english_name)) ?? null;
+}
+
+// Jimaku splits a single Crunchyroll season into separate "Part N"/"Cour N"
+// entries whenever the season aired in two cours, and the episode numbering
+// does NOT restart in the way the entry names suggest — so the entry chosen for
+// the season is simply missing the back half of it. Confirmed 2026-07-29
+// against the live API: Re:Zero's "2nd Season" entry returns ZERO files for
+// episodes 14–25 (they're in "2nd Season Part 2"), and "Shingeki no Kyojin 3"
+// returns none for episode 13+ (they're in "3 Part 2"). Crunchyroll presents
+// each of those as one continuous season, so an episode past the cour boundary
+// used to fail outright with "No subtitle file found".
+//
+// Returns the sibling entries worth retrying, in Jimaku's own order: same base
+// title and same parsed season as the entry already chosen, excluding that
+// entry itself. Deliberately NOT merged into the primary selection — the first
+// entry is right for most of the season, and this only comes into play when it
+// has nothing for the requested episode, so it costs one extra request on
+// exactly the episodes that would otherwise have errored.
+function courSiblingEntries(entries, chosen) {
+  const chosenBase = normalizeTitle(stripSeasonSuffix(chosen.english_name ?? chosen.name));
+  const chosenSeason = Math.max(entrySeasonNumber(chosen.name), entrySeasonNumber(chosen.english_name));
+  return entries.filter((e) => {
+    if (e.id === chosen.id) return false;
+    const season = Math.max(entrySeasonNumber(e.name), entrySeasonNumber(e.english_name));
+    if (season !== chosenSeason) return false;
+    return (
+      normalizeTitle(stripSeasonSuffix(e.name)) === chosenBase ||
+      normalizeTitle(stripSeasonSuffix(e.english_name)) === chosenBase
+    );
+  });
 }
 
 // Second chance when the season name doesn't match a Jimaku entry outright:
@@ -671,12 +739,33 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     );
   }
 
-  const filesUrl = `${JIMAKU_API_BASE}/entries/${entry.id}/files?episode=${episode}`;
-  const filesRes = await fetch(filesUrl, { headers });
-  if (!filesRes.ok) {
-    throw new Error(`Jimaku file lookup failed (${filesRes.status})`);
+  const listFiles = async (forEntry) => {
+    const filesUrl = `${JIMAKU_API_BASE}/entries/${forEntry.id}/files?episode=${episode}`;
+    const filesRes = await fetch(filesUrl, { headers });
+    if (!filesRes.ok) {
+      throw new Error(`Jimaku file lookup failed (${filesRes.status})`);
+    }
+    return filesRes.json();
+  };
+
+  let usedEntry = entry;
+  let files = await listFiles(entry);
+  // An empty result for a season Jimaku split across cours means the episode is
+  // in the OTHER half — see courSiblingEntries. Only reached when the chosen
+  // entry genuinely has nothing, so it never costs a request on a normal load.
+  if (!files.length) {
+    for (const sibling of courSiblingEntries(entries, entry)) {
+      const siblingFiles = await listFiles(sibling);
+      if (!siblingFiles.length) continue;
+      console.log(
+        `[jp-immersion] "${entry.english_name ?? entry.name}" has no files for episode ${episode} — ` +
+          `using "${sibling.english_name ?? sibling.name}", which does (Jimaku splits this season across cours).`
+      );
+      usedEntry = sibling;
+      files = siblingFiles;
+      break;
+    }
   }
-  const files = await filesRes.json();
   if (!files.length) {
     throw new Error(`No subtitle file found for episode ${episode}`);
   }
@@ -688,7 +777,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
         .join(", ")}) — use the manual upload fallback instead`
     );
   }
-  return { textFiles, entryName: entry.english_name ?? entry.name, entrySeason: resolvedSeason };
+  return { textFiles, entryName: usedEntry.english_name ?? usedEntry.name, entrySeason: resolvedSeason };
 }
 
 async function fetchAndParseFile(file, headers) {

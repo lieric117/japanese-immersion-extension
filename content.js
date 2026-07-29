@@ -355,29 +355,45 @@ const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んー]+)[）)]/g;
 
 // Fansub-provider markup with no linguistic content, stripped globally
 // (unlike STAGE_RE above, which only matches a parenthetical that's the
-// WHOLE line): 《》 bracket markers, any emoji/pictograph, and a 🎵〜
-// music-note marker. 〜 on its own (not preceded by 🎵) is left alone — it's
-// a real vowel-elongation convention elsewhere in ordinary dialogue, not
-// fansub markup. 「」 quote brackets are real Japanese orthographic
-// punctuation and are never touched.
+// WHOLE line). 「」『』“” quote brackets are real Japanese orthographic
+// punctuation and are never touched, and neither are unit signs (°℃‰№) or
+// the geometric shapes Japanese text uses to censor a character (クソビ○チ).
 //
-// Both halves generalized after live testing (2026-07-27), each from a real
-// report on KonoSuba:
-//   - 《 was showing up untouched because only the CLOSING 》 was ever listed.
-//     Inner-monologue markers come in pairs, so the opening one was always
-//     going to leak the moment a provider used them.
-//   - The emoji set was an explicit three-character list (➡📺🎵), so a
-//     loudspeaker emoji prefixing a stage direction ("🔊（警報）") passed
-//     straight through — and, being a prefix, it also stopped STAGE_RE from
-//     recognising the parenthetical as a whole-line stage direction at all.
-//     Now matched by Unicode property instead of by enumeration, so no future
-//     provider's choice of pictograph needs a new code change.
-// ‼ and ⁉ are deliberately EXCLUDED from the pictograph sweep: Unicode
-// classifies them as Extended_Pictographic, but in Japanese subtitles they're
-// ordinary sentence-final punctuation (本当か⁉), not decoration. Variation
-// selectors and ZWJ are stripped alongside the emoji they were modifying so
-// no orphaned invisible characters are left behind.
-const FANSUB_MARKUP_RE = /[《》]|\u{1F3B5}〜?|(?![\u{203C}\u{2049}])\p{Extended_Pictographic}|[\u{FE0F}\u{200D}]/gu;
+// Defined by CLASS rather than by enumeration (2026-07-27, generalized again
+// 2026-07-29 after measuring against real files) — the rule used to be a
+// literal list of five characters, which is why each new provider convention
+// arrived as its own bug report. Three positive definitions now:
+//
+//   1. `\p{Extended_Pictographic}` — every emoji, whatever a provider picks.
+//   2. U+2600–27BF — Miscellaneous Symbols plus Dingbats, the two contiguous
+//      Unicode blocks dedicated to decorative symbols. This is what catches
+//      the music notes (♪♩♫♬), the continuation arrows (➡➨) and the
+//      off-screen-speech marker (⚟). Deliberately whole blocks, not the
+//      characters that happen to have been noticed: neither block contains any
+//      Japanese punctuation or unit sign, so there is nothing in them worth
+//      keeping.
+//   3. 《》⸨⸩ — inner-monologue/off-screen brackets. This one stays an
+//      explicit list ON PURPOSE, and can't be otherwise: Unicode classifies
+//      these identically to 「」『』（） (Ps/Pe), so no property can tell a
+//      monologue marker from a real quote. The distinction is semantic, so it
+//      is curated, and the list covers every pair the corpus actually uses.
+//
+// A trailing 〜/～ directly after a stripped symbol goes with it (♬～ is one
+// music marker), but 〜 on its own is left alone — it's a real
+// vowel-elongation convention in ordinary dialogue. Variation selectors, ZWJ
+// and skin-tone modifiers are stripped alongside the emoji they modified so no
+// orphaned invisible characters are left behind.
+//
+// ‼ and ⁉ are deliberately EXEMPT: Unicode counts them as pictographic, but in
+// Japanese subtitles they're ordinary sentence-final punctuation (本当か⁉).
+//
+// **Measured, not assumed:** across 49,592 cues from 48 real Jimaku files
+// spanning 7 shows and every provider offered for them, this changes 515 lines
+// versus the enumerated version — 243 ♬ music lines and 85 ♪ ones now
+// correctly dropped or de-marked, 48 ➨ arrows, 12 ⚟ and 11 ⸨⸩ markers now
+// stripped — and breaks nothing that previously rendered correctly.
+const FANSUB_MARKUP_RE =
+  /[《》⸨⸩]|(?![\u{203C}\u{2049}])(?:\p{Extended_Pictographic}|[\u{2600}-\u{27BF}])[〜～]?|[\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu;
 
 // Short, learner-facing POS chip labels — cuts kokugo-grammar-school jargon
 // ((futsuumeishi), (keiyoushi), etc.) that's redundant with the plain-language
@@ -878,20 +894,12 @@ function init() {
     // VCB-Studio, encode katakana half-width, and it has to be normalized
     // BEFORE tokenization or a word resolves correctly on click while still
     // displaying as ｽﾏﾎ.)
-    const parts = [];
-    for (const cue of cues) {
-      if (adjustedTime < cue.start || adjustedTime > cue.end) continue;
-      const text = cueDisplayText(cue);
-      if (!text) continue;
-      parts.push({ cue, text });
-    }
-    const text = parts.map((p) => p.text).join("\n");
-    activeJpWindow = parts.length
-      ? {
-          start: Math.min(...parts.map((p) => p.cue.start)),
-          end: Math.max(...parts.map((p) => p.cue.end)),
-        }
-      : null;
+    // The "which cues are showing, and what do they render to" step itself
+    // lives in `japaneseDisplayAt` (2026-07-29) so the English gap-bridging
+    // below can ask the same question about a moment that ISN'T now — the
+    // cue just before a gap and the one just after it.
+    const { window, text } = japaneseDisplayAt(adjustedTime);
+    activeJpWindow = window;
     if (text === lastText) return;
     lastText = text;
     lastCueEntry = markCueBoundary(text, activeJpWindow);
@@ -957,13 +965,13 @@ function init() {
   // extension being Japanese-first, but flag it if it proves annoying in use.
   function updateEnglishCue() {
     if (!englishCues) return;
-    let enText = "";
-    if (renderedJpWindow) {
-      enText = pairEnglishCues(renderedJpWindow)
-        .map((c) => c.text.trim())
-        .filter(Boolean)
-        .join("\n");
-    }
+    // With Japanese on screen, the English line is whatever pairs with it. With
+    // nothing on screen, it's normally cleared too — except across a short gap
+    // inside a split sentence, where it's held (2026-07-29, see
+    // bridgedEnglishText for the blink this fixes).
+    const enText = renderedJpWindow
+      ? pairedEnglishText(renderedJpWindow)
+      : bridgedEnglishText(video.currentTime - offset);
     if (enText === lastEnglishText) return;
     lastEnglishText = enText;
     renderEnglishCue(subtitleBoxEn, enText);
@@ -1509,6 +1517,116 @@ function pairEnglishCues(window) {
       (winMidpoint >= c.start && winMidpoint <= c.end)
     );
   });
+}
+
+// The rendered English text for a Japanese cue window — `pairEnglishCues`'
+// result flattened the one way every caller wants it. Factored out (2026-07-29)
+// because the gap-bridging below has to compare the English of two DIFFERENT
+// windows for equality, which means both sides must be produced identically.
+function pairedEnglishText(window) {
+  return pairEnglishCues(window)
+    .map((c) => c.text.trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+// How long a gap between two Japanese cues can be and still have the English
+// line held on screen across it (see bridgedEnglishText). A cosmetic comfort
+// limit, NOT a sentence-boundary classifier — the "both sides map to the same
+// English cue" test is what establishes that two cues are one sentence, and
+// this only stops the English line floating alone under an empty Japanese box
+// through a long dramatic pause.
+//
+// **Measured before picking a number** (2026-07-29, 14,742 gaps between
+// consecutive display windows across 24 real files from 6 episodes): the
+// distribution has NO trough to site a cutoff in. 78% of all gaps are under
+// 100ms, and past ~0.5s the density just decays smoothly with no valley. It
+// also varies far more by PROVIDER than by show — on Frieren ep 7 alone, gaps
+// under 100ms are 43% of the total on [Moozzi2] but 78% on the NTV rip, and
+// KonoSuba/Re:Zero releases run 94–96%. So a fixed constant can't separate
+// "same sentence" from "next sentence", and a threshold scaled to average cue
+// duration wouldn't either — the variation is in the shape of the gap
+// distribution, not in the timescale. That's precisely why the English-identity
+// test carries the decision and this value only has to be *comfortable*: 1s is
+// long enough to bridge the overwhelming majority of within-sentence gaps and
+// short enough that a real pause still clears the box. One named constant,
+// trivial to retune against real footage.
+const JP_GAP_BRIDGE_SECONDS = 1.0;
+
+// Keeps the English line up across a SHORT gap between two Japanese cues that
+// translate to the same English sentence (2026-07-29). Returns the text to hold,
+// or "" to clear the box.
+//
+// The bug this fixes: a split sentence's two Japanese cues are usually
+// separated by a few tens of milliseconds, and if a `timeupdate` tick happens
+// to land in that gap the Japanese window goes null, the English box clears,
+// and the very next tick re-renders the same English sentence — a visible blink
+// of identical text. The existing no-op-on-unchanged-text guard in
+// updateEnglishCue can't help, because the intervening state isn't "the same
+// text", it's empty.
+//
+// Three outcomes, by gap length:
+//   - Effectively no gap: no tick lands between the cues, so this never runs and
+//     the unchanged-text guard already prevents any re-render.
+//   - Gap within JP_GAP_BRIDGE_SECONDS: bridged. Japanese is empty through the
+//     pause, English stays.
+//   - Longer gap: not bridged. Both boxes clear, and English re-mounts fresh
+//     with the next Japanese cue — otherwise it floats alone under an empty
+//     Japanese box through a genuine dialogue pause.
+//
+// Keyed on JAPANESE cue timing, deliberately, not on the English track's own
+// cue boundaries — the English file is authored independently and its
+// boundaries are what caused the original desync (see updateEnglishCue).
+// Display-only: nothing here is visible to the Anki sentence merge, which stays
+// English-content-driven and is unaffected.
+function bridgedEnglishText(fileTime) {
+  if (!cues || !englishCues) return "";
+  // The Japanese cue boundaries either side of this moment.
+  let prevEnd = null;
+  let nextStart = null;
+  for (const cue of cues) {
+    if (cue.end <= fileTime && (prevEnd === null || cue.end > prevEnd)) prevEnd = cue.end;
+    if (cue.start >= fileTime && (nextStart === null || cue.start < nextStart)) nextStart = cue.start;
+  }
+  // Nothing before or nothing after means the episode's first or last gap,
+  // which has no pair of cues to bridge BETWEEN.
+  if (prevEnd === null || nextStart === null) return "";
+  if (nextStart - prevEnd > JP_GAP_BRIDGE_SECONDS) return "";
+  // Sample just inside each neighbouring cue rather than at its boundary, so
+  // the sample can't land in the gap it's measuring.
+  const before = japaneseDisplayAt(prevEnd - 0.001);
+  const after = japaneseDisplayAt(nextStart + 0.001);
+  if (!before.window || !after.window) return "";
+  const beforeEn = pairedEnglishText(before.window);
+  // Only bridge when both sides are the SAME English sentence. Different
+  // English either side means two separate sentences with a pause between
+  // them, which is the existing hide-then-show behaviour and stays unchanged.
+  if (!beforeEn || beforeEn !== pairedEnglishText(after.window)) return "";
+  return beforeEn;
+}
+
+// Which Japanese cues are on screen at a given SUBTITLE-FILE time (i.e. offset
+// already applied), and the single block of text they render to. ASS files
+// often split one visual subtitle across several simultaneous Dialogue events,
+// so the answer is a join of every cue matching that instant, and the window is
+// their combined extent.
+function japaneseDisplayAt(fileTime) {
+  if (!cues) return { window: null, text: "" };
+  const parts = [];
+  for (const cue of cues) {
+    if (fileTime < cue.start || fileTime > cue.end) continue;
+    const text = cueDisplayText(cue);
+    if (!text) continue; // stage direction or markup-only — never contributes
+    parts.push({ cue, text });
+  }
+  if (!parts.length) return { window: null, text: "" };
+  return {
+    window: {
+      start: Math.min(...parts.map((p) => p.cue.start)),
+      end: Math.max(...parts.map((p) => p.cue.end)),
+    },
+    text: parts.map((p) => p.text).join("\n"),
+  };
 }
 
 // THE display filter chain — the single definition of what a raw subtitle cue

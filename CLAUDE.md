@@ -20,12 +20,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export.** The English caption pipeline is working end to end and the core loop is confirmed live. Three live-testing rounds (two on 2026-07-26, one on 2026-07-27) have produced a large batch of fixes, all built and verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–16, starting with #15 (the 2026-07-27 batch). Nothing new should be built until that reporting comes back.
+**Phase 5 — Anki export.** The English caption pipeline is working end to end and the core loop is confirmed live. Three live-testing rounds (two on 2026-07-26, one on 2026-07-27) plus a 2026-07-29 generality pass and display fix have produced a large batch of changes, all built and verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–18, starting with #15 and #17. Nothing new should be built until that reporting comes back.
 2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
 3. "Edit last card" — explicitly last in this phase.
 
-Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
+Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
