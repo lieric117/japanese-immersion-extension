@@ -21,7 +21,7 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 ## Current phase & priorities
 
 **Phase 5 — Anki export. Every build item is now complete**, including "Edit last card", rebuilt on 2026-07-30 as an in-page edit panel; only live verification is left. A large batch of changes from three live-testing rounds plus the 2026-07-29 generality pass, display fix and final build are all verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–21, starting with #15, #17 and #19. Don't start Phase 6 until that reporting comes back.
+1. **Work through the live-test checklist** — everything under `project-plan.md` Section 8, Ongoing "needs testing". Nothing there has been seen in a browser. Don't start Phase 6 until that reporting comes back.
 2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
