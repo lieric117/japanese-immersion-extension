@@ -20,12 +20,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is now complete**, including "Edit last card" (2026-07-29); only live verification is left. A large batch of changes from three live-testing rounds plus the 2026-07-29 generality pass, display fix and final build are all verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–19, starting with #15, #17 and #19. Don't start Phase 6 until that reporting comes back.
+**Phase 5 — Anki export. Every build item is now complete**, including "Edit last card", rebuilt on 2026-07-30 as an in-page edit panel; only live verification is left. A large batch of changes from three live-testing rounds plus the 2026-07-29 generality pass, display fix and final build are all verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Work through the live-test checklist** — `project-plan.md` Section 8, Ongoing #11–21, starting with #15, #17 and #19. Don't start Phase 6 until that reporting comes back.
 2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
-Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
+Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
@@ -34,7 +34,7 @@ If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-
 ## Scope guardrails — do not build these unless asked
 
 - **No AI grammar/sentence explanations, ever, in any form.** Breaks immersion and competes with resources the user already trusts more. If this ever gets revisited, that's a deliberate scope conversation to have with the user first, not something to build proactively.
-- **No built-in wordbook/SRS/quiz system.** Anki export is the mechanism for this — don't build a competing review system.
+- **No built-in wordbook/SRS/quiz system.** Anki export is the mechanism for this — don't build a competing review system. This bars a rival *review* system, not editing a card you just made: the in-page edit panel (2026-07-30) is in scope, and reading this guardrail as banning it is the mistake that shipped the wrong design on 2026-07-29.
 - **No other video platforms (Netflix, YouTube, etc.), manga OCR, or general web support.** Crunchyroll-only by design, not a Netflix-specific gap.
 - **No romaji or kana-only subtitle-display modes.** Both explicitly excluded 2026-07-04, not just deprioritized — wrong fit for this persona, not a missing feature. Furigana mode is the one display-simplification feature in scope.
 - **JLPT level tagging is opt-in/off-by-default only** — never an always-visible label, filter, or sort feature. (JLPT data will be sourced externally if jmdict-simplified lacks it — decided 2026-07-04, not dropped.)

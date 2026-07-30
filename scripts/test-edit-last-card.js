@@ -4,9 +4,13 @@
 //
 // Covers the two pieces that have real logic in them:
 //   - background.js's editAnkiNote, whose fallback must fire for an
-//     unimplemented AnkiConnect action and for nothing else.
+//     unimplemented AnkiConnect action and for nothing else. Since the
+//     2026-07-30 redesign this is the panel's secondary "Open in Anki" escape
+//     hatch rather than the primary action, but its behaviour is unchanged and
+//     still needs to hold.
 //   - content.js's remembered-note state machine, which decides whether the
-//     persistent control is visible and what it says.
+//     persistent control is visible and what it says, and releases the retained
+//     audio buffer when the note it belongs to is deleted.
 //
 // AnkiConnect itself is stubbed (no Anki required) and the DOM is stubbed down
 // to the three properties the control touches. Both are read out of the real
@@ -157,6 +161,11 @@ function makeEditAnkiNote(handler) {
         "let lastAddedNote = null;",
         "let editLastCardControl = null;",
         "let editLastCardButton = null;",
+        // Stood in for by the harness: forgetAddedNote also releases the
+        // retained PCM buffer, which is audio-capture.js's concern.
+        "let audioBufferNoteId = null;",
+        "let clearedBuffer = false;",
+        "function clearRetainedClip() { clearedBuffer = true; }",
         grabFrom(content, /^function buildEditLastCardControl\([\s\S]*?\n\}/m, "buildEditLastCardControl"),
         grabFrom(content, /^function editLastCardLabel\([\s\S]*?\n\}/m, "editLastCardLabel"),
         grabFrom(content, /^function refreshEditLastCardControl\([\s\S]*?\n\}/m, "refreshEditLastCardControl"),
@@ -165,7 +174,9 @@ function makeEditAnkiNote(handler) {
            build: buildEditLastCardControl,
            forget: forgetAddedNote,
            refresh: refreshEditLastCardControl,
-           addNote: (id, label) => { lastAddedNote = { id, label }; refreshEditLastCardControl(); },
+           addNote: (id, label) => { lastAddedNote = { id, label }; audioBufferNoteId = id; clearedBuffer = false; refreshEditLastCardControl(); },
+           bufferNote: () => audioBufferNoteId,
+           bufferCleared: () => clearedBuffer,
            control: () => editLastCardControl,
            button: () => editLastCardButton,
          };`,
@@ -210,6 +221,31 @@ function makeEditAnkiNote(handler) {
       "undoing the card it points at hides the control again",
       h.control().style.display === "none",
       `display=${JSON.stringify(h.control().style.display)}`
+    );
+  }
+
+  {
+    // The retained audio buffer belongs to one note. Deleting that note means
+    // nothing can ever edit its audio again, so the memory is released.
+    const h = makeControl();
+    h.build();
+    h.addNote(1234, "分かる");
+    h.forget(1234);
+    check(
+      "undoing the buffered card releases the retained audio buffer",
+      h.bufferCleared() === true && h.bufferNote() === null,
+      `cleared=${h.bufferCleared()} bufferNote=${h.bufferNote()}`
+    );
+
+    const h2 = makeControl();
+    h2.build();
+    h2.addNote(1234, "分かる");
+    h2.addNote(5678, "食べる"); // buffer now belongs to the newer capture
+    h2.forget(1234); // undoing the OLDER one
+    check(
+      "undoing an older card leaves the newer card's audio buffer intact",
+      h2.bufferCleared() === false && h2.bufferNote() === 5678,
+      `cleared=${h2.bufferCleared()} bufferNote=${h2.bufferNote()}`
     );
   }
 

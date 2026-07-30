@@ -300,10 +300,15 @@ let lastAddedNote = null;
 let editLastCardControl = null;
 let editLastCardButton = null;
 
-// Opens `noteId` in Anki, reporting failure on the button that was clicked
-// rather than in a separate error surface — same pattern as the "+ Anki"
-// button's own "Failed — retry" state. Shared by both surfaces so they can't
-// drift.
+// Opens `noteId` in Anki's own editor, reporting failure on the button that was
+// clicked rather than in a separate error surface — same pattern as the
+// "+ Anki" button's own "Failed — retry" state.
+//
+// **Secondary only, as of 2026-07-30.** This was the primary action when "edit
+// last card" was first built; editing now happens in the in-page panel (see
+// openEditPanel), and this is reached solely through that panel's "Open in
+// Anki" control, for tags/note type/deletion — the things the panel
+// deliberately doesn't cover.
 function openAnkiNoteInEditor(noteId, btn, restoreLabel) {
   btn.disabled = true;
   btn.textContent = "Opening…";
@@ -338,7 +343,7 @@ function buildEditLastCardControl() {
   const btn = document.createElement("button");
   btn.addEventListener("click", () => {
     if (!lastAddedNote) return;
-    openAnkiNoteInEditor(lastAddedNote.id, btn, editLastCardLabel());
+    openEditPanel(lastAddedNote.id);
   });
   control.appendChild(btn);
   editLastCardControl = control;
@@ -367,6 +372,15 @@ function refreshEditLastCardControl() {
 // as "last card" by the time its Undo is pressed, and clearing unconditionally
 // would hide a button that points at a card which still exists.
 function forgetAddedNote(noteId) {
+  // The retained PCM buffer is a copy of a couple of megabytes; if the note it
+  // belongs to has just been deleted, nothing can ever edit that audio again,
+  // so it's released here rather than waiting for the next capture to overwrite
+  // it. Checked independently of `lastAddedNote` below, since the two can point
+  // at different notes.
+  if (audioBufferNoteId === noteId) {
+    audioBufferNoteId = null;
+    clearRetainedClip();
+  }
   if (lastAddedNote?.id !== noteId) return;
   lastAddedNote = null;
   refreshEditLastCardControl();
@@ -1097,6 +1111,7 @@ function init() {
       // Hides the stack, not just the Japanese box (2026-07-26) — the
       // English box is a sibling inside it and was previously left visible
       // on non-watch pages, since this branch predates it existing.
+      closeEditPanel(); // anchored to a page that's no longer showing an episode
       subtitleStack.style.display = "none";
       switcherPanel.style.display = "none";
       offsetControl.style.display = "none";
@@ -1437,6 +1452,80 @@ function renderEnglishCue(subtitleBoxEn, text) {
 // untokenized line, and after however many dictionary round-trips the line
 // needs otherwise. Optional: nothing about rendering depends on it, it exists
 // so the English box can be kept in lockstep (see `renderedJpWindow`).
+// Runs the full tokenize → phrase-match → kana-merge → katakana pipeline for a
+// line of Japanese and resolves to the clickable groups it produces.
+//
+// Extracted from renderCue's own four-stage callback chain (2026-07-30) so the
+// edit panel's "Change word" flow can put the SAME clickable tokens on a stored
+// sentence that the subtitle line had at capture time. Rebuilding that chain a
+// second time for the panel is exactly the duplication that had to be undone
+// for the display filters on 2026-07-27, so it was factored instead.
+//
+// Each stage is only an async round-trip when it actually finds candidates, so
+// a line with none stays effectively synchronous, as before. The one behaviour
+// change from the callback version: a superseded line now finishes building its
+// groups before being discarded, instead of bailing at whichever stage it had
+// reached. That's a few wasted dictionary-membership lookups on rapid subtitle
+// changes and nothing else — the generation check that matters still guards the
+// DOM write in renderCue.
+function checkKanaMerges(texts) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts }, (response) => {
+      resolve(response?.membership ?? {});
+    });
+  });
+}
+
+async function buildGroupsForText(text) {
+  const tokens = tokenizer.tokenize(text);
+
+  // Phrase-matching (multi-token JMdict expressions like からといって, じゃない,
+  // んだ, たら) has to run on the RAW token stream, before groupTokens/Rule 3
+  // ever touch it — 帰ったら tokenizes as 帰っ+たら (one combined auxiliary
+  // token), and Rule 3 would already absorb it into 帰った before any
+  // post-hoc scan could see it as available for a separate たら match.
+  let groups;
+  const phraseCandidates = findPhraseMatchCandidates(tokens);
+  if (phraseCandidates.length === 0) {
+    groups = groupTokens(tokens);
+  } else {
+    const membership = await checkKanaMerges([...new Set(phraseCandidates.map((c) => c.lookupText))]);
+    const { fuseSpans, dualViewSpans } = classifyAndSelectPhraseMatches(tokens, phraseCandidates, membership);
+    groups = applyPhraseMatches(tokens, fuseSpans, dualViewSpans);
+  }
+
+  // Then kana-merge (single-word fragmentation like ただいま！) runs on whatever
+  // groups resulted.
+  const kanaCandidates = findKanaMergeCandidates(groups);
+  if (kanaCandidates.length > 0) {
+    const membership = await checkKanaMerges([...new Set(kanaCandidates.map((c) => c.lookupText))]);
+    groups = applyKanaMerges(groups, kanaCandidates, membership);
+  }
+
+  // Runs unconditionally, after kana-merge has already had its chance to claim
+  // a lone っ into a real merged word (んっ) — see suppressTrailingSokuon in
+  // tokenize-utils.js for why the ordering matters.
+  groups = suppressTrailingSokuon(groups);
+
+  const unsuppressCandidates = findKatakanaUnsuppressCandidates(groups);
+  if (unsuppressCandidates.length > 0) {
+    const membership = await checkKanaMerges([...new Set(unsuppressCandidates.map((i) => groups[i].surface))]);
+    groups = applyKatakanaUnsuppress(groups, unsuppressCandidates, membership);
+  }
+
+  const nameCandidates = findKatakanaNameCandidates(groups);
+  if (nameCandidates.length > 0) {
+    const membership = await checkKanaMerges([...new Set(nameCandidates.map((i) => groups[i].surface))]);
+    groups = applyKatakanaNameSuppression(groups, nameCandidates, membership);
+  }
+
+  return groups;
+}
+
+// `onDone` fires once this line is on screen — synchronously for a clear or an
+// untokenized line, and after however many dictionary round-trips the line
+// needs otherwise. Optional: nothing about rendering depends on it, it exists
+// so the English box can be kept in lockstep (see `renderedJpWindow`).
 function renderCue(subtitleBox, text, onDone = null) {
   const myGeneration = ++renderGeneration;
   pendingRenderDone = onDone;
@@ -1467,83 +1556,9 @@ function renderCue(subtitleBox, text, onDone = null) {
     return;
   }
 
-  const tokens = tokenizer.tokenize(text);
-
-  // Phrase-matching (multi-token JMdict expressions like からといって, じゃない,
-  // んだ, たら) has to run on the RAW token stream, before groupTokens/Rule 3
-  // ever touch it — 帰ったら tokenizes as 帰っ+たら (one combined auxiliary
-  // token), and Rule 3 would already absorb it into 帰った before any
-  // post-hoc scan could see it as available for a separate たら match. Then
-  // kana-merge (single-word fragmentation like ただいま！) runs on whatever
-  // groups result — each stage is its own async round-trip only when it
-  // actually finds candidates, so the common case (neither) stays fully
-  // synchronous.
-  const phraseCandidates = findPhraseMatchCandidates(tokens);
-  if (phraseCandidates.length === 0) {
-    renderAfterPhraseMerge(subtitleBox, myGeneration, groupTokens(tokens));
-    return;
-  }
-
-  const phraseTexts = [...new Set(phraseCandidates.map((c) => c.lookupText))];
-  chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts: phraseTexts }, (response) => {
-    if (myGeneration !== renderGeneration) return;
-    const membership = response?.membership ?? {};
-    const { fuseSpans, dualViewSpans } = classifyAndSelectPhraseMatches(tokens, phraseCandidates, membership);
-    const groups = applyPhraseMatches(tokens, fuseSpans, dualViewSpans);
-    renderAfterPhraseMerge(subtitleBox, myGeneration, groups);
-  });
-}
-
-function renderAfterPhraseMerge(subtitleBox, myGeneration, groups) {
-  const candidates = findKanaMergeCandidates(groups);
-  if (candidates.length === 0) {
-    renderAfterKanaMerge(subtitleBox, myGeneration, groups);
-    return;
-  }
-
-  const texts = [...new Set(candidates.map((c) => c.lookupText))];
-  chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts }, (response) => {
-    if (myGeneration !== renderGeneration) return;
-    const membership = response?.membership ?? {};
-    renderAfterKanaMerge(subtitleBox, myGeneration, applyKanaMerges(groups, candidates, membership));
-  });
-}
-
-function renderAfterKanaMerge(subtitleBox, myGeneration, groups) {
-  // Runs unconditionally, after kana-merge has already had its chance to
-  // claim a lone っ into a real merged word (んっ) — see suppressTrailingSokuon
-  // in tokenize-utils.js for why the ordering matters.
-  groups = suppressTrailingSokuon(groups);
-  const candidates = findKatakanaUnsuppressCandidates(groups);
-  if (candidates.length === 0) {
-    renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups);
-    return;
-  }
-
-  const texts = [...new Set(candidates.map((i) => groups[i].surface))];
-  chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts }, (response) => {
-    if (myGeneration !== renderGeneration) return;
-    const membership = response?.membership ?? {};
-    renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, applyKatakanaUnsuppress(groups, candidates, membership));
-  });
-}
-
-// The end of the render chain, and so the only place renderCue's `onDone` is
-// fired from on the tokenized path — every earlier stage either finishes here
-// or hands off to the next one.
-function renderAfterKatakanaUnsuppress(subtitleBox, myGeneration, groups) {
-  const candidates = findKatakanaNameCandidates(groups);
-  if (candidates.length === 0) {
+  buildGroupsForText(text).then((groups) => {
+    if (myGeneration !== renderGeneration) return; // a newer line took over mid-lookup
     renderGroups(subtitleBox, groups);
-    finishRender(myGeneration);
-    return;
-  }
-
-  const texts = [...new Set(candidates.map((i) => groups[i].surface))];
-  chrome.runtime.sendMessage({ type: "CHECK_KANA_MERGES", texts }, (response) => {
-    if (myGeneration !== renderGeneration) return;
-    const membership = response?.membership ?? {};
-    renderGroups(subtitleBox, applyKatakanaNameSuppression(groups, candidates, membership));
     finishRender(myGeneration);
   });
 }
@@ -1888,6 +1903,18 @@ function onWordClick(event) {
     mergeStart: merged ? merged.mergeStart : null,
     mergeEnd: merged ? merged.mergeEnd : null,
   };
+  // The same sentence/word the Anki fields are built from, kept as PLAIN text
+  // rather than the escaped HTML that goes on the card (2026-07-30). Both the
+  // capture-verification chip and the edit panel need to show it and, in the
+  // panel's case, re-tokenize it — neither can work backwards from the HTML
+  // reliably. Captured synchronously here for the same reason everything else
+  // in this function is: the video has usually moved on by the time the
+  // "+ Anki" button is actually pressed.
+  const captureContext = {
+    sentenceText: merged ? merged.text : lastText,
+    wordStart: Number(span.dataset.startOffset) + (merged ? merged.offsetShift : 0),
+    wordSurface: span.dataset.surface,
+  };
   // Show/episode opt-in field (2026-07-23) — captured the same way, though
   // in practice this one is stable for an entire episode's worth of clicks,
   // not just until the next line.
@@ -1950,7 +1977,7 @@ function onWordClick(event) {
       body.appendChild(inflectionLine);
     }
 
-    renderEntries(body, word, response.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText);
+    renderEntries(body, word, response.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText, captureContext);
 
     // Marks this popup as eligible to become a chip once the next line rolls
     // in (see chipifyPopup) — only set once real content has actually
@@ -1970,7 +1997,7 @@ function onWordClick(event) {
         label.className = "jp-immersion-popup-inflection";
         label.textContent = `Also, as a set phrase: ${idiomWord}`;
         body.appendChild(label);
-        renderEntries(body, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText);
+        renderEntries(body, idiomWord, idiomResponse.results, sentenceHtml, response.showPos, response.showFreq, response.showJlpt, audioRequest, response.showSource, showEpisodeText, translationText, captureContext);
       });
     }
   });
@@ -2020,7 +2047,7 @@ function archaicTagLabel(entry) {
 // visible in the ruby headword itself.
 const NO_KANJI_RE = /^[^㐀-鿿]*$/;
 
-function renderEntries(container, word, results, sentenceHtml, showPos, showFreq, showJlpt, audioRequest, showSource, showEpisodeText, translationText) {
+function renderEntries(container, word, results, sentenceHtml, showPos, showFreq, showJlpt, audioRequest, showSource, showEpisodeText, translationText, captureContext) {
   // Falls back to just the bolded word alone when the exact-offset lookup in
   // buildSentenceHtml couldn't confirm a match (rare: only if lastText and
   // the span's own recorded surface/offset somehow disagree) — degrades to
@@ -2237,6 +2264,22 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           // it's set exactly when a card really exists in Anki.
           lastAddedNote = { id: noteId, label: word };
           refreshEditLastCardControl();
+          // The retained PCM buffer (audio-capture.js) always holds the MOST
+          // RECENT capture, so it only belongs to this note until the next one
+          // is made. Recording which note it matches is what lets the edit
+          // panel offer audio trimming for that note and degrade cleanly for
+          // any older one, instead of silently editing the wrong clip.
+          audioBufferNoteId = noteId;
+          noteCaptureComplete(cardEl.closest("#jp-immersion-popup") ?? activePopup ?? activeChip, {
+            noteId,
+            word,
+            reading: r,
+            gloss: g.map((senseGlosses) => senseGlosses.join("; ")).join(" / "),
+            sentenceText: captureContext?.sentenceText ?? "",
+            wordStart: captureContext?.wordStart ?? -1,
+            wordSurface: captureContext?.wordSurface ?? word,
+            translation: lastEnglishText ?? "",
+          });
           ankiRow.textContent = "";
           const doneLabel = document.createElement("span");
           doneLabel.className = "jp-immersion-popup-anki-done";
@@ -2251,7 +2294,7 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           editBtn.className = "jp-immersion-popup-anki-edit";
           editBtn.textContent = "Edit";
           editBtn.title = "Opens this card in Anki's own editor";
-          editBtn.addEventListener("click", () => openAnkiNoteInEditor(noteId, editBtn, "Edit"));
+          editBtn.addEventListener("click", () => openEditPanel(noteId));
           const undoBtn = document.createElement("button");
           undoBtn.className = "jp-immersion-popup-anki-undo";
           undoBtn.textContent = "Undo";
@@ -2346,24 +2389,40 @@ function chipifyPopup() {
     closePopup();
     return;
   }
-  removeChip(); // single-slot — a new chip always replaces whatever's showing
+  const captured = activePopup._captureInfo;
   const chip = activePopup;
   activePopup = null; // ownership transfers to the chip; no longer "the" active popup
+  if (captured) {
+    // This lookup was actually captured, so the chip's job is verification, not
+    // just holding the definition — see showCaptureChip.
+    showCaptureChip(captured);
+    chip.remove();
+    return;
+  }
   chip.classList.add("jp-immersion-popup-chip");
   const label = document.createElement("div");
   label.className = "jp-immersion-popup-chip-label";
   label.textContent = chip._chipLabel;
   chip.insertBefore(label, chip.firstChild);
+  mountChip(chip);
+}
+
+// Shared chip lifecycle: single-slot, positioned against the video, re-parented
+// on fullscreen toggle, and removed after CHIP_LIFETIME_MS. Factored out
+// (2026-07-30) so the capture-verification chip below gets exactly the same
+// lifecycle as the lookup chip rather than a parallel one.
+//
+// Re-parents into the current fullscreen element (or back to body) on every
+// toggle, not just repositions — confirmed real bug via live testing
+// (2026-07-22): the Fullscreen API only renders elements inside whichever
+// element is currently fullscreen, so a chip created before entering fullscreen
+// (parented to body) simply stops rendering once fullscreen starts, even though
+// it's still alive in the DOM.
+function mountChip(chip) {
+  removeChip(); // single-slot — a new chip always replaces whatever's showing
+  getContainer().appendChild(chip);
   positionChip(chip);
   activeChip = chip;
-  // Re-parents into the current fullscreen element (or back to body) on
-  // every toggle, not just repositions — confirmed real bug via live testing
-  // (2026-07-22): the Fullscreen API only renders elements inside whichever
-  // element is currently fullscreen, so a chip created before entering
-  // fullscreen (parented to body) simply stops rendering once fullscreen
-  // starts, even though it's still alive in the DOM. Same root cause the
-  // subtitle box was already fixed for (2026-06-30) — the chip/popup never
-  // got the equivalent fix until now.
   chipRepositionHandler = () => {
     getContainer().appendChild(chip);
     positionChip(chip);
@@ -2371,6 +2430,141 @@ function chipifyPopup() {
   window.addEventListener("resize", chipRepositionHandler);
   document.addEventListener("fullscreenchange", chipRepositionHandler);
   chipTimer = setTimeout(removeChip, CHIP_LIFETIME_MS);
+}
+
+// ── Capture-verification chip (2026-07-30) ──────────────────────────────────
+//
+// A card's content is worth a glance right after capture — segmentation, sense
+// selection, JP/EN desync and split-sentence merge glitches are the project's
+// four known bug categories, and all four are visible in the captured Sentence,
+// Word/Reading/Gloss and Translation.
+//
+// The POPUP was evaluated for this job and rejected on three counts: its layout
+// is built for dictionary lookup, not a sentence-level summary; its
+// "Adding…" → "Added to Anki" transition is gated on audio-capture completion
+// rather than subtitle timing, so it is often still pending when the subtitle
+// line changes; and some lines (single-word ones especially) simply aren't on
+// screen long enough for any popup-based verification window to be reliable.
+// The chip's lifetime is already decoupled from the subtitle line's, which
+// solves the third for free, and it only ever carries this content once the
+// export has actually completed, which solves the second.
+//
+// Deliberately shows JP sentence + highlighted word + reading + gloss + EN
+// only. POS/Frequency/JLPT/Source are excluded: they're deterministic outputs
+// of a correct Word/Gloss selection and are rarely independently wrong, so
+// including them would spend a short, limited glance on low-value checking.
+// That also keeps this view independent of the real Anki card face, which is
+// expected to be redesigned in Phase 6.
+const CHIP_EXPANDED_BASE_MS = 2200;
+const CHIP_EXPANDED_PER_CHAR_MS = 85;
+const CHIP_EXPANDED_MAX_MS = 9000;
+
+// Scales with how much there is to read rather than using one fixed timer: a
+// single-word capture needs a fraction of the window a long merged sentence
+// does, and a duration that suits one badly misfits the other. The curve itself
+// is provisional and flagged for tuning during live-testing — see
+// project-plan.md Open Questions.
+function chipExpandedMs(info) {
+  const chars = (info.sentenceText?.length ?? 0) + (info.translation?.length ?? 0) / 2;
+  return Math.min(CHIP_EXPANDED_MAX_MS, CHIP_EXPANDED_BASE_MS + chars * CHIP_EXPANDED_PER_CHAR_MS);
+}
+
+// Records that a capture finished, on whichever element currently represents
+// that lookup. Handles both orderings, which is the whole point: if the popup
+// is still open, the info rides along and chipifyPopup builds a verification
+// chip when the line changes; if the subtitle already moved on and the popup is
+// now a plain lookup chip, that chip is upgraded in place — the case the old
+// popup-based approach couldn't cover at all.
+function noteCaptureComplete(el, info) {
+  if (el) el._captureInfo = info;
+  if (el && el === activeChip) showCaptureChip(info);
+}
+
+function showCaptureChip(info) {
+  const chip = document.createElement("div");
+  chip.id = "jp-immersion-capture-chip";
+
+  const label = document.createElement("div");
+  label.className = "jp-immersion-capture-chip-label";
+  label.textContent = info.reading && info.reading !== info.word ? `${info.word} (${info.reading})` : info.word;
+
+  const body = document.createElement("div");
+  body.className = "jp-immersion-capture-chip-body";
+
+  const sentence = document.createElement("div");
+  sentence.className = "jp-immersion-capture-chip-sentence";
+  appendSentenceWithHighlight(sentence, info.sentenceText, info.wordStart, info.wordSurface);
+  body.appendChild(sentence);
+
+  if (info.gloss) {
+    const gloss = document.createElement("div");
+    gloss.className = "jp-immersion-capture-chip-gloss";
+    gloss.textContent = info.gloss;
+    body.appendChild(gloss);
+  }
+
+  if (info.translation) {
+    const translation = document.createElement("div");
+    translation.className = "jp-immersion-capture-chip-translation";
+    translation.textContent = info.translation;
+    body.appendChild(translation);
+  }
+
+  const row = document.createElement("div");
+  row.className = "jp-immersion-capture-chip-actions";
+  const editBtn = document.createElement("button");
+  editBtn.textContent = "Edit";
+  editBtn.addEventListener("click", () => openEditPanel(info.noteId));
+  const undoBtn = document.createElement("button");
+  undoBtn.className = "jp-immersion-capture-chip-undo";
+  undoBtn.textContent = "Undo";
+  // Undo stays available for the chip's whole life, in both states: the note is
+  // already fully written to Anki by the time this chip exists, so removing it
+  // is exactly as valid at second 14 as at second 1.
+  undoBtn.addEventListener("click", () => {
+    undoBtn.disabled = true;
+    chrome.runtime.sendMessage({ type: "DELETE_ANKI_NOTE", noteId: info.noteId }, (delResponse) => {
+      if (!delResponse || delResponse.error) {
+        undoBtn.disabled = false;
+        undoBtn.title = delResponse?.error ?? "Undo failed";
+        return;
+      }
+      forgetAddedNote(info.noteId);
+      removeChip();
+    });
+  });
+  row.append(editBtn, undoBtn);
+  body.appendChild(row);
+
+  chip.append(label, body);
+  mountChip(chip);
+
+  // State 1 → State 2. Hover re-expansion is CSS-only (see content.css): the
+  // rest of this UI shows and hides instantly too, and a morph animation was
+  // explicitly deferred to Phase 6's visual pass rather than built one-off here.
+  const collapse = setTimeout(() => chip.classList.add("jp-immersion-capture-chip-collapsed"), chipExpandedMs(info));
+  chip._onRemove = () => clearTimeout(collapse);
+}
+
+// Renders `text` with the captured word marked, using the recorded OFFSET
+// rather than a substring search — the same reasoning buildSentenceHtml uses:
+// the identical word can appear twice in one sentence and only one of them is
+// the one that was clicked. Falls back to plain text if the offset doesn't line
+// up, rather than highlighting the wrong occurrence.
+function appendSentenceWithHighlight(container, text, wordStart, wordSurface) {
+  if (!text) return;
+  const end = wordStart + (wordSurface?.length ?? 0);
+  const usable =
+    Number.isInteger(wordStart) && wordStart >= 0 && end <= text.length && text.slice(wordStart, end) === wordSurface;
+  if (!usable) {
+    container.textContent = text;
+    return;
+  }
+  container.appendChild(document.createTextNode(text.slice(0, wordStart)));
+  const mark = document.createElement("b");
+  mark.textContent = wordSurface;
+  container.appendChild(mark);
+  container.appendChild(document.createTextNode(text.slice(end)));
 }
 
 function removeChip() {
@@ -2384,6 +2578,7 @@ function removeChip() {
     chipRepositionHandler = null;
   }
   if (activeChip) {
+    if (activeChip._onRemove) activeChip._onRemove();
     activeChip.remove();
     activeChip = null;
   }
@@ -2400,6 +2595,567 @@ function positionChip(chip) {
   chip.style.left = "";
   chip.style.right = `${window.innerWidth - rect.right + 8}px`;
   chip.style.bottom = `${window.innerHeight - rect.bottom + 8}px`;
+}
+
+// ── In-page edit panel (2026-07-30) ─────────────────────────────────────────
+//
+// Replaces the 2026-07-29 build, which opened Anki's own note editor as the
+// PRIMARY action. That was a hand-off rather than an edit: it required leaving
+// Crunchyroll for the Anki desktop app, which fails the "capture and keep
+// watching" litmus test exactly the way any other playback interruption does.
+// AnkiConnect's `notesInfo`/`updateNoteFields` need neither Anki's window
+// focused nor visible, so the same edits can happen here without the
+// interruption. "Open in Anki" survives as a secondary escape hatch, scoped to
+// what this panel deliberately doesn't cover — tags, note type, deletion.
+let editPanel = null;
+let editState = null;
+// Which note the retained PCM buffer (audio-capture.js) belongs to. The buffer
+// always holds the most recent capture, so editing any older note must degrade
+// to "audio unavailable" rather than silently trimming a different clip.
+let audioBufferNoteId = null;
+
+function ankiHtmlToPlain(html) {
+  if (!html) return "";
+  const el = document.createElement("div");
+  el.innerHTML = String(html).replace(/<br\s*\/?>/gi, "\n");
+  return el.textContent ?? "";
+}
+
+function plainToAnkiHtml(text) {
+  return escapeHtml(text ?? "").replace(/\n/g, "<br>");
+}
+
+// Recovers the plain sentence plus where the bolded target word sits in it, so
+// the panel can re-tokenize the sentence and mark the current word without
+// re-deriving either from the HTML every time it needs them.
+function parseStoredSentence(html) {
+  const text = ankiHtmlToPlain(html);
+  const m = String(html ?? "").match(/<b>([\s\S]*?)<\/b>/i);
+  if (!m) return { text, wordStart: -1, wordSurface: "" };
+  return { text, wordStart: ankiHtmlToPlain(String(html).slice(0, m.index)).length, wordSurface: ankiHtmlToPlain(m[1]) };
+}
+
+// Rebuilds the Sentence field's HTML after a free-text edit. The recorded offset
+// is only trustworthy while the sentence is untouched; once it's been edited the
+// word is re-located by search, and if it's been edited away entirely the
+// sentence is saved with no bolding rather than bolding something arbitrary.
+function buildEditedSentenceHtml(text, surface, originalText, originalStart) {
+  let start = -1;
+  if (text === originalText && originalStart >= 0) start = originalStart;
+  else if (surface) start = text.indexOf(surface);
+  if (start < 0 || !surface) return plainToAnkiHtml(text);
+  return (
+    plainToAnkiHtml(text.slice(0, start)) +
+    "<b>" + plainToAnkiHtml(surface) + "</b>" +
+    plainToAnkiHtml(text.slice(start + surface.length))
+  );
+}
+
+function parseSoundFilename(audioField) {
+  const m = String(audioField ?? "").match(/\[sound:([^\]]+)\]/);
+  return m ? m[1] : null;
+}
+
+function closeEditPanel() {
+  if (editPanel) {
+    if (editPanel._cleanup) editPanel._cleanup();
+    editPanel.remove();
+    editPanel = null;
+  }
+  editState = null;
+}
+
+function openEditPanel(noteId) {
+  closeEditPanel();
+  const panel = document.createElement("div");
+  panel.id = "jp-immersion-edit-panel";
+  panel.textContent = "Loading card…";
+  getContainer().appendChild(panel);
+  editPanel = panel;
+  // Re-parented on fullscreen toggle for the same reason every other floating
+  // element here is (2026-07-22): the Fullscreen API only renders elements
+  // inside the fullscreen element.
+  const reparent = () => getContainer().appendChild(panel);
+  document.addEventListener("fullscreenchange", reparent);
+  panel._cleanup = () => document.removeEventListener("fullscreenchange", reparent);
+
+  // Always read the note back fresh rather than trusting anything cached from
+  // capture: it may have been hand-edited in Anki since, and overwriting those
+  // edits with a stale copy would be data loss the user never asked for.
+  chrome.runtime.sendMessage({ type: "ANKI_NOTE_INFO", noteId }, (response) => {
+    if (editPanel !== panel) return; // panel was closed or replaced while loading
+    if (!response || response.error) {
+      renderEditPanelError(panel, response?.error ?? "Couldn't reach Anki.", noteId);
+      return;
+    }
+    if (!response.note) {
+      // Explicitly distinguished from a failure: the note is gone, and retrying
+      // will never help, so the panel must not offer a retry that can't work.
+      renderEditPanelError(panel, "That card no longer exists in Anki — it may have been deleted.", noteId, false);
+      forgetAddedNote(noteId);
+      return;
+    }
+    renderEditPanel(panel, noteId, response.note);
+  });
+}
+
+function renderEditPanelError(panel, message, noteId, retryable = true) {
+  panel.textContent = "";
+  const msg = document.createElement("div");
+  msg.className = "jp-immersion-edit-error";
+  msg.textContent = message;
+  const row = document.createElement("div");
+  row.className = "jp-immersion-edit-actions";
+  if (retryable) {
+    const retry = document.createElement("button");
+    retry.textContent = "Retry";
+    retry.addEventListener("click", () => openEditPanel(noteId));
+    row.appendChild(retry);
+  }
+  const close = document.createElement("button");
+  close.textContent = "Close";
+  close.addEventListener("click", closeEditPanel);
+  row.appendChild(close);
+  panel.append(msg, row);
+}
+
+function renderEditPanel(panel, noteId, note) {
+  const fields = note.fields;
+  const stored = parseStoredSentence(fields.Sentence);
+  editState = {
+    noteId,
+    original: fields,
+    storedSentence: stored,
+    // Pending word selection from "Change word", or null while the captured one
+    // stands. Holds all five derived fields together — see the cascade below.
+    pendingWord: null,
+    audio: null, // { start, end } in retained-buffer seconds, once trimmed
+    previousAudioFilename: parseSoundFilename(fields.Audio),
+  };
+
+  panel.textContent = "";
+  const header = document.createElement("div");
+  header.className = "jp-immersion-edit-header";
+  header.textContent = "Edit card";
+  const closeX = document.createElement("button");
+  closeX.className = "jp-immersion-edit-close";
+  closeX.textContent = "✕";
+  closeX.addEventListener("click", closeEditPanel);
+  header.appendChild(closeX);
+  panel.appendChild(header);
+
+  const status = document.createElement("div");
+  status.className = "jp-immersion-edit-status";
+  panel.appendChild(status);
+
+  // — Word / Reading / Gloss: never free text ——————————————————————————
+  // These three are cascade-derived from ONE dictionary-entry selection made at
+  // capture time, and POS/Frequency/JLPT hang off that same selection. Editing
+  // them as independent text boxes would let them drift out of sync with each
+  // other and with the three fields below, producing a card whose reading
+  // doesn't belong to its word or whose frequency describes a different entry.
+  // So changing them means re-picking an entry, through the same
+  // tokenize → lookup UI used at capture, and the pick cascades all five
+  // together.
+  const wordSection = document.createElement("div");
+  wordSection.className = "jp-immersion-edit-section";
+  const wordSummary = document.createElement("div");
+  wordSummary.className = "jp-immersion-edit-word-summary";
+  const changeBtn = document.createElement("button");
+  changeBtn.textContent = "Change word";
+  const picker = document.createElement("div");
+  picker.className = "jp-immersion-edit-picker";
+  picker.style.display = "none";
+  changeBtn.addEventListener("click", () => {
+    const showing = picker.style.display !== "none";
+    picker.style.display = showing ? "none" : "";
+    changeBtn.textContent = showing ? "Change word" : "Cancel change";
+    if (!showing) openWordPicker(picker, refreshDerived);
+  });
+  wordSection.append(labelled("Word", wordSummary), changeBtn, picker);
+  panel.appendChild(wordSection);
+
+  // — Read-only derived fields ————————————————————————————————————————
+  // Deterministic outputs of the dictionary entry and the episode metadata, not
+  // independently authored at capture. Letting them be typed would allow a card
+  // whose POS or frequency contradicts the very word/gloss it describes. They
+  // display live and move only as a side effect of a new selection above.
+  const derived = document.createElement("div");
+  derived.className = "jp-immersion-edit-derived";
+  panel.appendChild(derived);
+
+  // — Freely editable text ————————————————————————————————————————————
+  const sentenceInput = document.createElement("textarea");
+  sentenceInput.className = "jp-immersion-edit-textarea";
+  sentenceInput.value = stored.text;
+  sentenceInput.addEventListener("input", updateDirty);
+  panel.appendChild(labelled("Sentence (Japanese)", sentenceInput));
+
+  const translationInput = document.createElement("textarea");
+  translationInput.className = "jp-immersion-edit-textarea";
+  translationInput.value = ankiHtmlToPlain(fields.Translation);
+  translationInput.addEventListener("input", updateDirty);
+  panel.appendChild(labelled("Translation (English)", translationInput));
+
+  // — Audio ————————————————————————————————————————————————————————————
+  const audioSection = document.createElement("div");
+  audioSection.className = "jp-immersion-edit-section";
+  panel.appendChild(labelled("Audio", audioSection));
+  buildAudioEditor(audioSection, noteId, updateDirty);
+
+  // — Footer ———————————————————————————————————————————————————————————
+  const actions = document.createElement("div");
+  actions.className = "jp-immersion-edit-actions";
+  const openInAnki = document.createElement("button");
+  openInAnki.className = "jp-immersion-edit-secondary";
+  openInAnki.textContent = "Open in Anki";
+  openInAnki.title = "For tags, note type or deleting the card — things this panel doesn't cover";
+  openInAnki.addEventListener("click", () => openAnkiNoteInEditor(noteId, openInAnki, "Open in Anki"));
+  const cancel = document.createElement("button");
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", closeEditPanel);
+  const save = document.createElement("button");
+  save.className = "jp-immersion-edit-save";
+  save.textContent = "Save";
+  save.disabled = true;
+  save.addEventListener("click", () => saveEditPanel(save, status, sentenceInput, translationInput));
+  actions.append(openInAnki, cancel, save);
+  panel.appendChild(actions);
+
+  refreshDerived();
+
+  function labelled(text, control) {
+    const wrap = document.createElement("label");
+    wrap.className = "jp-immersion-edit-field";
+    const lbl = document.createElement("span");
+    lbl.className = "jp-immersion-edit-label";
+    lbl.textContent = text;
+    wrap.append(lbl, control);
+    return wrap;
+  }
+
+  // Redraws the word summary and the four read-only rows from whichever
+  // selection currently stands — the captured one, or a pending replacement.
+  function refreshDerived() {
+    const p = editState.pendingWord;
+    const word = p ? p.word : fields.Word;
+    const reading = p ? p.reading : fields.Reading;
+    const gloss = p ? p.gloss : ankiHtmlToPlain(fields.Gloss);
+    wordSummary.textContent = `${word}${reading && reading !== word ? ` (${reading})` : ""} — ${gloss}`;
+    derived.textContent = "";
+    const rows = [
+      ["Part of speech", p ? p.pos : ankiHtmlToPlain(fields.POS)],
+      ["Frequency", p ? p.frequency : fields.Frequency],
+      ["JLPT", p ? p.jlpt : fields.JLPT],
+      ["Source", ankiHtmlToPlain(fields.Source)],
+    ];
+    for (const [name, value] of rows) {
+      const row = document.createElement("div");
+      row.className = "jp-immersion-edit-derived-row";
+      const k = document.createElement("span");
+      k.className = "jp-immersion-edit-label";
+      k.textContent = name;
+      const v = document.createElement("span");
+      v.textContent = value || "—";
+      row.append(k, v);
+      derived.appendChild(row);
+    }
+    if (p) {
+      picker.style.display = "none";
+      changeBtn.textContent = "Change word";
+    }
+    updateDirty();
+  }
+
+  // Save stays disabled until something has actually changed, so the panel can
+  // never fire a pointless write.
+  function updateDirty() {
+    const dirty =
+      editState.pendingWord !== null ||
+      editState.audio !== null ||
+      sentenceInput.value !== stored.text ||
+      translationInput.value !== ankiHtmlToPlain(fields.Translation);
+    save.disabled = !dirty;
+  }
+}
+
+// Renders the stored sentence as clickable tokens with the current target word
+// marked, using the SAME pipeline the subtitle line uses (buildGroupsForText),
+// so a word is segmented here exactly as it was at capture. Picking a token
+// opens its senses; picking a sense cascades all five derived fields at once.
+function openWordPicker(picker, onPicked) {
+  picker.textContent = "Segmenting…";
+  const { text, wordStart, wordSurface } = editState.storedSentence;
+  if (!tokenizer) {
+    picker.textContent = "Word segmentation isn't available right now.";
+    return;
+  }
+  buildGroupsForText(text).then((groups) => {
+    if (!editState) return;
+    picker.textContent = "";
+    const line = document.createElement("div");
+    line.className = "jp-immersion-edit-picker-line";
+    const senses = document.createElement("div");
+    senses.className = "jp-immersion-edit-picker-senses";
+    let offset = 0;
+    for (const group of groups) {
+      const start = offset;
+      offset += group.surface.length;
+      if (group.word === null) {
+        line.appendChild(document.createTextNode(group.surface));
+        continue;
+      }
+      const span = document.createElement("span");
+      span.className = "jp-immersion-word";
+      span.textContent = group.surface;
+      // Marks whichever token covers the captured word's recorded position —
+      // by offset, not by matching text, since the same word can occur twice.
+      if (wordStart >= 0 && start <= wordStart && start + group.surface.length > wordStart) {
+        span.classList.add("jp-immersion-edit-picker-current");
+      }
+      span.addEventListener("click", () => showSensesFor(group, senses, onPicked));
+      line.appendChild(span);
+    }
+    picker.append(line, senses);
+    const hint = document.createElement("div");
+    hint.className = "jp-immersion-edit-hint";
+    hint.textContent = wordSurface
+      ? `Click a word to change the card's target — currently “${wordSurface}”.`
+      : "Click a word to set the card's target.";
+    picker.insertBefore(hint, line);
+  });
+}
+
+function showSensesFor(group, container, onPicked) {
+  container.textContent = "Looking up…";
+  chrome.runtime.sendMessage(
+    {
+      type: "LOOKUP_WORD",
+      word: group.word,
+      isParticle: group.isParticle ?? false,
+      pos: group.pos ?? null,
+      isHonorificSuffix: group.isHonorificSuffix ?? false,
+    },
+    (response) => {
+      if (!editState) return;
+      container.textContent = "";
+      if (!response || response.error || !response.results?.length) {
+        container.textContent = response?.error ? `Lookup failed: ${response.error}` : "No dictionary entry for that word.";
+        return;
+      }
+      for (const entry of response.results.slice(0, 5)) {
+        const option = document.createElement("button");
+        option.className = "jp-immersion-edit-sense";
+        const glossText = entry.g.map((senseGlosses) => senseGlosses.join("; ")).join(" / ");
+        option.textContent = `${entry.r ?? group.word} — ${glossText}`;
+        option.addEventListener("click", () => {
+          // One selection sets all five together, which is the entire reason
+          // these aren't free-text fields.
+          editState.pendingWord = {
+            word: group.word,
+            reading: entry.r ?? "",
+            gloss: entry.g.map((s, i) => `${i + 1}. ${s.join("; ")}`).join("<br>"),
+            glossPlain: glossText,
+            pos: formatPosChips(entry.p ?? [], group.word) ?? "",
+            frequency: entry.fr ?? "",
+            jlpt: entry.jlpt ?? "",
+            surface: group.surface,
+          };
+          onPicked();
+        });
+        container.appendChild(option);
+      }
+    }
+  );
+}
+
+// Waveform with draggable start/end handles over the retained PCM buffer. The
+// clip can be pulled WIDER than what was originally exported, not just
+// tightened — that's the whole reason the buffer is kept instead of re-decoding
+// the exported file, and why it carries padding on both sides.
+function buildAudioEditor(section, noteId, onChange) {
+  const unavailable = (why) => {
+    const msg = document.createElement("div");
+    msg.className = "jp-immersion-edit-hint";
+    msg.textContent = why;
+    section.appendChild(msg);
+  };
+  // Scoped to this section only: the rest of the panel stays fully usable when
+  // audio can't be edited, since the text fields don't depend on it.
+  if (noteId !== audioBufferNoteId) {
+    unavailable("Audio editing is only available for the most recent capture.");
+    return;
+  }
+  const info = retainedClipInfo();
+  if (!info) {
+    unavailable("Audio for this card is no longer available to edit.");
+    return;
+  }
+
+  let start = info.clipStart;
+  let end = info.clipEnd;
+
+  const wave = document.createElement("div");
+  wave.className = "jp-immersion-edit-wave";
+  const canvas = document.createElement("canvas");
+  canvas.width = 480;
+  canvas.height = 64;
+  wave.appendChild(canvas);
+  const selection = document.createElement("div");
+  selection.className = "jp-immersion-edit-wave-selection";
+  const handleStart = document.createElement("div");
+  handleStart.className = "jp-immersion-edit-wave-handle";
+  const handleEnd = document.createElement("div");
+  handleEnd.className = "jp-immersion-edit-wave-handle";
+  wave.append(selection, handleStart, handleEnd);
+  section.appendChild(wave);
+
+  const readout = document.createElement("div");
+  readout.className = "jp-immersion-edit-hint";
+  section.appendChild(readout);
+
+  const controls = document.createElement("div");
+  controls.className = "jp-immersion-edit-actions";
+  const play = document.createElement("button");
+  play.textContent = "Play selection";
+  play.addEventListener("click", () => previewRange(start, end, play));
+  const reset = document.createElement("button");
+  reset.textContent = "Reset";
+  reset.addEventListener("click", () => {
+    start = info.clipStart;
+    end = info.clipEnd;
+    editState.audio = null;
+    draw();
+    onChange();
+  });
+  controls.append(play, reset);
+  section.appendChild(controls);
+
+  const ctx = canvas.getContext("2d");
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    const barWidth = canvas.width / info.peaks.length;
+    for (let i = 0; i < info.peaks.length; i++) {
+      const h = Math.max(1, info.peaks[i] * (canvas.height - 4));
+      ctx.fillRect(i * barWidth, (canvas.height - h) / 2, Math.max(1, barWidth - 0.5), h);
+    }
+    const toPct = (t) => `${(t / info.duration) * 100}%`;
+    selection.style.left = toPct(start);
+    selection.style.width = `${((end - start) / info.duration) * 100}%`;
+    handleStart.style.left = toPct(start);
+    handleEnd.style.left = toPct(end);
+    const delta = end - start - (info.clipEnd - info.clipStart);
+    readout.textContent =
+      `${(end - start).toFixed(2)}s selected` +
+      (editState.audio ? ` (${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s vs. captured)` : " — unchanged");
+  }
+
+  const drag = (handle, isStart) => {
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      handle.setPointerCapture(event.pointerId);
+      const move = (e) => {
+        const rect = wave.getBoundingClientRect();
+        const t = Math.max(0, Math.min(info.duration, ((e.clientX - rect.left) / rect.width) * info.duration));
+        // Handles can't cross, and a selection below ~100ms isn't a clip.
+        if (isStart) start = Math.min(t, end - 0.1);
+        else end = Math.max(t, start + 0.1);
+        editState.audio = { start, end };
+        draw();
+        onChange();
+      };
+      const up = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", up);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", up);
+    });
+  };
+  drag(handleStart, true);
+  drag(handleEnd, false);
+  draw();
+}
+
+// Plays a range straight from the retained buffer, so the preview is the same
+// audio the save would write rather than an approximation of it.
+function previewRange(start, end, btn) {
+  const wav = encodeRetainedRange(start, end);
+  if (!wav) {
+    btn.textContent = "Nothing to play";
+    return;
+  }
+  const bytes = Uint8Array.from(atob(wav), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  const audio = new Audio(url);
+  audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+  audio.play().catch(() => URL.revokeObjectURL(url));
+}
+
+function saveEditPanel(saveBtn, status, sentenceInput, translationInput) {
+  if (!editState) return;
+  const { noteId, original, storedSentence, pendingWord } = editState;
+  const fields = {};
+
+  const sentenceText = sentenceInput.value;
+  if (sentenceText !== storedSentence.text || pendingWord) {
+    // A new word selection changes which token should be bolded, so the
+    // sentence HTML is rebuilt in that case too, not only on a text edit.
+    const surface = pendingWord ? pendingWord.surface : storedSentence.wordSurface;
+    fields.Sentence = buildEditedSentenceHtml(sentenceText, surface, storedSentence.text, storedSentence.wordStart);
+  }
+  const translationText = translationInput.value;
+  if (translationText !== ankiHtmlToPlain(original.Translation)) fields.Translation = plainToAnkiHtml(translationText);
+
+  if (pendingWord) {
+    fields.Word = pendingWord.word;
+    fields.Reading = pendingWord.reading;
+    fields.Gloss = pendingWord.gloss;
+    // POS/Frequency/JLPT are opt-in at capture time, and a card captured with a
+    // toggle off has them empty on purpose. Re-picking a word must not smuggle
+    // them onto a card that deliberately doesn't carry them, so each is only
+    // rewritten if it was already populated.
+    if (original.POS) fields.POS = pendingWord.pos;
+    if (original.Frequency) fields.Frequency = pendingWord.frequency;
+    if (original.JLPT) fields.JLPT = pendingWord.jlpt;
+  }
+
+  const audio = editState.audio ? encodeRetainedRange(editState.audio.start, editState.audio.end) : null;
+  if (editState.audio && !audio) {
+    status.textContent = "That audio selection is silent — adjust it or reset before saving.";
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving…";
+  status.textContent = "";
+  chrome.runtime.sendMessage(
+    {
+      type: "UPDATE_ANKI_NOTE",
+      noteId,
+      fields,
+      audio,
+      previousAudioFilename: editState.previousAudioFilename,
+    },
+    (response) => {
+      if (!response || response.error) {
+        // Nothing is discarded on failure — the panel stays exactly as it was
+        // so the edit can be retried once Anki is reachable again.
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+        status.textContent = response?.error ?? "Couldn't reach Anki.";
+        return;
+      }
+      // The note id stays remembered, so a second edit needs no re-trigger.
+      if (lastAddedNote?.id === noteId && fields.Word) {
+        lastAddedNote = { id: noteId, label: fields.Word };
+        refreshEditLastCardControl();
+      }
+      saveBtn.textContent = "Saved";
+      setTimeout(closeEditPanel, 600);
+    }
+  );
 }
 
 init();

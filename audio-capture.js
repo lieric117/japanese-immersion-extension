@@ -244,6 +244,36 @@ function encodeWav(samples, sampleRate) {
   return btoa(binary);
 }
 
+// Raw, un-normalized samples for an audio-clock range, CLAMPED to whatever the
+// ring buffer actually still holds rather than refusing when the request runs
+// past either edge (2026-07-30). Returns `{ samples, startAudioTime }`, where
+// `startAudioTime` is where the returned data really begins — later than asked
+// for if the request reached back past the oldest sample retained.
+//
+// Separate from sliceClipWav's own bounds handling on purpose: that function
+// must keep returning null for an out-of-range clip, because "no audio field"
+// is its documented degrade path. This one exists for the edit buffer, where a
+// partially-available window is strictly better than nothing.
+function sliceRawRange(startAudioTime, endAudioTime) {
+  if (!audioCtx || !ringBuffer) return null;
+  const sampleRate = audioCtx.sampleRate;
+  const now = lastProcessAudioTime || audioCtx.currentTime;
+  const maxAgo = ringFilled ? ringBuffer.length : ringWritePos;
+  let startSamplesAgo = Math.round((now - startAudioTime) * sampleRate);
+  let endSamplesAgo = Math.round((now - endAudioTime) * sampleRate);
+  startSamplesAgo = Math.min(startSamplesAgo, maxAgo); // don't read past the oldest sample
+  endSamplesAgo = Math.max(endSamplesAgo, 0); // don't read past what's been written
+  const sliceLength = startSamplesAgo - endSamplesAgo;
+  if (sliceLength <= 0) return null;
+  const samples = new Float32Array(sliceLength);
+  for (let i = 0; i < sliceLength; i++) {
+    const samplesAgo = startSamplesAgo - i;
+    const idx = (((ringWritePos - samplesAgo) % ringBuffer.length) + ringBuffer.length) % ringBuffer.length;
+    samples[i] = ringBuffer[idx];
+  }
+  return { samples, startAudioTime: now - startSamplesAgo / sampleRate };
+}
+
 // Slices the ring buffer between a captured cue entry's [audioStart, audioEnd]
 // (padded on both sides), returning a base64 WAV string, or null if capture
 // was never available, the entry has no timing at all, or the requested range
@@ -282,6 +312,120 @@ function sliceClipWav(cueEntry) {
     return null;
   }
   return encodeWav(out, sampleRate);
+}
+
+// ── Retained edit buffer (Phase 5, "edit last card" redesign, 2026-07-30) ────
+//
+// The audio trim editor works from RAW PCM kept in memory, not from re-decoding
+// the WAV already exported to Anki (`retrieveMediaFile`). Re-decoding can only
+// ever support TIGHTENING a clip, because the exported file is all there is —
+// and both directions have real uses: tightening cuts bleed from an adjacent
+// line or dead air, while EXTENDING recovers a line whose audio started late,
+// or pulls in the following line for context. Keeping the samples is the only
+// way to offer the second.
+//
+// So the retained buffer is deliberately WIDER than the clip that was exported,
+// by AUDIO_EDIT_PAD_SECONDS on each side. Without that padding there would be
+// nothing to extend into and the buffer would be no better than the re-decode.
+//
+// Stored un-normalized. `normalizeLoudness` mutates in place and is applied per
+// export, so normalizing here and again on save would compound the gain every
+// time a clip was re-trimmed.
+//
+// Lifetime is deliberately in-memory only, matching `lastAddedNote`'s in
+// content.js: both entry points to the editor are already bounded to lifetimes
+// at or below this one (the chip's ~15s, and the persistent control's note id,
+// which itself clears on a full page reload), so there is no reachable state
+// where the buffer needed to outlive the id that points at it.
+const AUDIO_EDIT_PAD_SECONDS = 3; // provisional, see project-plan.md Open Questions
+
+// { samples, sampleRate, clipStart, clipEnd } — clipStart/clipEnd are SECONDS
+// from the start of `samples`, marking where the originally exported clip sat
+// inside the padded buffer. Everything content.js passes back in is in these
+// same buffer-relative seconds.
+let retainedClip = null;
+// Guards the delayed top-up below against a newer capture: an older top-up
+// firing after a newer capture would replace the wrong clip's audio.
+let retainToken = 0;
+let retainTopUpTimer = null;
+
+// Post-roll can't exist at the moment a clip is finalized — the cue has only
+// just ended, so the ring buffer holds nothing after it yet. Retaining happens
+// twice for that reason: immediately, so the editor works even if it's opened
+// at once (with pre-roll only), and again once enough time has passed for the
+// post-roll to have been recorded. The second pass simply re-slices the full
+// padded window, which the 45-second ring buffer still comfortably holds.
+function retainClipForEditing(audioStart, audioEnd) {
+  if (audioStart === null || audioEnd === null) return;
+  const token = ++retainToken;
+  if (retainTopUpTimer) clearTimeout(retainTopUpTimer);
+  const capture = () => {
+    if (token !== retainToken) return; // a newer capture owns the buffer now
+    const raw = sliceRawRange(audioStart - AUDIO_EDIT_PAD_SECONDS, audioEnd + AUDIO_EDIT_PAD_SECONDS);
+    if (!raw) return;
+    retainedClip = {
+      samples: raw.samples,
+      sampleRate: audioCtx.sampleRate,
+      clipStart: Math.max(0, audioStart - raw.startAudioTime),
+      clipEnd: Math.max(0, audioEnd - raw.startAudioTime),
+    };
+  };
+  capture();
+  // +250ms so the padding is actually complete rather than borderline.
+  retainTopUpTimer = setTimeout(capture, AUDIO_EDIT_PAD_SECONDS * 1000 + 250);
+}
+
+// What the trim UI needs to draw itself, or null when there's nothing retained
+// (capture unavailable, or the buffer was dropped). `peaks` is a max-amplitude
+// envelope at whatever resolution the caller asks for, so the waveform doesn't
+// have to ship hundreds of thousands of samples into the DOM layer.
+function retainedClipInfo(peakCount = 240) {
+  if (!retainedClip) return null;
+  const { samples, sampleRate, clipStart, clipEnd } = retainedClip;
+  const peaks = [];
+  const bucket = samples.length / peakCount;
+  for (let i = 0; i < peakCount; i++) {
+    const from = Math.floor(i * bucket);
+    const to = Math.min(samples.length, Math.floor((i + 1) * bucket));
+    let peak = 0;
+    for (let j = from; j < to; j++) {
+      const abs = samples[j] < 0 ? -samples[j] : samples[j];
+      if (abs > peak) peak = abs;
+    }
+    peaks.push(peak);
+  }
+  // Drawn relative to the loudest point rather than to full scale: dialogue
+  // captured at a low player volume would otherwise render as a flat line.
+  const loudest = Math.max(...peaks, 0.0001);
+  return {
+    duration: samples.length / sampleRate,
+    clipStart,
+    clipEnd,
+    peaks: peaks.map((p) => p / loudest),
+  };
+}
+
+// Re-encodes a sub-range of the retained buffer, in buffer-relative seconds.
+// Same normalization the original export used, applied once to this range, so a
+// re-trimmed clip lands at the same loudness as every other card.
+function encodeRetainedRange(startSec, endSec) {
+  if (!retainedClip) return null;
+  const { samples, sampleRate } = retainedClip;
+  const from = Math.max(0, Math.round(startSec * sampleRate));
+  const to = Math.min(samples.length, Math.round(endSec * sampleRate));
+  if (to - from <= 0) return null;
+  const out = samples.slice(from, to);
+  if (!normalizeLoudness(out)) return null;
+  return encodeWav(out, sampleRate);
+}
+
+function clearRetainedClip() {
+  retainedClip = null;
+  retainToken++;
+  if (retainTopUpTimer) {
+    clearTimeout(retainTopUpTimer);
+    retainTopUpTimer = null;
+  }
 }
 
 // Waits for a still-in-progress cue to actually finish (audioEnd becomes
@@ -367,6 +511,12 @@ function sliceClipWavWhenReady(cueEntry, maxWaitMs = 8000, mergeStart = null, me
       // of the sentence plus whatever played is strictly better than
       // discarding the widening entirely.
       const end = endEntry ?? cueEntry;
+      // Retained for the trim editor (2026-07-30) over the SAME bounds the
+      // exported clip uses, so the editor's "original clip" markers line up
+      // with what actually went onto the card. Done here rather than in
+      // sliceClipWav because these are the merged, widened bounds — slicing
+      // happens on them, but only this function knows them.
+      retainClipForEditing(startEntry.audioStart, end.audioEnd);
       resolve(sliceClipWav({ audioStart: startEntry.audioStart, audioEnd: end.audioEnd }));
     };
 

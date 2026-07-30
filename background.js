@@ -323,11 +323,69 @@ function rankFiles(files, preferredUploader = null) {
   return scored.map((s) => s.f);
 }
 
-// Hands a note this session created to Anki's own card editor ("edit last
-// card", Phase 5, 2026-07-29). Deliberately does NOT build any editing UI of
-// its own — the whole point of the item is to hand off to the tool the user
-// already trusts, and an in-page field editor would be a second, worse Anki
-// (see CLAUDE.md's litmus test).
+// Reads a note's CURRENT fields back out of Anki (2026-07-30). The edit panel
+// calls this on every open rather than trusting anything cached from capture
+// time: the note may have been hand-edited in Anki since, and silently
+// overwriting those edits with our stale copy would be data loss the user never
+// asked for. Returns null when the note no longer exists, which the caller must
+// distinguish from an error — AnkiConnect returns an empty array for a missing
+// id rather than failing.
+async function ankiNoteInfo(noteId) {
+  const infos = await invokeAnkiConnect("notesInfo", { notes: [noteId] });
+  const info = infos?.[0];
+  // A deleted note comes back as an empty object in some AnkiConnect versions
+  // and is simply absent in others; both mean the same thing here.
+  if (!info || !info.noteId) return null;
+  const fields = {};
+  for (const [name, value] of Object.entries(info.fields ?? {})) fields[name] = value.value ?? "";
+  return { noteId: info.noteId, fields, tags: info.tags ?? [] };
+}
+
+// Writes changed fields back, optionally replacing the audio (2026-07-30).
+//
+// Audio replacement is a two-part operation and the ORDER matters: `fields`
+// is applied first and the media file is appended into whichever field is
+// named in `audio[].fields`, exactly as `addNote` behaves. So replacing a clip
+// means blanking `Audio` in `fields` in the SAME call — otherwise AnkiConnect
+// appends a second `[sound:…]` and the card plays both the old and the new clip
+// back to back.
+//
+// The superseded media file is deleted afterwards, not before: if the update
+// fails, the note still references it and deleting first would leave a card
+// pointing at a file that no longer exists. Filenames are unique per capture,
+// so nothing else can be referencing it. A failure to delete is swallowed —
+// an orphaned media file is untidy but harmless (Anki's own Check Media
+// cleans it up), and it must not turn a successful edit into a reported one.
+async function updateAnkiNote({ noteId, fields, audio, previousAudioFilename }) {
+  const note = { id: noteId, fields };
+  if (audio) {
+    note.fields = { ...fields, Audio: "" };
+    note.audio = [
+      {
+        data: audio,
+        filename: `jp-immersion-${noteId}-${Date.now()}.wav`,
+        fields: ["Audio"],
+      },
+    ];
+  }
+  await invokeAnkiConnect("updateNoteFields", { note });
+  if (audio && previousAudioFilename) {
+    try {
+      await invokeAnkiConnect("deleteMediaFile", { filename: previousAudioFilename });
+    } catch {
+      // See above — never fails the edit.
+    }
+  }
+  return { ok: true };
+}
+
+// Hands a note to Anki's own card editor. **Demoted to a secondary escape
+// hatch on 2026-07-30** — it was the primary action when "edit last card" was
+// first built (2026-07-29), which was wrong: it required leaving Crunchyroll
+// for the Anki desktop app, failing the "capture and keep watching" test the
+// same way any other playback interruption does. Editing now happens in an
+// in-page panel (see content.js), and this remains only for what that panel
+// deliberately doesn't cover — tags, note type, and deletion.
 //
 // Two AnkiConnect actions can do this and they are not equally available.
 // `guiEditNote` opens the Edit dialog directly on the one note, which is
@@ -442,6 +500,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "EDIT_ANKI_NOTE") {
     editAnkiNote(message.noteId)
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "ANKI_NOTE_INFO") {
+    ankiNoteInfo(message.noteId)
+      .then((note) => sendResponse({ note }))
+      .catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (message.type === "UPDATE_ANKI_NOTE") {
+    updateAnkiNote({
+      noteId: message.noteId,
+      fields: message.fields,
+      audio: message.audio,
+      previousAudioFilename: message.previousAudioFilename,
+    })
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ error: error.message }));
     return true;

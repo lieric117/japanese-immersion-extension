@@ -42,10 +42,16 @@ function makeHarness() {
     let clock = 0;
     let audioCtx = { get currentTime() { return clock; } };
     let sliceCalls = [];
+    let retainCalls = [];
     function sliceClipWav(entry) {
       sliceCalls.push({ audioStart: entry.audioStart, audioEnd: entry.audioEnd });
       return "WAV";
     }
+    // Stands in for the retained edit buffer (2026-07-30). Recorded rather than
+    // ignored so the tests can assert the editor is handed the SAME bounds that
+    // were exported — if those drifted apart, the trim UI's "original clip"
+    // markers would point somewhere the card's audio never covered.
+    function retainClipForEditing(start, end) { retainCalls.push({ audioStart: start, audioEnd: end }); }
   `;
   return new Function(
     setup +
@@ -59,6 +65,7 @@ function makeHarness() {
         tick: (t) => { clock = t; },
         timeline: () => cueTimeline,
         sliceCalls: () => sliceCalls,
+        retainCalls: () => retainCalls,
       };`
   )();
 }
@@ -130,6 +137,7 @@ async function fixtureSingleCuePerLine() {
   const clip = await h.sliceClipWavWhenReady(first, 50, 10, 14.5);
   if (!clip) throw new Error("no clip produced");
   check("capture from the FIRST half — clip covers both halves", h.sliceCalls().pop(), { start: 10, end: 14.5 });
+  check("the edit buffer is retained over the SAME bounds that were exported", h.retainCalls().pop(), { start: 10, end: 14.5 });
 
   const h2 = makeHarness();
   replay(h2, cues);
