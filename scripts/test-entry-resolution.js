@@ -258,7 +258,10 @@ const FILES = {
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
 };
 
-const ENTRY_LOG_RE = /^\[jp-immersion\] Jimaku entry "/;
+// Both outcomes count: resolving to an entry, and resolving to nothing. An
+// unresolved load has to be as visible in the console as a resolved one, or it
+// just becomes the new silent case.
+const ENTRY_LOG_RE = /^\[jp-immersion\] (?:Jimaku entry "|no Jimaku entry identified )/;
 
 // ── cases ───────────────────────────────────────────────────────────────────
 // `log`/`warn`, when given, must match the captured output EXACTLY and in
@@ -374,25 +377,60 @@ const cases = [
 
   // ── 6. a recap film with no entry of its own ──────────────────────────────
   {
-    why: "AoT Chronicle — no entry exists: must land in the warning + dropdown state, never a silent pick",
+    // The 2026-08-01 decision: nothing loads here. A missed warning banner
+    // risks capturing wrong-show sentences into permanent Anki cards, which is
+    // worse than a temporarily blank subtitle track. Asserting the absence of
+    // the FETCH is the point — "no entry returned" would still pass if the
+    // function had already pulled season 1's files down.
+    why: "AoT Chronicle — no entry matches, so nothing is selected and nothing is fetched",
     args: { query: "Attack on Titan Chronicle", episode: 1, seasonNumber: null, seasonName: null },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: {
+      unresolved: true,
       confident: false,
-      minCandidates: 2, // the dropdown only renders with something to choose between
+      noFileFetch: true,
+      minCandidates: 2, // the dropdown still needs real options to offer
       log: [
         `[jp-immersion] Jimaku has nothing indexed under "Attack on Titan Chronicle" — found 15 entries by searching "Attack on Titan" instead.`,
-        `[jp-immersion] Jimaku entry "Attack on Titan" (id 1435) for "Attack on Titan Chronicle" episode 1 — matched by a fallback guess.`,
+        `[jp-immersion] no Jimaku entry identified for "Attack on Titan Chronicle" episode 1 — 15 search results, none of them a match.`,
       ],
       warnCount: 1,
+    },
+    // The specific old behaviour: season 1's entry, silently, behind a banner.
+    mustNotResolveTo: [1435],
+  },
+  {
+    // The other side of the distinction: "load nothing" is only for when there
+    // is no right answer at all. A query that DOES match an entry still loads
+    // it, even when the requested season doesn't exist on Jimaku — otherwise
+    // this change would blank out shows that work today.
+    why: "a season number with no matching Jimaku season still loads the matched franchise entry",
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 9, seasonName: null },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: {
+      entryId: 1435,
+      unresolved: false,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Attack on Titan" (id 1435) for "Attack on Titan" episode 1 — matched by an exact title match.`,
+      ],
+      warn: [],
     },
   },
 
   // ── 7. OAD content that must not fall back to a numbered TV season ────────
   {
-    why: "AoT OADs — Crunchyroll's season name is 'OAD'; must not silently take a numbered TV season's entry",
-    args: { query: "Attack on Titan", episode: 1, seasonNumber: 2, seasonName: "OAD" },
+    // REAL Crunchyroll metadata, captured 2026-08-01 from the season list for
+    // Attack on Titan (series id GY3VC2P34): season title "Attack on Titan
+    // OADs", season number 66. Both values matter — the plural "OADs" is what
+    // the format classifier has to recognise, and 66 is a live example of a
+    // season number far outside any normal sequential range, which is why
+    // nothing may depend on that number being small.
+    why: "AoT OADs with Crunchyroll's real season metadata ('Attack on Titan OADs', season 66)",
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs" },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: {
@@ -410,12 +448,27 @@ const cases = [
     mustNotResolveTo: [3458, 1435],
   },
   {
-    why: "AoT OADs, Crunchyroll spelling the season name out in full",
-    args: { query: "Attack on Titan", episode: 1, seasonNumber: 2, seasonName: "Attack on Titan OAD" },
+    // Kept as a robustness guard, not a real observation: Crunchyroll's season
+    // titles are free text and this extension reads them from JSON-LD rather
+    // than from the season-list API the value above was captured from, so the
+    // bare form has to work too.
+    why: "AoT OADs with a bare 'OAD' season name",
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "OAD" },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: { entryId: 1597, confident: true, fileCount: 3 },
     mustNotResolveTo: [3458, 1435],
+  },
+  {
+    // Season 66 with no season name at all — the case where the format
+    // classifier has nothing to read. It must not resolve to a TV season by
+    // number, and with nothing identifying it, it must load nothing.
+    why: "season 66 with no season name must not be read as any TV season's entry",
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: null },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: { entryId: 1435, unresolved: false, confident: true, fileCount: 1, warn: [] },
+    mustNotResolveTo: [3458, 3456, 3459],
   },
 
   // Generality: the same mechanism on a different franchise, and reached via
@@ -495,7 +548,8 @@ async function run() {
   for (const c of cases) {
     logs = [];
     warns = [];
-    activeFetch = makeFetch(c);
+    const fetchMock = makeFetch(c);
+    activeFetch = fetchMock;
     const problems = [];
     let result = null;
     let error = null;
@@ -541,6 +595,21 @@ async function run() {
       if (c.mustNotResolveTo?.includes(result.entryId)) {
         problems.push(`resolved to entry ${result.entryId}, which this case exists to rule out`);
       }
+      // The "load nothing" state: no entry, and — the part that actually
+      // matters — no subtitle ever fetched, so nothing can reach a card.
+      if (x.unresolved !== undefined && Boolean(result.unresolved) !== x.unresolved) {
+        problems.push(`unresolved=${Boolean(result.unresolved)}, want ${x.unresolved}`);
+      }
+      if (x.unresolved === true) {
+        if (result.entryId !== null) problems.push(`unresolved but still selected entry ${result.entryId}`);
+        if (result.textFiles.length) problems.push(`unresolved but returned ${result.textFiles.length} files`);
+      }
+    }
+    if (x.noFileFetch) {
+      const fileCalls = fetchMock.calls.filter((u) => /\/files(\?|$)/.test(u));
+      if (fileCalls.length) {
+        problems.push(`fetched ${fileCalls.length} file listing(s) when it should have fetched none:\n           ${fileCalls.join("\n           ")}`);
+      }
     }
 
     // (b) logging — asserted for every case, including the ones that throw.
@@ -561,6 +630,17 @@ async function run() {
     // The warning IS the dropdown's trigger, so the two must agree.
     if (!error && !x.throws && result.confident === false && warns.length === 0) {
       problems.push("resolved with confident=false but warned about nothing");
+    }
+    // The invariant the 2026-08-01 "load nothing" change creates: every tier
+    // that can select an entry is also a tier that identifies it, so an entry
+    // is returned if and only if resolution was confident. Asserted rather
+    // than assumed — a future tier that selects without identifying would
+    // reintroduce exactly the silent wrong-entry load this change removed,
+    // and would show up here rather than in a live session.
+    if (!error && !x.throws && Boolean(result.entryId) !== result.confident) {
+      problems.push(
+        `entryId=${result.entryId} but confident=${result.confident} — an entry was selected without being identified (or vice versa)`
+      );
     }
 
     if (problems.length) failed++;

@@ -865,10 +865,18 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           return;
         }
         cues = response.cues;
+        // Nothing matched, so nothing loaded (2026-08-01) — deliberately not an
+        // error state: the video keeps playing, and the switcher panel below
+        // still renders its entry picker so there's a way forward.
+        if (response.entryUnresolved) {
+          subtitleBox.textContent =
+            'Couldn\'t tell which Jimaku entry this is — no subtitles loaded. Pick an entry below, or use "Upload subtitle file".';
+        }
         renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected, response.entryName, {
           confident: response.entryConfident !== false,
           entryId: response.entryId ?? null,
           candidates: response.entryCandidates ?? [],
+          unresolved: Boolean(response.entryUnresolved),
         });
         // Forces an immediate re-render via the shared timeupdate listener
         // (see init()) instead of waiting for the video's own next natural
@@ -1305,7 +1313,12 @@ function buildSwitcherPanel() {
 // manually — null is fine for the "nothing to show yet" clearing call.
 function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = null, entryInfo = null) {
   panel.textContent = "";
-  if (!files || !files.length) {
+  // No files is normally "nothing to switch between", so the panel hides. The
+  // exception (2026-08-01) is the unresolved state: no entry matched, so
+  // nothing was loaded on purpose, and the entry picker below is the only way
+  // out short of manual upload — hiding it would make the dead end permanent.
+  const hasEntryPicker = Boolean(entryInfo && !entryInfo.confident && entryInfo.candidates?.length > 1);
+  if ((!files || !files.length) && !hasEntryPicker) {
     panel.style.display = "none";
     return;
   }
@@ -1320,7 +1333,12 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   if (entryInfo && !entryInfo.confident && entryInfo.candidates?.length > 1) {
     const warning = document.createElement("div");
     warning.className = "jp-immersion-switcher-warning";
-    warning.textContent = "Couldn't tell which Jimaku entry this is — check these are the right subtitles:";
+    // Two different situations, and conflating them is how the wrong-subtitles
+    // case reads as reassuring. Either something IS loaded and needs checking,
+    // or nothing was loaded at all and the user has to choose (2026-08-01).
+    warning.textContent = entryInfo.unresolved
+      ? "Couldn't tell which Jimaku entry this is, so no subtitles were loaded — pick one:"
+      : "Couldn't tell which Jimaku entry this is — check these are the right subtitles:";
     panel.appendChild(warning);
 
     const entryLabel = document.createElement("label");
@@ -1355,6 +1373,9 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
           renderSwitcherOptions(panel, response.files, response.selectedUrl, detected, chosen?.name ?? null, {
             ...entryInfo,
             entryId: chosenId,
+            // Something is loaded now, so the "no subtitles were loaded" wording
+            // above must not persist into a state where it's false.
+            unresolved: false,
           });
           if (video) video.dispatchEvent(new Event("timeupdate"));
         }
@@ -1371,6 +1392,10 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   // whether it came from season 1 or season 3. Showing the entry title makes
   // the season being used visible without having to read the subtitles to
   // find out. See background.js's resolveTextFiles.
+  // Nothing loaded, so there is no file list to offer — the entry picker above
+  // is the entire panel until the user resolves it.
+  if (!files || !files.length) return;
+
   const label = document.createElement("label");
   label.textContent = entryName ? `Subtitle file (${entryName}): ` : "Subtitle file: ";
   if (entryName) label.title = `Jimaku entry: ${entryName}`;

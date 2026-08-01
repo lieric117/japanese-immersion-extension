@@ -1013,7 +1013,30 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // `seasonName` and `seasonNumber` are both null and neither match above can
   // fire. See matchEntryByFullTitle.
   const titleMatch = matchEntryByFullTitle(entries, query, usedQuery === ladder[0]);
-  const entry = nameMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? entries[0];
+  // Every tier above is an actual match against this title. Falling past all of
+  // them to `entries[0]` was not a match at all — it was "whatever the search
+  // happened to return first", which for a recap film listed under a franchise
+  // page is the franchise's season 1. That guess is no longer made (2026-08-01,
+  // user's call): a missed warning banner risks capturing wrong-show sentences
+  // into permanent Anki cards, which is a worse failure than a temporarily
+  // blank subtitle track. Playback is untouched — only subtitle loading stops.
+  const entry = nameMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
+  const candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
+  if (!entry) {
+    // Still logged unconditionally, and still before any decision about the
+    // UI — an unresolved load has to be as visible in the console as a
+    // resolved one, or it becomes the new silent case.
+    console.log(
+      `[jp-immersion] no Jimaku entry identified for "${query}" episode ${episode} — ` +
+        `${entries.length} search results, none of them a match.`
+    );
+    console.warn(
+      `[jp-immersion] couldn't identify which Jimaku entry "${query}" is, and none of the ` +
+        `${entries.length} search results matches it. Loading no subtitles rather than guessing — ` +
+        `pick the right entry in the subtitle switcher, or use the manual upload fallback.`
+    );
+    return { textFiles: [], entryName: null, entrySeason: null, confident: false, entryId: null, candidates, unresolved: true };
+  }
   if (namedSeason !== null && seasonNumber !== null && namedSeason !== seasonNumber) {
     // Not an error — this is the fix doing its job, and seeing it fire is how
     // the Re:Zero shift gets confirmed as gone from a live console rather than
@@ -1050,7 +1073,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
         ? `season ${wantedSeason}`
         : titleMatch
           ? "an exact title match"
-          : "a fallback guess";
+          : "an exact entry-name match";
   // Logged on EVERY load, not only on a detected mismatch (2026-07-31). Every
   // diagnostic here used to be conditional on the failure being noticed, which
   // is why a movie loading the wrong season produced a completely silent
@@ -1139,7 +1162,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     // search returned, which for an ambiguous film is where the right one is.
     confident,
     entryId: usedEntry.id,
-    candidates: entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name })),
+    candidates,
   };
 }
 
@@ -1171,13 +1194,29 @@ async function fetchAndParseFile(file, headers) {
 // was readable, and adding `seasonName` to it would have made a seventh.
 async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null }) {
   const headers = await getJimakuHeaders();
-  const { textFiles, entryName, confident, entryId, candidates } = await resolveTextFiles(
+  const { textFiles, entryName, confident, entryId, candidates, unresolved } = await resolveTextFiles(
     query,
     episode,
     headers,
     seasonNumber,
     seasonName
   );
+  // Nothing matched, so nothing is loaded (2026-08-01). Returned as a normal
+  // response rather than thrown: an error message replaces the subtitle box and
+  // takes the switcher panel with it, and the entry picker is the whole point
+  // of this state — the user needs the candidate list to choose from.
+  if (unresolved) {
+    return {
+      cues: [],
+      files: [],
+      selectedUrl: null,
+      entryName: null,
+      entryId: null,
+      entryConfident: false,
+      entryCandidates: candidates,
+      entryUnresolved: true,
+    };
+  }
   const ranked = rankFiles(textFiles, preferredUploader);
   // Optional manual override for picking a specific file among several
   // candidates Jimaku returns for the same requested episode — needed since
