@@ -21,8 +21,9 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 ## Current phase & priorities
 
 **Phase 5 — Anki export. Every build item is complete; the first full live-test pass ran on 2026-07-31** and returned ~20 findings, of which three batches are fixed (edit panel/chip, audio capture, and non-episodic content support). All fixes are offline-verified only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
-2. **Re-test the 2026-07-31 fixes live**, plus the 20–30 minute continuous-session check no pass has reached yet. Note the live-test checklist's expectations for Re:Zero's OVAs and AoT's OADs changed on 2026-08-01 — see Build Order Phase 5. Don't start Phase 6 until that reporting comes back.
+1. **Live-test the entry-resolution work** — checklist Section A in `project-plan.md` (rewritten 2026-08-01; every expectation there changed). Three rounds have now shipped fixes that passed offline while failing live on real Crunchyroll metadata, so this outranks the remaining known bugs.
+2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
+3. **Re-test the 2026-07-31 fixes live** (checklist groups B–D), plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
 Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-entry-resolution.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
