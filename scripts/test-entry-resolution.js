@@ -147,6 +147,9 @@ const AOT = [
   { id: 3467, name: "Shingeki no Kyojin: Kuinaki Sentaku", english_name: "Attack on Titan: No Regrets" },
 ];
 
+
+const NARUTO = [{ id: 2142, name: "Naruto: Shippuuden", english_name: "Naruto: Shippuden" }];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -266,6 +269,116 @@ const FILES = {
   // them produces plausible-looking files rather than an incidental empty
   // list. A test that passes because the wrong entry happened to be empty
   // isn't testing resolution.
+  // Naruto: Shippuuden (entry 2142) — VERBATIM real filenames and real
+  // `?episode=` answers. Season 7 is present in full (8 episodes, 第144–151話)
+  // so the season-length test that separates an absolute episode number from a
+  // season-relative one runs against a realistic length, not a trivial one.
+  2142: {
+    // Jimaku's REAL answers, captured 2026-08-01. Three distinct failure
+    // shapes in one entry: episode 1 and 5 return every season's opener /
+    // fifth; episode 33 returns exactly one usable file that is the WRONG
+    // episode (S12E33 = 第275話); episode 144 returns archives only.
+    1: [
+      "NARUTO－ナルト－.疾風伝.S01E01.第001話.帰郷.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S02E01.第033話.新たなる目標.ターゲット.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S03E01.第054話.悪夢.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S04E01.第072話.忍び寄る脅威.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S05E01.第090話.忍の決意.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S06E01.第113話.大蛇.ダイジャ.の瞳孔.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S08E01.第152話.悲報.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S09E01.第176話.新米教師イルカ.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S10E01.第197話.六代目火影ダンゾウ.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S11E01.第222話.五影の決断.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S12E01.第243話.上陸.楽園の島.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S13E01.第276話.外道魔像の襲来.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S14E01.第290話.NARUTO疾風伝「力.-Chikara-」episode1.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S15E01.第296話.ナルト、参戦.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S16E01.第321話.増援到着.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S17E01.第349話.心を隠す面.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S18E01.第362話.カカシの決意.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S19E01.第378話.十尾の人柱力.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S20E01.第394話.新たなる中忍試験.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S21E01.第414話.死の際.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S22E01.第432話.落ちこぼれ忍者.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S23E01.第451話.生まれる命、死ぬ命.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S24E01.第459話.はじまりのもの.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S25E01.第480話.NARUTO･HINATA.WEB-DL.Hulu.ja.srt",
+      "Naruto Shippuden 001-500 synced. English + Japanese [JySzE].zip",
+      "Naruto Shippuden 001-500 synced. SRT(Japanese) + ASS(Japanese + English in the top).zip",
+      "Naruto Shippuuden [001-500] [Amazon and some TV].rar",
+    ],
+    5: [
+      "NARUTO－ナルト－.疾風伝.S01E05.第005話.風影として….WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S02E05.第037話.「無題」.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S03E05.第058話.孤独.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S04E05.第076話.次なる階段.ステップ.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S05E05.第094話.雨一夜.あめひとよ.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S06E05.第117話.北アジトの重吾.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E05.第148話.闇の後継者.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S08E05.第156話.師を超えるとき.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S09E05.第180話.イナリ、試される勇気.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S10E05.第201話.苦渋の決断.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S11E05.第226話.戦艦の島.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S12E05.第247話.狙われた九尾.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S13E05.第280話.芸術家の美学.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S14E05.第294話.NARUTO疾風伝「力.-Chikara-」episode5.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S15E05.第300話.水影と蜃.おおはまぐり.と蜃気楼.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S16E05.第325話.人柱力VS人柱力.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S17E05.第353話.大蛇丸の実験体.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S18E05.第366話.全てを知る者たち.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S19E05.第382話.忍の夢.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S20E05.第398話.二次試験、前夜.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S21E05.第418話.碧き猛獣VS六道マダラ.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S22E05.第436話.仮面の男.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S23E05.第455話.月夜.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S24E05.第463話.意外性ナンバーワン.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S25E05.第484話.サスケ真伝.来光篇「起爆人間」.WEB-DL.Hulu.ja.srt",
+      "Naruto Shippuden 001-500 synced. English + Japanese [JySzE].zip",
+      "Naruto Shippuden 001-500 synced. SRT(Japanese) + ASS(Japanese + English in the top).zip",
+      "Naruto Shippuuden [001-500] [Amazon and some TV].rar",
+    ],
+    33: [
+      "NARUTO－ナルト－.疾風伝.S12E33.第275話.心の中の手紙.WEB-DL.Hulu.ja.srt",
+      "Naruto Shippuden 001-500 synced. English + Japanese [JySzE].zip",
+      "Naruto Shippuden 001-500 synced. SRT(Japanese) + ASS(Japanese + English in the top).zip",
+      "Naruto Shippuuden [001-500] [Amazon and some TV].rar",
+    ],
+    144: [
+      "Naruto Shippuden 001-500 synced. English + Japanese [JySzE].zip",
+      "Naruto Shippuden 001-500 synced. SRT(Japanese) + ASS(Japanese + English in the top).zip",
+      "Naruto Shippuuden [001-500] [Amazon and some TV].rar",
+      "Naruto Shippuuden [035-500] [TV] (Formatting Edit).zip",
+      "Naruto Shippuuden [035-500] [TV].zip",
+    ],
+    all: [
+      "NARUTO－ナルト－.疾風伝.S01E01.第001話.帰郷.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S01E05.第005話.風影として….WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S02E01.第033話.新たなる目標.ターゲット.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S02E05.第037話.「無題」.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S03E01.第054話.悪夢.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S03E05.第058話.孤独.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E02.第145話.禁術の継承者.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E03.第146話.継承者の想い.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E04.第147話.抜け忍の過去.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E05.第148話.闇の後継者.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E06.第149話.別離.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E07.第150話.禁術発動.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S07E08.第151話.師弟.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S08E01.第152話.悲報.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S08E05.第156話.師を超えるとき.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S12E01.第243話.上陸.楽園の島.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S12E05.第247話.狙われた九尾.WEB-DL.Hulu.ja.srt",
+      "NARUTO－ナルト－.疾風伝.S12E33.第275話.心の中の手紙.WEB-DL.Hulu.ja.srt",
+      "Naruto Shippuden 001-500 synced. English + Japanese [JySzE].zip",
+      "Naruto Shippuden 001-500 synced. SRT(Japanese) + ASS(Japanese + English in the top).zip",
+      "Naruto Shippuden 321-500 (Hulu).zip",
+      "Naruto Shippuuden [001-500] [Amazon and some TV].rar",
+      "Naruto Shippuuden [035-500] [TV] (Formatting Edit).zip",
+      "Naruto Shippuuden [035-500] [TV].zip",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -867,6 +980,55 @@ const cases = [
     mustNotResolveTo: [332, 3081],
   },
 
+  // ── long-running franchise: Jimaku's own numbering collides across seasons ─
+  {
+    why: "Naruto ep 1 — Jimaku returns every season's opener; must take 第001話, not a later one",
+    args: { query: "Naruto: Shippuden", episode: 1, seasonNumber: 1, seasonName: null },
+    search: { "Naruto: Shippuden": NARUTO },
+    files: FILES,
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S01E01.第001話.帰郷.WEB-DL.Hulu.ja.srt"],
+  },
+  {
+    // The episode that was unreachable: its filter answer is archives only.
+    why: "Naruto ep 144 as an ABSOLUTE number — reachable again via the full listing",
+    args: { query: "Naruto: Shippuden", episode: 144, seasonNumber: 7, seasonName: null },
+    search: { "Naruto: Shippuden": NARUTO },
+    files: FILES,
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt"],
+  },
+  {
+    // The SAME episode addressed the other way. Which convention Crunchyroll
+    // uses here is not measured, so both must land on the same file — they do,
+    // because 144 exceeds season 7's length (8) and 1 does not.
+    why: "Naruto S07E01 as a SEASON-RELATIVE number — same file as the absolute form",
+    args: { query: "Naruto: Shippuden", episode: 1, seasonNumber: 7, seasonName: null },
+    search: { "Naruto: Shippuden": NARUTO },
+    files: FILES,
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt"],
+  },
+  {
+    // The quietest of the three shapes: `?episode=33` really returns ONE usable
+    // file, "S12E33 第275話" — a confident-looking answer for the wrong episode.
+    // Neither the disagreement nor the archives-only signal catches it.
+    why: "Naruto ep 33 — the filter answers consistently but with the wrong episode",
+    args: { query: "Naruto: Shippuden", episode: 33, seasonNumber: 2, seasonName: null },
+    search: { "Naruto: Shippuden": NARUTO },
+    files: FILES,
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S02E01.第033話.新たなる目標.ターゲット.WEB-DL.Hulu.ja.srt"],
+  },
+  {
+    why: "a mid-season Naruto episode resolves season-relatively without ambiguity",
+    args: { query: "Naruto: Shippuden", episode: 5, seasonNumber: 7, seasonName: null },
+    search: { "Naruto: Shippuden": NARUTO },
+    files: FILES,
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S07E05.第148話.闇の後継者.WEB-DL.Hulu.ja.srt"],
+  },
+
   // ── regression guards for the ordinary paths the fix must not disturb ─────
   {
     // The trap the format classifier could plausibly fall into: a TV season
@@ -960,8 +1122,12 @@ async function run() {
         problems.push(`entry name "${result.entryName}", want "${x.entryName}"`);
       }
       if (c.expectFileNames) {
-        const got = result.textFiles.map((f) => f.name);
-        if (JSON.stringify(got) !== JSON.stringify(c.expectFileNames)) {
+        // Compared NFC-normalised: real Japanese filenames arrive in either
+        // normalisation form depending on the source, and a dakuten written as
+        // a combining mark is the same filename by any useful definition.
+        const nfc = (a) => a.map((x) => x.normalize("NFC"));
+        const got = nfc(result.textFiles.map((f) => f.name));
+        if (JSON.stringify(got) !== JSON.stringify(nfc(c.expectFileNames))) {
           problems.push(`files:\n           got  ${JSON.stringify(got, null, 1)}\n           want ${JSON.stringify(c.expectFileNames, null, 1)}`);
         }
       }

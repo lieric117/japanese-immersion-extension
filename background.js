@@ -311,6 +311,88 @@ const PREFERRED_UPLOADERS = ["SubsPlease", "Haruhana", "VCB-Studio"];
 // unmodified default list anyway — same as if no preference existed at all,
 // with nothing written back to storage from here, so a single episode's gap
 // never touches the saved show+season preference.
+// Long-running franchises: Jimaku's `?episode=` filter reads the numbering out
+// of the filename, and for a series a provider splits into cours it returns
+// EVERY season's opener for "episode 1". Measured on Naruto: Shippuuden (entry
+// 2142, 2026-08-01): `?episode=1` returns 28 files — S01E01 第1話, S02E01 第33話,
+// S07E01 第144話 and so on — while `?episode=144`, the episode those tags
+// actually describe, returns only archives, so the correct file is present in
+// the entry but unreachable through the filter.
+//
+// Unlike the OAD case this cannot be fixed by declining to ask: the episode
+// number here is genuinely meaningful. It has to be resolved locally instead,
+// which the entry's own files make possible — 500 of its 506 files carry BOTH
+// their season-relative tag and their absolute one, absolute numbers cover
+// 1–500 with no gaps and no duplicates, and the season boundaries are therefore
+// derivable from the listing itself rather than from Crunchyroll.
+const FILE_ABSOLUTE_EP_RE = /第\s*(\d{1,4})\s*話/;
+const FILE_SEASON_EP_RE = /(?:^|[^A-Za-z0-9])[Ss](\d{1,2})[Ee](\d{1,3})(?![0-9])/;
+function parseFileEpisode(name) {
+  const abs = String(name ?? "").match(FILE_ABSOLUTE_EP_RE);
+  const sxe = String(name ?? "").match(FILE_SEASON_EP_RE);
+  return {
+    absolute: abs ? Number(abs[1]) : null,
+    season: sxe ? Number(sxe[1]) : null,
+    seasonEpisode: sxe ? Number(sxe[2]) : null,
+  };
+}
+
+// Whether Jimaku's answer for one episode actually describes one episode.
+//
+// Keyed on 第N話 ONLY, deliberately. The obvious signal — "the results disagree
+// about which episode they are" — false-positives on perfectly ordinary shows:
+// Frieren S2 episode 1 legitimately returns both "…S02E01…" (Amazon's
+// per-season numbering) and "…S02E29…" (Netflix's absolute numbering) for the
+// SAME episode, so SxxEyy disagreement is normal and means nothing. Verified
+// against both sets: Frieren's carry no 第N話 at all, while Naruto's six sampled
+// files carry six different ones.
+function episodeFilterDisagrees(files) {
+  const seen = new Set();
+  for (const f of files) {
+    const { absolute } = parseFileEpisode(f.name);
+    if (absolute !== null) seen.add(absolute);
+  }
+  return seen.size > 1;
+}
+
+// Picks the files for one episode out of an entry's FULL listing, by the
+// numbering baked into the filenames.
+//
+// Crunchyroll may report a long franchise's episode either absolutely (144) or
+// relative to its season (season 7, episode 1), and which one it uses here is
+// NOT measured — see Open Questions. The rule below is correct under either,
+// because the two readings are separated by magnitude: an episode number larger
+// than its own season's length cannot be season-relative, so it must be
+// absolute. Season lengths come from the entry's own files, not from
+// Crunchyroll, so this needs nothing that hasn't been verified.
+//
+// The residual risk is the season-relative branch: it assumes Crunchyroll's
+// season NUMBERING agrees with the uploader's Sxx grouping. The absolute branch
+// depends on nothing but the episode number.
+function matchFilesByEpisodeNumber(files, episode, seasonNumber) {
+  if (!Number.isInteger(episode)) return null;
+  const parsed = files.map((f) => ({ file: f, ...parseFileEpisode(f.name) }));
+  if (!parsed.some((p) => p.absolute !== null)) return null;
+  const seasonSize = new Map();
+  for (const p of parsed) {
+    if (p.season === null) continue;
+    seasonSize.set(p.season, (seasonSize.get(p.season) ?? 0) + 1);
+  }
+  const absHits = parsed.filter((p) => p.absolute === episode).map((p) => p.file);
+  const relHits =
+    seasonNumber === null
+      ? []
+      : parsed.filter((p) => p.season === seasonNumber && p.seasonEpisode === episode).map((p) => p.file);
+  const seasonLength = seasonNumber === null ? null : seasonSize.get(seasonNumber) ?? null;
+  // Season 1's two readings coincide, so there is nothing to choose.
+  const mustBeAbsolute =
+    seasonNumber === null || seasonNumber === 1 || (seasonLength !== null && episode > seasonLength);
+  if (mustBeAbsolute && absHits.length) return { files: absHits, how: `absolute episode ${episode}` };
+  if (relHits.length) return { files: relHits, how: `season ${seasonNumber} episode ${episode}` };
+  if (absHits.length) return { files: absHits, how: `absolute episode ${episode}` };
+  return null;
+}
+
 // LANGUAGE-TRACK disambiguation within ONE uploader's own releases — that is
 // all this does, despite having been introduced for something else.
 //
@@ -1430,6 +1512,38 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // predates the non-episodic work and was never revisited until it produced
   // wrong files on five consecutive OADs.
   let files = isEpisodic ? await listFiles(entry) : [];
+  // Two shapes of the same failure, both measured on Naruto: Shippuuden — the
+  // filter answering with several DIFFERENT episodes, and it answering with
+  // archives only while the real file sits elsewhere in the entry. Either way
+  // the answer is resolved locally from the full listing instead. Costs one
+  // extra request, and only on an entry that has already shown the problem.
+  if (isEpisodic && files.length) {
+    const disagrees = episodeFilterDisagrees(files);
+    const usable = files.filter((f) => !ARCHIVE_RE.test(f.name));
+    const archivesOnly = !usable.length;
+    // A third shape, and the quietest: the filter answers CONSISTENTLY but with
+    // the wrong episode. Measured — `?episode=33` on entry 2142 returns exactly
+    // one usable file, "S12E33 第275話", because Jimaku read the season-relative
+    // tag. Nothing about that answer looks broken from the outside, so it needs
+    // its own signal: every usable file states an absolute number, and none of
+    // them is the one asked for. Shows whose filenames carry no 第N話 at all —
+    // the overwhelming majority — can't trigger this.
+    const parsedAbs = usable.map((f) => parseFileEpisode(f.name).absolute);
+    const allStateAbs = parsedAbs.length > 0 && parsedAbs.every((a) => a !== null);
+    const noneIsWanted = allStateAbs && !parsedAbs.includes(episode);
+    if (disagrees || archivesOnly || noneIsWanted) {
+      const all = await listFiles(entry, { allEpisodes: true });
+      const matched = matchFilesByEpisodeNumber(all, episode, seasonNumber);
+      console.log(
+        `[jp-immersion] Jimaku's own episode filter is unusable on "${entry.english_name ?? entry.name}" ` +
+          `(${disagrees ? "it returned several different episodes" : "it returned only archives"}) — ` +
+          (matched
+            ? `matched ${matched.files.length} file(s) from its full listing by ${matched.how}.`
+            : `and its filenames carry no episode numbering to match on, so its answer stands.`)
+      );
+      if (matched) files = matched.files;
+    }
+  }
   if (!isEpisodic) {
     console.log(
       `[jp-immersion] not asking Jimaku for episode ${episode} of "${entry.english_name ?? entry.name}" — ` +
