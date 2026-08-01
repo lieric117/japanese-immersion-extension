@@ -44,6 +44,8 @@ const {
   courSiblingEntries,
   searchQueryLadder,
   matchEntryByFullTitle,
+  nonEpisodicClass,
+  matchEntryByNonEpisodicClass,
 } = new Function(
   [
     grab(/^function stripApostrophes\([\s\S]*?\n\}/m, "stripApostrophes"),
@@ -63,30 +65,40 @@ const {
     grab(/^const MAX_SEARCH_LADDER_RUNGS = .*$/m, "MAX_SEARCH_LADDER_RUNGS"),
     grab(/^function searchQueryLadder\([\s\S]*?\n\}/m, "searchQueryLadder"),
     grab(/^function matchEntryByFullTitle\([\s\S]*?\n\}/m, "matchEntryByFullTitle"),
-    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName, courSiblingEntries, searchQueryLadder, matchEntryByFullTitle };",
+    grab(/^const NON_EPISODIC_CLASSES = \[[\s\S]*?\n\];/m, "NON_EPISODIC_CLASSES"),
+    grab(/^function nonEpisodicClass\([\s\S]*?\n\}/m, "nonEpisodicClass"),
+    grab(/^function matchEntryByNonEpisodicClass\([\s\S]*?\n\}/m, "matchEntryByNonEpisodicClass"),
+    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName, courSiblingEntries, searchQueryLadder, matchEntryByFullTitle, nonEpisodicClass, matchEntryByNonEpisodicClass };",
   ].join("\n")
 )();
 
 // Mirrors resolveTextFiles' selection block exactly — everything either side of
-// it is network I/O.
+// it is network I/O. A mirror can agree with itself while disagreeing with what
+// ships, so the authoritative end-to-end coverage (real function, mocked fetch,
+// log and UI-state assertions) lives in test-entry-resolution.js; this stays
+// because it covers the selection helpers at a granularity that one can't.
 function selectEntry(entries, query, seasonNumber, seasonName) {
   const normalizedQuery = normalizeTitle(query);
   const nameMatch = matchEntryBySeasonName(entries, seasonName, query);
   const namedSeason = seasonNumberFromName(seasonName);
   const wantedSeason = namedSeason ?? seasonNumber ?? 1;
-  const seasonMatch = entries.find((e) => {
-    const seasonOk =
-      entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
-    if (!seasonOk) return false;
-    return (
-      normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
-      normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
-    );
-  });
+  const isEpisodic = (seasonNumber !== null || seasonName !== null) && !nonEpisodicClass(seasonName);
+  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query);
+  const seasonMatch = !isEpisodic
+    ? undefined
+    : entries.find((e) => {
+        const seasonOk =
+          entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
+        if (!seasonOk) return false;
+        return (
+          normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
+          normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
+        );
+      });
   const plainMatch = entries.find(
     (e) => normalizeTitle(e.name) === normalizedQuery || normalizeTitle(e.english_name) === normalizedQuery
   );
-  return nameMatch ?? seasonMatch ?? plainMatch ?? entries[0];
+  return nameMatch ?? classMatch ?? seasonMatch ?? plainMatch ?? entries[0];
 }
 
 // Real Jimaku search results (live API, 2026-07-27).

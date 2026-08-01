@@ -22,10 +22,10 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 **Phase 5 — Anki export. Every build item is complete; the first full live-test pass ran on 2026-07-31** and returned ~20 findings, of which three batches are fixed (edit panel/chip, audio capture, and non-episodic content support). All fixes are offline-verified only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
 1. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
-2. **Re-test the 2026-07-31 fixes live**, plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
+2. **Re-test the 2026-07-31 fixes live**, plus the 20–30 minute continuous-session check no pass has reached yet. Note the live-test checklist's expectations for Re:Zero's OVAs and AoT's OADs changed on 2026-08-01 — see Build Order Phase 5. Don't start Phase 6 until that reporting comes back.
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
-Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
+Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-entry-resolution.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 

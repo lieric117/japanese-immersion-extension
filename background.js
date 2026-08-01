@@ -649,6 +649,61 @@ function matchEntryByFullTitle(entries, title, wasFullQuery) {
   return contained.length === 1 ? contained[0] : null;
 }
 
+// Whether a title is EPISODIC — a numbered run of TV episodes — or one of the
+// side formats (OVA/OAD collections, films, specials, picture dramas, recaps).
+//
+// Until 2026-08-01 that question was answered by "did Crunchyroll publish a
+// `partOfSeason` block?", which is wrong in both directions and produced three
+// separate live failures:
+//
+//   - Crunchyroll lists an OVA/OAD collection AS a season, block and all
+//     (Re:Zero's "…OVAs", Attack on Titan's "OAD"). Treated as ordinary TV,
+//     they went down the season-NUMBER path and took a numbered TV season's
+//     entry — Attack on Titan's OADs silently loaded season 2's subtitles,
+//     from a populated entry, so nothing looked wrong.
+//   - The same misreading suppressed the unfiltered file listing below, so
+//     Re:Zero's OVAs resolved to exactly the right entry and then hard-errored
+//     with "No subtitle file found for episode 1" — the entry holds four
+//     files, none of them numbered 1.
+//   - A film has no block at all, so `wantedSeason` fell back to 1 and the
+//     season match then claimed credit for it: "matched by season 1" on a
+//     movie, which is the one thing that log line exists to make impossible.
+//
+// OVA/OAD/ONA are one class deliberately: they are the same format under
+// different names, and Jimaku indexes Attack on Titan's OADs under "…OVA".
+const NON_EPISODIC_CLASSES = [
+  ["ova", /\b(?:ovas?|oads?|onas?)\b/i, "OVA/OAD"],
+  ["movie", /\b(?:movies?|films?|gekijouban)\b/i, "a film"],
+  ["special", /\b(?:specials?)\b/i, "a special"],
+  ["picture-drama", /\bpicture drama\b/i, "a picture drama"],
+  ["recap", /\b(?:recaps?|compilation)\b/i, "a recap"],
+];
+
+function nonEpisodicClass(name) {
+  const s = String(name ?? "");
+  return NON_EPISODIC_CLASSES.find(([, re]) => re.test(s)) ?? null;
+}
+
+// Picks the entry for a side-format season, by matching the FORMAT Crunchyroll
+// named it with against the format in a Jimaku entry's own name — "OAD" finds
+// "Attack on Titan OVA" where neither the season number nor the season name
+// can. Requires the entry to belong to this franchise, so a stray OVA from
+// some other show the search happened to return can't win, and requires the
+// match to be unique: a franchise with several side formats of the SAME class
+// is genuinely ambiguous, and the entry dropdown is the honest answer there.
+function matchEntryByNonEpisodicClass(entries, seasonName, query) {
+  const cls = nonEpisodicClass(seasonName);
+  if (!cls) return null;
+  const series = looseTitle(query);
+  if (!series) return null;
+  const matches = entries.filter((e) => {
+    const fields = [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
+    if (!fields.some((fld) => fld.startsWith(series) && fld !== series)) return false;
+    return [e.name, e.english_name].some((n) => nonEpisodicClass(n)?.[0] === cls[0]);
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+
 // Jimaku indexes each season of a multi-season show as a SEPARATE entry with
 // its own free-text name — no structured season field in the API response
 // (confirmed via a real search while diagnosing the same Frieren report:
@@ -929,15 +984,27 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const nameMatch = matchEntryBySeasonName(entries, seasonName, query);
   const namedSeason = seasonNumberFromName(seasonName);
   const wantedSeason = namedSeason ?? seasonNumber ?? 1;
-  const seasonMatch = entries.find((e) => {
-    const seasonOk =
-      entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
-    if (!seasonOk) return false;
-    return (
-      normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
-      normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
-    );
-  });
+  // Is this a numbered run of TV episodes at all? Everything below branches on
+  // this rather than on whether Crunchyroll published a season block — see
+  // nonEpisodicClass for the three live failures that distinction caused.
+  const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
+  const sideFormat = nonEpisodicClass(seasonName);
+  const isEpisodic = hasSeasonSignal && !sideFormat;
+  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query);
+  // Gated on isEpisodic: for a film or an OVA collection `wantedSeason` is the
+  // fabricated default of 1, and letting it match would both pick a TV season's
+  // entry for side-format content and mislabel the log line that says why.
+  const seasonMatch = !isEpisodic
+    ? undefined
+    : entries.find((e) => {
+        const seasonOk =
+          entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
+        if (!seasonOk) return false;
+        return (
+          normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
+          normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
+        );
+      });
   const plainMatch = entries.find(
     (e) => normalizeTitle(e.name) === normalizedQuery || normalizeTitle(e.english_name) === normalizedQuery
   );
@@ -946,7 +1013,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // `seasonName` and `seasonNumber` are both null and neither match above can
   // fire. See matchEntryByFullTitle.
   const titleMatch = matchEntryByFullTitle(entries, query, usedQuery === ladder[0]);
-  const entry = nameMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? entries[0];
+  const entry = nameMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? entries[0];
   if (namedSeason !== null && seasonNumber !== null && namedSeason !== seasonNumber) {
     // Not an error — this is the fix doing its job, and seeing it fire is how
     // the Re:Zero shift gets confirmed as gone from a live console rather than
@@ -972,17 +1039,18 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // title one — without it, what's left is a guess, and before 2026-07-31 that
   // guess was made silently and was reliably the franchise's season 1 (a movie
   // playing with season 1's subtitles under it, nothing logged).
-  const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
   const confident = Boolean(
-    nameMatch || seasonMatch || titleMatch || (hasSeasonSignal && wantedSeason === resolvedSeason)
+    nameMatch || classMatch || seasonMatch || titleMatch || (isEpisodic && wantedSeason === resolvedSeason)
   );
   const matchedBy = nameMatch
     ? "Crunchyroll's season name"
-    : seasonMatch
-      ? `season ${wantedSeason}`
-      : titleMatch
-        ? "an exact title match"
-        : "a fallback guess";
+    : classMatch
+      ? `Crunchyroll listing this season as ${sideFormat[2]}`
+      : seasonMatch
+        ? `season ${wantedSeason}`
+        : titleMatch
+          ? "an exact title match"
+          : "a fallback guess";
   // Logged on EVERY load, not only on a detected mismatch (2026-07-31). Every
   // diagnostic here used to be conditional on the failure being noticed, which
   // is why a movie loading the wrong season produced a completely silent
@@ -994,7 +1062,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   if (!confident) {
     console.warn(
       `[jp-immersion] couldn't identify which Jimaku entry "${query}" is` +
-        (hasSeasonSignal ? ` (season ${wantedSeason})` : " — Crunchyroll publishes no season for this title, which is normal for a movie, OVA or special") +
+        (isEpisodic ? ` (season ${wantedSeason})` : " — Crunchyroll publishes no season for this title, which is normal for a movie, OVA or special") +
         `. Using "${entry.english_name ?? entry.name}" as a guess; if the subtitles are wrong, ` +
         `pick the right entry in the subtitle switcher.`
     );
@@ -1035,10 +1103,12 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // most of them, so an `?episode=` filter that matches nothing means the
   // numbering simply doesn't line up — not that the entry is empty. Listing the
   // entry's files unfiltered is the right answer there, and the switcher then
-  // shows all of them. Gated on there being no season signal, i.e. exactly the
-  // non-episodic case: doing this for a real episode would happily serve some
-  // other episode's subtitles.
-  if (!files.length && !hasSeasonSignal) {
+  // shows all of them. Gated on the content being non-episodic — doing this for
+  // a real episode would happily serve some other episode's subtitles. That
+  // gate was "no season signal at all" until 2026-08-01, which excluded the
+  // OVA collections Crunchyroll publishes AS seasons: Re:Zero's OVAs resolved
+  // to the right entry and then hard-errored on its four unnumbered files.
+  if (!files.length && !isEpisodic) {
     const all = await listFiles(entry, { allEpisodes: true });
     if (all.length) {
       console.log(
