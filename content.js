@@ -198,10 +198,23 @@ window.addEventListener("message", (event) => {
       .map((s) => s.title)
       .filter(Boolean);
     if (!mine.length) return;
-    const merged = [...new Set([...seasonEpisodeTitles, ...mine])];
-    if (merged.length === seasonEpisodeTitles.length) return;
-    seasonEpisodeTitles = merged;
-    chrome.storage.local.set({ [siblingCacheKey(detected.seriesTitle, detected.seasonName)]: merged });
+    seasonEpisodeTitles = [...new Set([...seasonEpisodeTitles, ...mine])];
+    // Merged against what's IN STORAGE, not against the in-memory list
+    // (2026-08-01). `seasonEpisodeTitles` is reset to empty on every SPA
+    // navigation and repopulated asynchronously by loadSubtitles, so an
+    // adjacent-episode response arriving before that read — which is the normal
+    // ordering, since Crunchyroll fires it early in page load — would write
+    // just the one or two titles it carries and CLOBBER everything previous
+    // visits had accumulated. That is why episode 1's title was still not
+    // excluded by episode 8: the cache never grew past its last two neighbours.
+    const key = siblingCacheKey(detected.seriesTitle, detected.seasonName);
+    chrome.storage.local.get(key, (stored) => {
+      const known = Array.isArray(stored[key]) ? stored[key] : [];
+      const merged = [...new Set([...known, ...mine])];
+      if (merged.length === known.length) return;
+      seasonEpisodeTitles = [...new Set([...merged, ...seasonEpisodeTitles])];
+      chrome.storage.local.set({ [key]: merged });
+    });
     return;
   }
   const url = event.data?.__jpImmersionCaptionUrl;

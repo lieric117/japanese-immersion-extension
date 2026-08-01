@@ -247,6 +247,12 @@ const FILES = {
   // episode title can rule out, which is what makes this entry a good test of
   // the exclusion's limits rather than just its happy path.
   1597: {
+    // Jimaku's OWN `?episode=` answers, measured live: it reads the uploader's
+    // release tags as episode numbers, so episode 2 "matches" #3.25 OAD2 and
+    // episode 3 "matches" OAD3 — neither of which is that OAD. These keys are
+    // what makes the wrong-file selection reproducible offline.
+    2: ["[Kamigami] Shingeki no Kyojin - #3.25 OAD2 [1024x576 x264 AAC][CHT, JPN].ass"],
+    3: ["[ReinForce] Shingeki no Kyojin - OAD3 (DVDRip 852x480 x264 FLAC).cht,jpn.ass"],
     all: [
       "Shingeki no Kyojin S00E07 (Ilse's Notebook Memoirs of a Recon Corps Member) 2013 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
       "Shingeki no Kyojin S00E12 (The Sudden Visitor The Torturous Curse of Youth) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
@@ -321,6 +327,8 @@ const cases = [
       log: [
         `[jp-immersion] Jimaku has nothing indexed under "Demon Slayer: Kimetsu no Yaiba - The Movie: Mugen Train" — found 6 entries by searching "Mugen Train" instead.`,
         `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba - The Movie: Mugen Train" episode 1 — matched by an exact title match.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — listing all 3 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -359,10 +367,16 @@ const cases = [
     expect: {
       entryId: 3338,
       confident: true,
-      fileCount: 2,
+      // 1, not 2: with Jimaku's `?episode=` filter no longer consulted for a
+      // film, title matching now narrows to the file that actually names the
+      // film ("…The Movie Mugen Train (Fujitv…)") instead of handing the
+      // switcher every file in the entry.
+      fileCount: 1,
       log: [
         `[jp-immersion] also searched this title's own name "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — 1 entry the series search didn't return.`,
         `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — narrowed its 3 files to 1 matching this title's own name "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train".`,
       ],
       warn: [],
     },
@@ -401,6 +415,8 @@ const cases = [
       log: [
         `[jp-immersion] Jimaku has nothing indexed under "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" — found 1 entries by searching "Demon Slayer: Kimetsu no Yaiba Infinity Castle" instead.`,
         `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" episode 1 — matched by Jimaku's only match for "Demon Slayer: Kimetsu no Yaiba Infinity Castle".`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Demon Slayer: Kimetsu no Yaiba Infinity Castle" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Demon Slayer: Kimetsu no Yaiba Infinity Castle" — listing all 1 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -428,6 +444,8 @@ const cases = [
       fileCount: 1,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan" episode 0 — matched by Jimaku's only match for "Attack on Titan: THE LAST ATTACK".`,
+        `[jp-immersion] not asking Jimaku for episode 0 of "Attack on Titan the Movie: The Last Attack" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Attack on Titan the Movie: The Last Attack" — listing all 2 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan: THE LAST ATTACK".`,
       ],
       warn: [],
     },
@@ -471,6 +489,8 @@ const cases = [
       // two apart.
       log: [
         `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle" episode 1 — matched by Jimaku's only match for "Demon Slayer: Kimetsu no Yaiba Infinity Castle".`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Demon Slayer: Kimetsu no Yaiba Infinity Castle" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Demon Slayer: Kimetsu no Yaiba Infinity Castle" — listing all 1 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -492,6 +512,8 @@ const cases = [
       fileCount: 1, // the .sup.7z is filtered out
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan: THE LAST ATTACK" episode 0 — matched by an exact title match.`,
+        `[jp-immersion] not asking Jimaku for episode 0 of "Attack on Titan the Movie: The Last Attack" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Attack on Titan the Movie: The Last Attack" — listing all 2 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -510,8 +532,9 @@ const cases = [
       confident: true,
       fileCount: 3,
       log: [
-        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "${RZ} OVAs".`,
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "Re:ZERO -Starting Life in Another World-" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Re:ZERO -Starting Life in Another World- OVAs" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "Re:ZERO -Starting Life in Another World- OVAs".`,
       ],
       warn: [],
     },
@@ -581,7 +604,8 @@ const cases = [
       fileCount: 6,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 6 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan OADs".`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Attack on Titan OVA" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Attack on Titan OVA" — listing all 6 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan OADs".`,
       ],
       warn: [],
     },
@@ -637,8 +661,9 @@ const cases = [
       confident: true,
       fileCount: 1,
       log: [
-        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — narrowed its 3 files to 1 matching this title's own name "Memory Snow".`,
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "Re:ZERO -Starting Life in Another World-" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Re:ZERO -Starting Life in Another World- OVAs" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — narrowed its 3 files to 1 matching this title's own name "Memory Snow".`,
       ],
       warn: [],
     },
@@ -673,9 +698,10 @@ const cases = [
       fileCount: 2,
       confident: true,
       log: [
-        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — ruled out 1 of its 3 files as belonging to other episodes ("Memory Snow (Director’s Cut)").`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing the 2 of its 3 files not tied to another episode (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "Re:ZERO -Starting Life in Another World-" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Re:ZERO -Starting Life in Another World- OVAs" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — ruled out 1 of its 3 files as belonging to other episodes ("Memory Snow (Director’s Cut)").`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — listing the 2 of its 3 files not tied to another episode (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
       ],
       warn: [],
     },
@@ -710,8 +736,9 @@ const cases = [
       fileCount: 3,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — ruled out 3 of its 6 files as belonging to other episodes ("Ilse's Notebook", "The Sudden Visitor: The Torturous Curse of Youth", "Distress").`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing the 3 of its 6 files not tied to another episode (normal for a movie, OVA or special); none of them names "Wall Sina, Goodbye".`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Attack on Titan OVA" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Attack on Titan OVA" — ruled out 3 of its 6 files as belonging to other episodes ("Ilse's Notebook", "The Sudden Visitor: The Torturous Curse of Youth", "Distress").`,
+        `[jp-immersion] "Attack on Titan OVA" — listing the 3 of its 6 files not tied to another episode (normal for a movie, OVA or special); none of them names "Wall Sina, Goodbye".`,
       ],
       warn: [],
     },
@@ -760,11 +787,49 @@ const cases = [
       fileCount: 3,
       confident: true,
       log: [
-        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "Re:ZERO -Starting Life in Another World-" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Re:ZERO -Starting Life in Another World- OVAs" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
       ],
       warn: [],
     },
+  },
+  {
+    // The 2026-08-01 live failure, reproduced from Jimaku's own measured
+    // `?episode=` answers (see the 1597 fixture's numeric keys): asking for
+    // episode 2 returns "#3.25 OAD2" and episode 3 returns "OAD3", because
+    // Jimaku reads the uploader's release tags as episode numbers. Those beat
+    // the files that actually name the OAD, since a non-empty filtered result
+    // used to be trusted outright. The filter is now skipped for non-episodic
+    // content, so the correctly-titled file wins.
+    why: "an OAD must not take the file whose release tag coincides with the episode number",
+    args: {
+      query: "Attack on Titan",
+      episode: 2,
+      seasonNumber: 66,
+      seasonName: "Attack on Titan OADs",
+      episodeTitle: "Attack on Titan OADs | E2 - The Sudden Visitor: The Torturous Curse of Youth",
+    },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: { entryId: 1597, confident: true, fileCount: 1 },
+    // "#3.25 OAD2" is what Jimaku returns for `?episode=2` and what the live
+    // pass actually got; the file naming this OAD is the only right answer.
+    expectFileNames: ["Shingeki no Kyojin S00E12 (The Sudden Visitor The Torturous Curse of Youth) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt"],
+  },
+  {
+    why: "the same for episode 3, whose coincidental tag is 'OAD3'",
+    args: {
+      query: "Attack on Titan",
+      episode: 3,
+      seasonNumber: 66,
+      seasonName: "Attack on Titan OADs",
+      episodeTitle: "Attack on Titan OADs | E3 - Distress",
+    },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: { entryId: 1597, confident: true, fileCount: 1 },
+    expectFileNames: ["Shingeki no Kyojin S00E13 (Distress) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt"],
   },
   {
     // RECONSTRUCTED, flagged per the standing rule. The season name and the
@@ -793,8 +858,9 @@ const cases = [
       confident: true,
       fileCount: 3,
       log: [
-        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special).`,
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "Re:ZERO -Starting Life in Another World-" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
+        `[jp-immersion] not asking Jimaku for episode 1 of "Re:ZERO -Starting Life in Another World- OVAs" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" — listing all 3 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -893,6 +959,12 @@ async function run() {
       if (x.entryName !== undefined && result.entryName !== x.entryName) {
         problems.push(`entry name "${result.entryName}", want "${x.entryName}"`);
       }
+      if (c.expectFileNames) {
+        const got = result.textFiles.map((f) => f.name);
+        if (JSON.stringify(got) !== JSON.stringify(c.expectFileNames)) {
+          problems.push(`files:\n           got  ${JSON.stringify(got, null, 1)}\n           want ${JSON.stringify(c.expectFileNames, null, 1)}`);
+        }
+      }
       if (x.fileCount !== undefined && result.textFiles.length !== x.fileCount) {
         problems.push(`${result.textFiles.length} usable files, want ${x.fileCount}`);
       }
@@ -956,6 +1028,11 @@ async function run() {
     }
 
     if (problems.length) failed++;
+    // DUMP_LOGS=1 prints the observed console output per case, machine-readable.
+    // Used when a deliberate logging change needs propagating into fixtures:
+    // the updater only accepts PURELY ADDITIVE diffs, so a changed line still
+    // has to be reviewed rather than rubber-stamped.
+    if (process.env.DUMP_LOGS) console.log(`##DUMP## ${JSON.stringify({ why: c.why, logs })}`);
     console.log(`${problems.length ? "FAIL" : "PASS"}  ${c.why}`);
     for (const p of problems) console.log(`        ${p}`);
   }

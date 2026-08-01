@@ -1387,11 +1387,33 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   };
 
   let usedEntry = entry;
-  let files = await listFiles(entry);
+  // `?episode=N` is JIMAKU'S OWN matching, and it is only meaningful when the
+  // content is episodic (2026-08-01). Jimaku parses an episode number out of
+  // the filename, so on a side-format entry it reads the UPLOADER'S arbitrary
+  // release numbering as episode numbers: measured on entry 1597, `?episode=2`
+  // returns "[Kamigami] …#3.25 OAD2" and `?episode=3` returns "[ReinForce] …
+  // OAD3" — release tags that coincide with Crunchyroll's sequence by accident.
+  // Both beat the files that actually name the OAD, because a non-empty result
+  // was trusted and the title matching below only ran when the filter returned
+  // NOTHING. Worse than useless there: a wrong file that looks like a match.
+  //
+  // So the filter is skipped entirely for non-episodic content and the whole
+  // listing goes through title matching and sibling exclusion instead. This is
+  // the general case of the per-file numbering problem first seen on Naruto:
+  // Shippuuden in 2026-07-06 and worked around per-show with `fileHint`; it
+  // predates the non-episodic work and was never revisited until it produced
+  // wrong files on five consecutive OADs.
+  let files = isEpisodic ? await listFiles(entry) : [];
+  if (!isEpisodic) {
+    console.log(
+      `[jp-immersion] not asking Jimaku for episode ${episode} of "${entry.english_name ?? entry.name}" — ` +
+        `its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`
+    );
+  }
   // An empty result for a season Jimaku split across cours means the episode is
   // in the OTHER half — see courSiblingEntries. Only reached when the chosen
   // entry genuinely has nothing, so it never costs a request on a normal load.
-  if (!files.length) {
+  if (isEpisodic && !files.length) {
     for (const sibling of courSiblingEntries(entries, entry)) {
       const siblingFiles = await listFiles(sibling);
       if (!siblingFiles.length) continue;
@@ -1430,8 +1452,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       const narrowed = filesMatchingTitle(all, contentTitles);
       if (narrowed.files.length && narrowed.files.length < all.length) {
         console.log(
-          `[jp-immersion] "${label}" has no file numbered episode ${episode} — ` +
-            `narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
+          `[jp-immersion] "${label}" — narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
         );
         files = narrowed.files;
       } else {
@@ -1444,8 +1465,8 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
         const surviving = excludeOtherEpisodeFiles(all, contentTitles, siblingTitles);
         if (surviving.excluded.length) {
           console.log(
-            `[jp-immersion] "${label}" has no file numbered episode ${episode} — ruled out ` +
-              `${surviving.excluded.length} of its ${all.length} files as belonging to other episodes ` +
+            `[jp-immersion] "${label}" — ruled out ${surviving.excluded.length} of its ${all.length} ` +
+              `files as belonging to other episodes ` +
               `(${surviving.excluded.map((x) => `"${x.title}"`).join(", ")}).`
           );
         }
@@ -1461,7 +1482,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
           );
         }
         console.log(
-          `[jp-immersion] "${label}" has no file numbered episode ${episode} — ` +
+          `[jp-immersion] "${label}" — ` +
             (surviving.excluded.length
               ? `listing the ${surviving.files.length} of its ${all.length} files not tied to another episode`
               : `listing all ${all.length} of its files instead`) +
