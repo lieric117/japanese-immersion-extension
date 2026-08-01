@@ -691,7 +691,7 @@ function nonEpisodicClass(name) {
 // some other show the search happened to return can't win, and requires the
 // match to be unique: a franchise with several side formats of the SAME class
 // is genuinely ambiguous, and the entry dropdown is the honest answer there.
-function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitle = null) {
+function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitles = []) {
   const cls = nonEpisodicClass(seasonName);
   if (!cls) return null;
   const series = looseTitle(query);
@@ -707,7 +707,7 @@ function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitle =
   // makes Crunchyroll's "OADs" resolvable to Jimaku's "…OVA" at all. So films
   // must be identified by title (see matchEntryByContentTitle, which runs
   // first); only collection classes may be claimed on format alone.
-  if (cls[0] === "movie" && !matchEntryByContentTitle(entries, contentTitle, query, cls)) return null;
+  if (cls[0] === "movie" && !matchEntryByContentTitle(entries, contentTitles, cls)) return null;
   const matches = entries.filter((e) => {
     const fields = [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
     if (!fields.some((fld) => fld.startsWith(series) && fld !== series)) return false;
@@ -731,30 +731,76 @@ function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitle =
 // A tie is broken by format class, which is the one job the class does well
 // here: "Mugen Train" matches both the film (3338) and the TV retelling (3335,
 // "…Mugen Train Arc"), and the class says which of the two this page is.
-// Narrows an unfiltered file listing to the ones naming this specific piece of
-// content. Compared on the same punctuation-insensitive key as entry titles, so
-// separators in a release name ("Memory.Snow.WEBRip") don't defeat it.
-function filesMatchingTitle(files, contentTitle) {
-  const wanted = looseTitle(contentTitle);
-  if (!wanted || wanted.length < MIN_CONTENT_TITLE_CHARS) return [];
-  return files.filter((f) => looseTitle(f.name).includes(wanted));
+// Crunchyroll's JSON-LD `name` is a COMPOUND, not a title (confirmed on a live
+// Mugen Train page, 2026-08-01):
+//
+//   "Demon Slayer …The Movie: Mugen Train | E1 - Demon Slayer …The Movie: Mugen Train"
+//
+// Verbatim, that string returns ZERO results from Jimaku — measured — so
+// passing it through as a search query or a match key would have disabled the
+// whole content-title tier on exactly the pages it exists for. Split back into
+// the titles it's built from: the part before the pipe, and the part after the
+// "E<n> - " marker. For a film those are the same string; for an OVA collection
+// the second is the one that names the individual OVA ("Memory Snow"), which is
+// what the file narrowing needs.
+//
+// Crunchyroll's `partOfSeason.name` joins them as a third candidate: on that
+// same page it is the clean film title, and it is the field `nameMatch` would
+// have resolved this correctly from all along, had the search returned the
+// film's entry at all.
+//
+// Ordered most-specific-first, and anything that merely repeats the series
+// title is dropped — that names the franchise, not this work.
+const MIN_CONTENT_TITLE_CHARS = 4;
+const MAX_CONTENT_TITLE_SEARCHES = 2;
+const EPISODE_NAME_TAIL_RE = /\|\s*E\d+\s*[-–—]\s*(.+)$/u;
+function contentTitleCandidates(episodeTitle, seasonName, query) {
+  const series = looseTitle(query);
+  const raw = String(episodeTitle ?? "");
+  const out = [];
+  const push = (s) => {
+    const t = String(s ?? "").trim();
+    const loose = looseTitle(t);
+    if (!loose || loose.length < MIN_CONTENT_TITLE_CHARS || loose === series) return;
+    if (out.some((existing) => looseTitle(existing) === loose)) return;
+    out.push(t);
+  };
+  push(raw.match(EPISODE_NAME_TAIL_RE)?.[1]);
+  push(raw.includes("|") ? raw.slice(0, raw.indexOf("|")) : raw);
+  push(seasonName);
+  return out;
 }
 
-const MIN_CONTENT_TITLE_CHARS = 4;
-function matchEntryByContentTitle(entries, contentTitle, query, cls = null) {
-  const wanted = looseTitle(contentTitle);
-  const series = looseTitle(query);
-  // A title that just repeats the franchise carries no information about which
-  // work this is, and matching on it would pin every film to the series entry.
-  if (!wanted || wanted.length < MIN_CONTENT_TITLE_CHARS || wanted === series) return null;
+// Narrows an unfiltered file listing to the ones naming this specific piece of
+// content. Compared on the same punctuation-insensitive key as entry titles, so
+// separators in a release name ("Memory.Snow.WEBRip") don't defeat it. Tries
+// each candidate title in turn and takes the first that narrows anything.
+function filesMatchingTitle(files, contentTitles) {
+  for (const title of contentTitles) {
+    const wanted = looseTitle(title);
+    if (!wanted || wanted.length < MIN_CONTENT_TITLE_CHARS) continue;
+    const hits = files.filter((f) => looseTitle(f.name).includes(wanted));
+    if (hits.length) return { files: hits, title };
+  }
+  return { files: [], title: null };
+}
+// Takes the candidate list from contentTitleCandidates, most-specific-first,
+// and returns the entry plus WHICH title identified it — the log line names it,
+// so a live console shows the signal that actually did the work rather than the
+// compound string it was parsed out of.
+function matchEntryByContentTitle(entries, contentTitles, cls = null) {
   const fields = (e) => [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
-  const matches = entries.filter((e) => fields(e).some((f) => f.includes(wanted)));
-  if (matches.length === 1) return matches[0];
-  if (matches.length > 1 && cls) {
-    const sameClass = matches.filter((e) =>
-      [e.name, e.english_name].some((n) => nonEpisodicClass(n)?.[0] === cls[0])
-    );
-    if (sameClass.length === 1) return sameClass[0];
+  for (const title of contentTitles) {
+    const wanted = looseTitle(title);
+    if (!wanted) continue;
+    const matches = entries.filter((e) => fields(e).some((f) => f.includes(wanted)));
+    if (matches.length === 1) return { entry: matches[0], title };
+    if (matches.length > 1 && cls) {
+      const sameClass = matches.filter((e) =>
+        [e.name, e.english_name].some((n) => nonEpisodicClass(n)?.[0] === cls[0])
+      );
+      if (sameClass.length === 1) return { entry: sameClass[0], title };
+    }
   }
   return null;
 }
@@ -1046,13 +1092,16 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // could ever have found it, while "Mugen Train" finds it first. One extra
   // request, only for non-episodic content, and only when the episode title
   // says something the series title doesn't.
-  if (!isEpisodic && episodeTitle && looseTitle(episodeTitle) && looseTitle(episodeTitle) !== looseTitle(query)) {
-    const byTitle = await searchJimakuEntries(episodeTitle, headers);
+  const contentTitles = isEpisodic ? [] : contentTitleCandidates(episodeTitle, seasonName, query);
+  // Capped: each candidate is a live request, and the first two carry the
+  // signal (the episode-specific part and the work's own title).
+  for (const candidate of contentTitles.slice(0, MAX_CONTENT_TITLE_SEARCHES)) {
+    const byTitle = await searchJimakuEntries(candidate, headers);
     const known = new Set(entries.map((e) => e.id));
     const added = byTitle.filter((e) => !known.has(e.id));
     if (added.length) {
       console.log(
-        `[jp-immersion] also searched this title's own name "${episodeTitle}" — ` +
+        `[jp-immersion] also searched this title's own name "${candidate}" — ` +
           `${added.length} entr${added.length === 1 ? "y" : "ies"} the series search didn't return.`
       );
       entries = entries.concat(added);
@@ -1072,8 +1121,9 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // says at most "a film" and the series name is often the whole franchise.
   // Gated on !isEpisodic — for ordinary TV the episode title is just this
   // week's episode name and matching entries against it would be noise.
-  const contentMatch = isEpisodic ? null : matchEntryByContentTitle(entries, episodeTitle, query, sideFormat);
-  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query, episodeTitle);
+  const contentHit = isEpisodic ? null : matchEntryByContentTitle(entries, contentTitles, sideFormat);
+  const contentMatch = contentHit?.entry ?? null;
+  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitles);
   // Gated on isEpisodic: for a film or an OVA collection `wantedSeason` is the
   // fabricated default of 1, and letting it match would both pick a TV season's
   // entry for side-format content and mislabel the log line that says why.
@@ -1159,7 +1209,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const matchedBy = nameMatch
     ? "Crunchyroll's season name"
     : contentMatch
-      ? `this title's own name "${episodeTitle}"`
+      ? `this title's own name "${contentHit.title}"`
       : classMatch
       ? `Crunchyroll listing this season as ${sideFormat[2]}`
       : seasonMatch
@@ -1226,18 +1276,18 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       // "The Frozen Bond" vs. the uploader's "Hyouketsu no Kizuna") matches
       // nothing and correctly falls through to the full list rather than to an
       // empty one.
-      const narrowed = filesMatchingTitle(all, episodeTitle);
-      if (narrowed.length && narrowed.length < all.length) {
+      const narrowed = filesMatchingTitle(all, contentTitles);
+      if (narrowed.files.length && narrowed.files.length < all.length) {
         console.log(
           `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
-            `narrowed its ${all.length} files to ${narrowed.length} matching this title's own name "${episodeTitle}".`
+            `narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
         );
-        files = narrowed;
+        files = narrowed.files;
       } else {
         console.log(
           `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
             `listing all ${all.length} of its files instead (normal for a movie, OVA or special)` +
-            (episodeTitle ? `; none of them names "${episodeTitle}".` : ".")
+            (contentTitles.length ? `; none of them names "${contentTitles[0]}".` : ".")
         );
         files = all;
       }

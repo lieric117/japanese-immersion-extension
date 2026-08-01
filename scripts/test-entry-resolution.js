@@ -328,18 +328,26 @@ const cases = [
   // contain Mugen Train's entry at all. These three cases use the queries the
   // console actually recorded.
   {
+    // Every field here is verbatim from the live page's JSON-LD (2026-08-01),
+    // INCLUDING the compound `name`. That string is not a title: passing it to
+    // Jimaku verbatim returns zero results (measured), so this case is what
+    // proves the compound is parsed apart rather than searched as-is. A fixture
+    // with a clean "Mugen Train" would pass without testing that at all.
     why: "Mugen Train from a bare franchise query — the silent wrong-film load",
     args: {
       query: "Demon Slayer: Kimetsu no Yaiba",
       episode: 1,
-      seasonNumber: null,
-      seasonName: "Demon Slayer: Kimetsu no Yaiba The Movie: Mugen Train",
-      episodeTitle: "Mugen Train",
+      seasonNumber: 2,
+      seasonName: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
+      episodeTitle:
+        "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train | E1 - Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
     },
     search: {
       "Demon Slayer: Kimetsu no Yaiba": DEMON_SLAYER,
-      // The film's own title is the only query that finds its entry.
-      "Mugen Train": MUGEN_TRAIN,
+      // The film's own title is the only query that finds its entry. The
+      // compound has no fixture, so if the code ever searched it verbatim this
+      // case would fail exactly as the live page did.
+      "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train": [MUGEN_TRAIN[0]],
     },
     files: FILES,
     expect: {
@@ -347,8 +355,8 @@ const cases = [
       confident: true,
       fileCount: 2,
       log: [
-        `[jp-immersion] also searched this title's own name "Mugen Train" — 5 entries the series search didn't return.`,
-        `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba" episode 1 — matched by this title's own name "Mugen Train".`,
+        `[jp-immersion] also searched this title's own name "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — 1 entry the series search didn't return.`,
+        `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba" episode 1 — matched by Crunchyroll's season name.`,
       ],
       warn: [],
     },
@@ -363,7 +371,7 @@ const cases = [
       episode: 1,
       seasonNumber: null,
       seasonName: null,
-      episodeTitle: "Infinity Castle",
+      episodeTitle: "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | E1 - Infinity Castle",
     },
     search: {
       "Demon Slayer: Kimetsu no Yaiba Infinity Castle": INFINITY_CASTLE_ONLY,
@@ -389,9 +397,9 @@ const cases = [
       episode: 0,
       seasonNumber: null,
       seasonName: null,
-      episodeTitle: "THE LAST ATTACK",
+      episodeTitle: "Attack on Titan: THE LAST ATTACK | E1 - THE LAST ATTACK",
     },
-    search: { "Attack on Titan": AOT, "THE LAST ATTACK": LAST_ATTACK_ONLY },
+    search: { "Attack on Titan": AOT, "THE LAST ATTACK": LAST_ATTACK_ONLY, "Attack on Titan: THE LAST ATTACK": LAST_ATTACK_ONLY },
     files: FILES,
     expect: {
       entryId: 11263,
@@ -473,7 +481,7 @@ const cases = [
       fileCount: 3,
       log: [
         `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special).`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "${RZ} OVAs".`,
       ],
       warn: [],
     },
@@ -543,7 +551,7 @@ const cases = [
       fileCount: 4,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 4 of its files instead (normal for a movie, OVA or special).`,
+        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 4 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan OADs".`,
       ],
       warn: [],
     },
@@ -577,8 +585,11 @@ const cases = [
 
   // ── 5b. narrowing an unfiltered listing by the episode's own title ────────
   {
+    // Compound `name` again, in the OVA shape this time — here the two halves
+    // DIFFER, and it's the part after "E1 - " that names the individual OVA.
+    // Taking the pre-pipe half would narrow nothing.
     why: "Re:Zero's Memory Snow narrows the OVA entry's files to the one naming it",
-    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: "Memory Snow" },
+    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: `${RZ} OVAs | E1 - Memory Snow` },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
     files: FILES,
     expect: {
@@ -599,7 +610,7 @@ const cases = [
     // Falling through to everything is correct here; falling through to an
     // EMPTY list would not be.
     why: "The Frozen Bond finds no filename match and still lists everything, not nothing",
-    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: "The Frozen Bond" },
+    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: `${RZ} OVAs | E1 - The Frozen Bond` },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
     files: FILES,
     expect: {
@@ -615,7 +626,7 @@ const cases = [
   },
   {
     why: "an AoT OAD narrows its entry's files by the OAD's own title",
-    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Distress" },
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Attack on Titan OADs | E3 - Distress" },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: { entryId: 1597, confident: true, fileCount: 1 },
