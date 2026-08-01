@@ -72,6 +72,14 @@ function detectShowEpisode() {
       // entry — see background.js's resolveTextFiles for why the NUMBER can't
       // be trusted on its own.
       seasonName: typeof data.partOfSeason?.name === "string" ? data.partOfSeason.name : null,
+      // The episode's OWN title (2026-08-01). For ordinary TV this is just the
+      // episode name and resolution ignores it, but for a film it is the only
+      // signal that says WHICH film — `partOfSeries.name` is the franchise on
+      // some film pages ("Demon Slayer: Kimetsu no Yaiba" for Mugen Train) and
+      // the film itself on others, and the season name at best says "a movie".
+      // Without it, a franchise with several films can only be guessed at; see
+      // background.js's matchEntryByContentTitle.
+      episodeTitle: typeof data.name === "string" ? data.name : null,
     };
     // Diagnostic, logged only when the expected field is missing: the
     // season-name matching in background.js is built on Crunchyroll publishing
@@ -851,6 +859,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
         episode: detected.episodeNumber,
         seasonNumber: detected.seasonNumber,
         seasonName: detected.seasonName,
+        episodeTitle: detected.episodeTitle,
         fileHint: FILE_HINT,
         preferredUploader,
       },

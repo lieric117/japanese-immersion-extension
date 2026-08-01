@@ -691,17 +691,72 @@ function nonEpisodicClass(name) {
 // some other show the search happened to return can't win, and requires the
 // match to be unique: a franchise with several side formats of the SAME class
 // is genuinely ambiguous, and the entry dropdown is the honest answer there.
-function matchEntryByNonEpisodicClass(entries, seasonName, query) {
+function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitle = null) {
   const cls = nonEpisodicClass(seasonName);
   if (!cls) return null;
   const series = looseTitle(query);
   if (!series) return null;
+  // Films are individually titled works and a franchise routinely has several,
+  // so "the only film-class entry here" is not an identification — it is
+  // whichever film the search happened to return. That is exactly how Mugen
+  // Train loaded Infinity Castle's subtitles, confidently and silently, in the
+  // 2026-08-01 live pass: the franchise search doesn't contain Mugen Train's
+  // entry at all, and Infinity Castle was the only film in the results.
+  // Collections are the opposite shape — a franchise has ONE OVA bucket, one
+  // specials bucket — and there the format word IS the identity, which is what
+  // makes Crunchyroll's "OADs" resolvable to Jimaku's "…OVA" at all. So films
+  // must be identified by title (see matchEntryByContentTitle, which runs
+  // first); only collection classes may be claimed on format alone.
+  if (cls[0] === "movie" && !matchEntryByContentTitle(entries, contentTitle, query, cls)) return null;
   const matches = entries.filter((e) => {
     const fields = [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
     if (!fields.some((fld) => fld.startsWith(series) && fld !== series)) return false;
     return [e.name, e.english_name].some((n) => nonEpisodicClass(n)?.[0] === cls[0]);
   });
   return matches.length === 1 ? matches[0] : null;
+}
+
+// Identifies non-episodic content by ITS OWN title rather than the franchise's
+// — the signal that was missing entirely until 2026-08-01, and the reason three
+// different films failed three different ways in that live pass. Crunchyroll's
+// `partOfSeries.name` is the franchise on some film pages and the film on
+// others, and its season name at best says "a movie"; the episode title is the
+// only field that reliably says WHICH film.
+//
+// Matching is containment in one direction only, same asymmetry as
+// matchEntryByFullTitle: a Jimaku entry name may carry more than the film's
+// title ("Attack on Titan the Movie: The Last Attack" holds "The Last Attack"),
+// but an entry whose name is merely contained in the title is the franchise.
+//
+// A tie is broken by format class, which is the one job the class does well
+// here: "Mugen Train" matches both the film (3338) and the TV retelling (3335,
+// "…Mugen Train Arc"), and the class says which of the two this page is.
+// Narrows an unfiltered file listing to the ones naming this specific piece of
+// content. Compared on the same punctuation-insensitive key as entry titles, so
+// separators in a release name ("Memory.Snow.WEBRip") don't defeat it.
+function filesMatchingTitle(files, contentTitle) {
+  const wanted = looseTitle(contentTitle);
+  if (!wanted || wanted.length < MIN_CONTENT_TITLE_CHARS) return [];
+  return files.filter((f) => looseTitle(f.name).includes(wanted));
+}
+
+const MIN_CONTENT_TITLE_CHARS = 4;
+function matchEntryByContentTitle(entries, contentTitle, query, cls = null) {
+  const wanted = looseTitle(contentTitle);
+  const series = looseTitle(query);
+  // A title that just repeats the franchise carries no information about which
+  // work this is, and matching on it would pin every film to the series entry.
+  if (!wanted || wanted.length < MIN_CONTENT_TITLE_CHARS || wanted === series) return null;
+  const fields = (e) => [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
+  const matches = entries.filter((e) => fields(e).some((f) => f.includes(wanted)));
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1 && cls) {
+    const sameClass = matches.filter((e) =>
+      [e.name, e.english_name].some((n) => nonEpisodicClass(n)?.[0] === cls[0])
+    );
+    if (sameClass.length === 1) return sameClass[0];
+  }
+  return null;
 }
 
 // Jimaku indexes each season of a multi-season show as a SEPARATE entry with
@@ -945,7 +1000,7 @@ async function searchJimakuEntries(query, headers) {
   return searchRes.json();
 }
 
-async function resolveTextFiles(query, episode, headers, seasonNumber = null, seasonName = null) {
+async function resolveTextFiles(query, episode, headers, seasonNumber = null, seasonName = null, episodeTitle = null) {
   // Broadens the search rather than reporting nothing, when Jimaku's substring
   // index doesn't hold Crunchyroll's exact spelling — see searchQueryLadder.
   const ladder = searchQueryLadder(query);
@@ -976,6 +1031,34 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // exact matches, prefer one whose season suffix (if any) matches the
   // detected season, so a multi-season show doesn't default to season 1's
   // entry when season 2+ is requested (see comments above).
+  // Is this a numbered run of TV episodes at all? Everything below branches on
+  // this rather than on whether Crunchyroll published a season block — see
+  // nonEpisodicClass for the three live failures that distinction caused.
+  const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
+  const sideFormat = nonEpisodicClass(seasonName);
+  const isEpisodic = hasSeasonSignal && !sideFormat;
+
+  // The film's own title gets its OWN search, merged into the candidate pool
+  // (2026-08-01). The ladder above cannot cover this: it only widens when a
+  // rung returns NOTHING, and a franchise query returns plenty — just not the
+  // film. Measured live: "Demon Slayer: Kimetsu no Yaiba" returns six entries
+  // and Mugen Train's is not among them, so no matching rule over that result
+  // could ever have found it, while "Mugen Train" finds it first. One extra
+  // request, only for non-episodic content, and only when the episode title
+  // says something the series title doesn't.
+  if (!isEpisodic && episodeTitle && looseTitle(episodeTitle) && looseTitle(episodeTitle) !== looseTitle(query)) {
+    const byTitle = await searchJimakuEntries(episodeTitle, headers);
+    const known = new Set(entries.map((e) => e.id));
+    const added = byTitle.filter((e) => !known.has(e.id));
+    if (added.length) {
+      console.log(
+        `[jp-immersion] also searched this title's own name "${episodeTitle}" — ` +
+          `${added.length} entr${added.length === 1 ? "y" : "ies"} the series search didn't return.`
+      );
+      entries = entries.concat(added);
+    }
+  }
+
   const normalizedQuery = normalizeTitle(query);
   // Crunchyroll's own title for this season beats its own numbering of it, in
   // both forms: an outright entry match first, then the season number read out
@@ -984,13 +1067,13 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const nameMatch = matchEntryBySeasonName(entries, seasonName, query);
   const namedSeason = seasonNumberFromName(seasonName);
   const wantedSeason = namedSeason ?? seasonNumber ?? 1;
-  // Is this a numbered run of TV episodes at all? Everything below branches on
-  // this rather than on whether Crunchyroll published a season block — see
-  // nonEpisodicClass for the three live failures that distinction caused.
-  const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
-  const sideFormat = nonEpisodicClass(seasonName);
-  const isEpisodic = hasSeasonSignal && !sideFormat;
-  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query);
+  // The content's own title outranks everything below it for non-episodic
+  // content: it is the only signal that says WHICH film, where the season name
+  // says at most "a film" and the series name is often the whole franchise.
+  // Gated on !isEpisodic — for ordinary TV the episode title is just this
+  // week's episode name and matching entries against it would be noise.
+  const contentMatch = isEpisodic ? null : matchEntryByContentTitle(entries, episodeTitle, query, sideFormat);
+  const classMatch = matchEntryByNonEpisodicClass(entries, seasonName, query, episodeTitle);
   // Gated on isEpisodic: for a film or an OVA collection `wantedSeason` is the
   // fabricated default of 1, and letting it match would both pick a TV season's
   // entry for side-format content and mislabel the log line that says why.
@@ -1020,7 +1103,17 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // user's call): a missed warning banner risks capturing wrong-show sentences
   // into permanent Anki cards, which is a worse failure than a temporarily
   // blank subtitle track. Playback is untouched — only subtitle loading stops.
-  const entry = nameMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
+  // A film we can't name is a film we can't identify. Once Crunchyroll has said
+  // this page is a movie, the tiers below contentMatch can only offer the
+  // FRANCHISE — an exact match on the series title is the TV series' entry, not
+  // this film's — or a sibling film that happened to be in the results. Both
+  // are silent wrong-content loads of exactly the kind the live pass caught, so
+  // a movie with no title evidence resolves to nothing and asks. Collections
+  // are exempt: a franchise has one OVA bucket, and classMatch identifies it.
+  const filmUnidentified = sideFormat?.[0] === "movie" && !nameMatch && !contentMatch;
+  const entry = filmUnidentified
+    ? null
+    : nameMatch ?? contentMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
   const candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
   if (!entry) {
     // Still logged unconditionally, and still before any decision about the
@@ -1065,7 +1158,9 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // returns `unresolved` above without reaching this point at all.
   const matchedBy = nameMatch
     ? "Crunchyroll's season name"
-    : classMatch
+    : contentMatch
+      ? `this title's own name "${episodeTitle}"`
+      : classMatch
       ? `Crunchyroll listing this season as ${sideFormat[2]}`
       : seasonMatch
         ? `season ${wantedSeason}`
@@ -1123,11 +1218,29 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   if (!files.length && !isEpisodic) {
     const all = await listFiles(entry, { allEpisodes: true });
     if (all.length) {
-      console.log(
-        `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
-          `listing all ${all.length} of its files instead (normal for a movie, OVA or special).`
-      );
-      files = all;
+      // Narrowed by the episode's own title first (2026-08-01). An OVA
+      // collection's files are one per OVA, so dumping all of them leaves the
+      // switcher showing an identical list for Memory Snow and The Frozen Bond
+      // — no way to tell which is which without already knowing the answer.
+      // Only a match narrows: a title Jimaku spells differently (Crunchyroll's
+      // "The Frozen Bond" vs. the uploader's "Hyouketsu no Kizuna") matches
+      // nothing and correctly falls through to the full list rather than to an
+      // empty one.
+      const narrowed = filesMatchingTitle(all, episodeTitle);
+      if (narrowed.length && narrowed.length < all.length) {
+        console.log(
+          `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
+            `narrowed its ${all.length} files to ${narrowed.length} matching this title's own name "${episodeTitle}".`
+        );
+        files = narrowed;
+      } else {
+        console.log(
+          `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
+            `listing all ${all.length} of its files instead (normal for a movie, OVA or special)` +
+            (episodeTitle ? `; none of them names "${episodeTitle}".` : ".")
+        );
+        files = all;
+      }
     }
   }
   if (!files.length) {
@@ -1182,14 +1295,15 @@ async function fetchAndParseFile(file, headers) {
 // Takes the FETCH_SUBTITLES message itself rather than six positional
 // arguments (2026-07-27) — the list had grown past the point where a call site
 // was readable, and adding `seasonName` to it would have made a seventh.
-async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null }) {
+async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null, episodeTitle = null }) {
   const headers = await getJimakuHeaders();
   const { textFiles, entryName, confident, entryId, candidates, unresolved } = await resolveTextFiles(
     query,
     episode,
     headers,
     seasonNumber,
-    seasonName
+    seasonName,
+    episodeTitle
   );
   // Nothing matched, so nothing is loaded (2026-08-01). Returned as a normal
   // response rather than thrown: an error message replaces the subtitle box and

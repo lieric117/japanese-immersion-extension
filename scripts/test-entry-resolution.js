@@ -245,6 +245,7 @@ const FILES = {
   1597: {
     all: [
       "Shingeki no Kyojin S00E07 (Ilse's Notebook Memoirs of a Recon Corps Member) 2013 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
+      "Shingeki no Kyojin S00E13 (Distress) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
       "[Kamigami] Shingeki no Kyojin - #3.25 OAD2 [1024x576 x264 AAC][CHT, JPN].ass",
       "[Kamigami] Shingeki no Kyojin - 03.5 OAD [DVD 848x480 x264 AAC][CHS, JPN].ass",
     ],
@@ -317,6 +318,109 @@ const cases = [
       ],
       warn: [],
     },
+  },
+
+  // ── 2b. THE LIVE FAILURES (2026-08-01 service-worker console) ─────────────
+  // The earlier Mugen Train fixture passed offline while the real thing loaded
+  // the wrong film, because the fixture assumed Crunchyroll hands us the FULL
+  // film title as the series name. It doesn't: the live query was the bare
+  // franchise "Demon Slayer: Kimetsu no Yaiba", whose search results do not
+  // contain Mugen Train's entry at all. These three cases use the queries the
+  // console actually recorded.
+  {
+    why: "Mugen Train from a bare franchise query — the silent wrong-film load",
+    args: {
+      query: "Demon Slayer: Kimetsu no Yaiba",
+      episode: 1,
+      seasonNumber: null,
+      seasonName: "Demon Slayer: Kimetsu no Yaiba The Movie: Mugen Train",
+      episodeTitle: "Mugen Train",
+    },
+    search: {
+      "Demon Slayer: Kimetsu no Yaiba": DEMON_SLAYER,
+      // The film's own title is the only query that finds its entry.
+      "Mugen Train": MUGEN_TRAIN,
+    },
+    files: FILES,
+    expect: {
+      entryId: 3338,
+      confident: true,
+      fileCount: 2,
+      log: [
+        `[jp-immersion] also searched this title's own name "Mugen Train" — 5 entries the series search didn't return.`,
+        `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba" episode 1 — matched by this title's own name "Mugen Train".`,
+      ],
+      warn: [],
+    },
+    // 12471 is the entry it actually loaded live — the only film-class entry in
+    // the franchise results. 3335 is the TV retelling, the other near-miss.
+    mustNotResolveTo: [12471, 3335, 846],
+  },
+  {
+    why: "Infinity Castle — a trailing 'I' in Crunchyroll's title must not reject the correct entry",
+    args: {
+      query: "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+      episode: 1,
+      seasonNumber: null,
+      seasonName: null,
+      episodeTitle: "Infinity Castle",
+    },
+    search: {
+      "Demon Slayer: Kimetsu no Yaiba Infinity Castle": INFINITY_CASTLE_ONLY,
+      "Infinity Castle": INFINITY_CASTLE_ONLY,
+    },
+    files: FILES,
+    expect: {
+      // Its only file is a .7z, so this still ends in the archive error — but
+      // it must get there by IDENTIFYING the entry, not by rejecting it.
+      throws:
+        "Only archive files found for episode 1 (Demon.Slayer.Kimetsu.no.Yaiba.Infinity.Castle.2025.1080p.BDRip.AAC5.1.10bits.x265-Rapta.sup.7z) — use the manual upload fallback instead",
+      log: [
+        `[jp-immersion] Jimaku has nothing indexed under "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" — found 1 entries by searching "Demon Slayer: Kimetsu no Yaiba Infinity Castle" instead.`,
+        `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" episode 1 — matched by this title's own name "Infinity Castle".`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    why: "The Last Attack — must not fall through to the flagship TV series entry",
+    args: {
+      query: "Attack on Titan",
+      episode: 0,
+      seasonNumber: null,
+      seasonName: null,
+      episodeTitle: "THE LAST ATTACK",
+    },
+    search: { "Attack on Titan": AOT, "THE LAST ATTACK": LAST_ATTACK_ONLY },
+    files: FILES,
+    expect: {
+      entryId: 11263,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan" episode 0 — matched by this title's own name "THE LAST ATTACK".`,
+      ],
+      warn: [],
+    },
+    mustNotResolveTo: [1435],
+  },
+  {
+    // The safety net for when the episode title is missing or useless: a film
+    // must never be claimed on format alone, because a franchise has several
+    // and "the only film in these results" is whichever one the search
+    // returned. Unresolved + picker is the correct outcome, not a silent pick.
+    why: "a film with no usable episode title resolves to nothing, never to a sibling film",
+    args: {
+      query: "Demon Slayer: Kimetsu no Yaiba",
+      episode: 1,
+      seasonNumber: null,
+      seasonName: "Demon Slayer: Kimetsu no Yaiba The Movie",
+      episodeTitle: null,
+    },
+    search: { "Demon Slayer: Kimetsu no Yaiba": DEMON_SLAYER },
+    files: FILES,
+    expect: { unresolved: true, confident: false, noFileFetch: true, minCandidates: 2, warnCount: 1 },
+    mustNotResolveTo: [12471, 3338, 846],
   },
 
   // ── 3. matched, but no usable subtitle file ───────────────────────────────
@@ -436,10 +540,10 @@ const cases = [
     expect: {
       entryId: 1597,
       confident: true,
-      fileCount: 3,
+      fileCount: 4,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special).`,
+        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 4 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -456,7 +560,7 @@ const cases = [
     args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "OAD" },
     search: { "Attack on Titan": AOT },
     files: FILES,
-    expect: { entryId: 1597, confident: true, fileCount: 3 },
+    expect: { entryId: 1597, confident: true, fileCount: 4 },
     mustNotResolveTo: [3458, 1435],
   },
   {
@@ -469,6 +573,52 @@ const cases = [
     files: FILES,
     expect: { entryId: 1435, unresolved: false, confident: true, fileCount: 1, warn: [] },
     mustNotResolveTo: [3458, 3456, 3459],
+  },
+
+  // ── 5b. narrowing an unfiltered listing by the episode's own title ────────
+  {
+    why: "Re:Zero's Memory Snow narrows the OVA entry's files to the one naming it",
+    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: "Memory Snow" },
+    search: { "Re:ZERO -Starting Life in Another World": REZERO },
+    files: FILES,
+    expect: {
+      entryId: 3083,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — narrowed its 3 files to 1 matching this title's own name "Memory Snow".`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    // The honest limit of title narrowing, asserted rather than hidden:
+    // Crunchyroll's English title and the uploader's romanised one share no
+    // characters, so nothing matches and the full list is still the answer.
+    // Falling through to everything is correct here; falling through to an
+    // EMPTY list would not be.
+    why: "The Frozen Bond finds no filename match and still lists everything, not nothing",
+    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: "The Frozen Bond" },
+    search: { "Re:ZERO -Starting Life in Another World": REZERO },
+    files: FILES,
+    expect: {
+      entryId: 3083,
+      confident: true,
+      fileCount: 3,
+      log: [
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond".`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    why: "an AoT OAD narrows its entry's files by the OAD's own title",
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Distress" },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: { entryId: 1597, confident: true, fileCount: 1 },
   },
 
   // Generality: the same mechanism on a different franchise, and reached via
@@ -559,7 +709,8 @@ async function run() {
         c.args.episode,
         { Authorization: "test-key" },
         c.args.seasonNumber,
-        c.args.seasonName
+        c.args.seasonName,
+        c.args.episodeTitle ?? null
       );
     } catch (e) {
       error = e;
