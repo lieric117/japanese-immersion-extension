@@ -776,6 +776,47 @@ function stripFormatWords(s) {
   return out;
 }
 
+// A THIRD shape of `name`, and its own recognised case rather than something
+// that happens to fall through (both films confirmed live, 2026-08-01):
+//
+//   "Attack on Titan: THE LAST ATTACK | Attack on Titan: THE LAST ATTACK"
+//
+// No episode code at all, just the title duplicated across the pipe. That
+// duplication IS the signal: an episodic page names the series on one side and
+// the episode on the other, so a page naming the same work twice is a
+// standalone work. It matters because neither film's season name contains a
+// format word ("THE LAST ATTACK", "Infinity Castle I"), so `nonEpisodicClass`
+// sees nothing, and without this both were classed as ordinary TV — which
+// skipped the entire content-title path and reproduced both original bugs
+// exactly: Infinity Castle unresolved, The Last Attack silently loading the
+// flagship series.
+function looksLikeStandaloneWork(episodeTitle) {
+  const raw = String(episodeTitle ?? "").trim();
+  const pipe = raw.indexOf("|");
+  if (pipe < 0) return false;
+  const after = raw.slice(pipe + 1).trim();
+  if (EPISODE_CODE_RE.test(after)) return false;
+  const before = looseTitle(raw.slice(0, pipe));
+  return Boolean(before) && before === looseTitle(after);
+}
+
+// Guards a single-result search from being trusted across shows: the entry has
+// to be the same work or the same franchise as the query, in either direction.
+// Both directions are needed and neither alone suffices — Jimaku's entry name
+// extends the series for a film folded into its parent show ("Attack on Titan"
+// → "Attack on Titan the Movie: The Last Attack"), and is SHORTER than it for a
+// film with its own Crunchyroll series entity ("…Infinity Castle I" → "…Infinity
+// Castle"). The asymmetry that matters elsewhere doesn't apply here, because
+// this is a sanity filter on evidence Jimaku's own index already produced, not
+// a match rule deciding between candidates.
+function sharesFranchise(entry, query) {
+  const series = looseTitle(query);
+  if (!series) return false;
+  return [looseTitle(entry.name), looseTitle(entry.english_name)]
+    .filter(Boolean)
+    .some((f) => f.startsWith(series) || series.startsWith(f));
+}
+
 function contentTitleCandidates(episodeTitle, seasonName, query) {
   const series = looseTitle(query);
   const raw = String(episodeTitle ?? "").trim();
@@ -1118,7 +1159,20 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // nonEpisodicClass for the three live failures that distinction caused.
   const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
   const sideFormat = nonEpisodicClass(seasonName);
-  const isEpisodic = hasSeasonSignal && !sideFormat;
+  const isEpisodic = hasSeasonSignal && !sideFormat && !looksLikeStandaloneWork(episodeTitle);
+  // Jimaku's index matching a spelling this code can't derive is better
+  // evidence than any local string comparison — the same principle
+  // matchEntryByFullTitle already applies to a single full-query hit, extended
+  // to the searches made here. "Attack on Titan: THE LAST ATTACK" returns
+  // exactly one entry whose name ("…the Movie: The Last Attack") no containment
+  // test can reach, because Jimaku puts "the Movie:" in the middle of it.
+  let soloHit = null;
+  const noteSolo = (found, title) => {
+    if (isEpisodic || soloHit || found.length !== 1) return;
+    if (!sharesFranchise(found[0], query)) return;
+    soloHit = { entry: found[0], title };
+  };
+  noteSolo(entries, usedQuery);
 
   // The film's own title gets its OWN search, merged into the candidate pool
   // (2026-08-01). The ladder above cannot cover this: it only widens when a
@@ -1133,6 +1187,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // signal (the episode-specific part and the work's own title).
   for (const candidate of contentTitles.slice(0, MAX_CONTENT_TITLE_SEARCHES)) {
     const byTitle = await searchJimakuEntries(candidate, headers);
+    noteSolo(byTitle, candidate);
     const known = new Set(entries.map((e) => e.id));
     const added = byTitle.filter((e) => !known.has(e.id));
     if (added.length) {
@@ -1196,10 +1251,15 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // are silent wrong-content loads of exactly the kind the live pass caught, so
   // a movie with no title evidence resolves to nothing and asks. Collections
   // are exempt: a franchise has one OVA bucket, and classMatch identifies it.
-  const filmUnidentified = sideFormat?.[0] === "movie" && !nameMatch && !contentMatch;
+  const filmUnidentified = sideFormat?.[0] === "movie" && !nameMatch && !contentMatch && !soloHit;
+  // soloHit sits BELOW classMatch deliberately: an episode-title search can
+  // return one unrelated show (an OAD named "Distress" would), and for a
+  // collection the format match is the stronger evidence. It sits ABOVE
+  // titleMatch because that tier's exact match on a bare franchise name is the
+  // flagship-series fallback The Last Attack hit.
   const entry = filmUnidentified
     ? null
-    : nameMatch ?? contentMatch ?? classMatch ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
+    : nameMatch ?? contentMatch ?? classMatch ?? soloHit?.entry ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
   const candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
   if (!entry) {
     // Still logged unconditionally, and still before any decision about the
@@ -1247,12 +1307,14 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     : contentMatch
       ? `this title's own name "${contentHit.title}"`
       : classMatch
-      ? `Crunchyroll listing this season as ${sideFormat[2]}`
-      : seasonMatch
-        ? `season ${wantedSeason}`
-        : titleMatch
-          ? "an exact title match"
-          : "an exact entry-name match";
+        ? `Crunchyroll listing this season as ${sideFormat[2]}`
+        : soloHit && entry === soloHit.entry
+          ? `Jimaku's only match for "${soloHit.title}"`
+          : seasonMatch
+            ? `season ${wantedSeason}`
+            : titleMatch
+              ? "an exact title match"
+              : "an exact entry-name match";
   // Logged on EVERY load, not only on a detected mismatch (2026-07-31). Every
   // diagnostic here used to be conditional on the failure being noticed, which
   // is why a movie loading the wrong season produced a completely silent

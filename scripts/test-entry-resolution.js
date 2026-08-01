@@ -365,13 +365,22 @@ const cases = [
     mustNotResolveTo: [12471, 3335, 846],
   },
   {
-    why: "Infinity Castle — a trailing 'I' in Crunchyroll's title must not reject the correct entry",
+    // VERBATIM from Infinity Castle's live page. A film with its OWN
+    // Crunchyroll series entity (series_id G8DHV7809), so `partOfSeries.name`
+    // is already the film title — the opposite arrangement from The Last Attack
+    // below, and the reason the two originally failed differently. Three traps:
+    // `name` duplicates the title with NO episode code (a third shape, distinct
+    // from both marker-based ones); the season name carries no format word, so
+    // nothing marks this as a film without the duplication signal; and
+    // `seasonNumber` is 0, a real value that must not read as "no season".
+    why: "Infinity Castle — real metadata: own series entity, duplicated title, season 0",
     args: {
       query: "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
       episode: 1,
-      seasonNumber: null,
-      seasonName: null,
-      episodeTitle: "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | E1 - Infinity Castle",
+      seasonNumber: 0,
+      seasonName: "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+      episodeTitle:
+        "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
     },
     search: {
       "Demon Slayer: Kimetsu no Yaiba Infinity Castle": INFINITY_CASTLE_ONLY,
@@ -385,19 +394,25 @@ const cases = [
         "Only archive files found for episode 1 (Demon.Slayer.Kimetsu.no.Yaiba.Infinity.Castle.2025.1080p.BDRip.AAC5.1.10bits.x265-Rapta.sup.7z) — use the manual upload fallback instead",
       log: [
         `[jp-immersion] Jimaku has nothing indexed under "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" — found 1 entries by searching "Demon Slayer: Kimetsu no Yaiba Infinity Castle" instead.`,
-        `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" episode 1 — matched by this title's own name "Infinity Castle".`,
+        `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle I" episode 1 — matched by Jimaku's only match for "Demon Slayer: Kimetsu no Yaiba Infinity Castle".`,
       ],
       warn: [],
     },
   },
   {
-    why: "The Last Attack — must not fall through to the flagship TV series entry",
+    // VERBATIM from The Last Attack's live page. The mirror image of Infinity
+    // Castle: this film is FOLDED INTO the parent show, so `partOfSeries.name`
+    // is the bare franchise — which is exactly why its original bug was an
+    // exact-match fall-through to the flagship series rather than a wrong-film
+    // pick. Jimaku's entry name puts "the Movie:" in the MIDDLE, so no
+    // containment test can reach it; only the single-result search can.
+    why: "The Last Attack — real metadata: film folded into the parent series",
     args: {
       query: "Attack on Titan",
       episode: 0,
-      seasonNumber: null,
-      seasonName: null,
-      episodeTitle: "Attack on Titan: THE LAST ATTACK | E1 - THE LAST ATTACK",
+      seasonNumber: 68,
+      seasonName: "Attack on Titan: THE LAST ATTACK",
+      episodeTitle: "Attack on Titan: THE LAST ATTACK | Attack on Titan: THE LAST ATTACK",
     },
     search: { "Attack on Titan": AOT, "THE LAST ATTACK": LAST_ATTACK_ONLY, "Attack on Titan: THE LAST ATTACK": LAST_ATTACK_ONLY },
     files: FILES,
@@ -406,7 +421,7 @@ const cases = [
       confident: true,
       fileCount: 1,
       log: [
-        `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan" episode 0 — matched by this title's own name "THE LAST ATTACK".`,
+        `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan" episode 0 — matched by Jimaku's only match for "Attack on Titan: THE LAST ATTACK".`,
       ],
       warn: [],
     },
@@ -433,7 +448,12 @@ const cases = [
 
   // ── 3. matched, but no usable subtitle file ───────────────────────────────
   {
-    why: "Infinity Castle — entry found, but Jimaku holds only a .7z: its OWN failure state",
+    // SYNTHETIC shape, kept deliberately and flagged as such per the standing
+    // rule: this is the film title arriving as the query with no season block
+    // at all, which is NOT how Infinity Castle's real page looks (see the
+    // verbatim case above). It survives as a guard that archive-only remains
+    // its own distinguishable failure state when reached by a different path.
+    why: "archive-only is its own failure state (synthetic: film title as query, no season block)",
     args: { query: "Demon Slayer: Kimetsu no Yaiba Infinity Castle", episode: 1, seasonNumber: null, seasonName: null },
     search: { "Demon Slayer: Kimetsu no Yaiba Infinity Castle": INFINITY_CASTLE_ONLY },
     files: FILES,
@@ -444,7 +464,7 @@ const cases = [
       // log has to say so before the failure, or a live session can't tell the
       // two apart.
       log: [
-        `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle" episode 1 — matched by an exact title match.`,
+        `[jp-immersion] Jimaku entry "Demon Slayer: Kimetsu no Yaiba Infinity Castle" (id 12471) for "Demon Slayer: Kimetsu no Yaiba Infinity Castle" episode 1 — matched by Jimaku's only match for "Demon Slayer: Kimetsu no Yaiba Infinity Castle".`,
       ],
       warn: [],
     },
@@ -452,7 +472,11 @@ const cases = [
 
   // ── 4. a film Crunchyroll numbers as episode 0 ────────────────────────────
   {
-    why: "AoT: The Last Attack as episode 0 — resolves via the film path, not generic episode handling",
+    // SYNTHETIC, flagged per the standing rule: the film title arriving as the
+    // query with no season block, which is NOT how the real page looks (see the
+    // verbatim case above). Kept as the guard that episode 0 is carried through
+    // the film path rather than being treated as a missing episode number.
+    why: "episode 0 is carried through the film path (synthetic: film title as query)",
     args: { query: "Attack on Titan: THE LAST ATTACK", episode: 0, seasonNumber: null, seasonName: null },
     search: { "Attack on Titan: THE LAST ATTACK": LAST_ATTACK_ONLY },
     files: FILES,
@@ -619,6 +643,10 @@ const cases = [
     // characters, so nothing matches and the full list is still the answer.
     // Falling through to everything is correct here; falling through to an
     // EMPTY list would not be.
+    // RECONSTRUCTED, flagged per the standing rule: the compound SHAPE is
+    // verbatim from Memory Snow's page (same season, same "EEX" marker, same
+    // Director's Cut qualifier) but this OVA's own page was not captured, so
+    // the title text is substituted rather than measured.
     why: "The Frozen Bond finds no filename match and still lists everything, not nothing",
     args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: "OVAs", episodeTitle: "OVAs | EEX - The Frozen Bond (Director’s Cut)" },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
@@ -635,8 +663,14 @@ const cases = [
     },
   },
   {
+    // RECONSTRUCTED, flagged per the standing rule. The season name and the
+    // NUMERIC marker are real — a captured OAD page reads "Attack on Titan
+    // OADs | E2 - The Sudden Visitor: The Torturous Curse of Youth", and the
+    // OADs are sequential E1–E8 — so this show uses "E<n>", NOT the "EEX" of
+    // Re:Zero's OVAs. Distress is episode 3. Its title text comes from Jimaku's
+    // filename rather than from a captured Crunchyroll page.
     why: "an AoT OAD narrows its entry's files by the OAD's own title",
-    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Attack on Titan OADs | EEX - Distress" },
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Attack on Titan OADs | E3 - Distress" },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: { entryId: 1597, confident: true, fileCount: 1 },
