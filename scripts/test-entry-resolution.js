@@ -631,12 +631,13 @@ async function run() {
     if (!error && !x.throws && result.confident === false && warns.length === 0) {
       problems.push("resolved with confident=false but warned about nothing");
     }
-    // The invariant the 2026-08-01 "load nothing" change creates: every tier
-    // that can select an entry is also a tier that identifies it, so an entry
-    // is returned if and only if resolution was confident. Asserted rather
-    // than assumed — a future tier that selects without identifying would
-    // reintroduce exactly the silent wrong-entry load this change removed,
-    // and would show up here rather than in a live session.
+    // Guards the resolver's own split, which is what the "load nothing" change
+    // rests on: an entry comes back if and only if it was identified. This is
+    // why `confident` could be reduced to a constant on the resolved path, so
+    // it has to be enforced rather than assumed — a future tier that selects
+    // an entry without identifying it would reintroduce exactly the silent
+    // wrong-entry load that change removed, and would surface here rather than
+    // in a live session.
     if (!error && !x.throws && Boolean(result.entryId) !== result.confident) {
       problems.push(
         `entryId=${result.entryId} but confident=${result.confident} — an entry was selected without being identified (or vice versa)`

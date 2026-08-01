@@ -1056,15 +1056,13 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // resolved entry name is returned to the caller so the switcher panel can
   // show which Jimaku entry these files actually came from.
   const resolvedSeason = Math.max(entrySeasonNumber(entry.name), entrySeasonNumber(entry.english_name));
-  // Whether the entry was IDENTIFIED or merely settled on. Crunchyroll gives no
-  // season block at all for non-episodic content, so for those the season
-  // matches can't fire and the only positive identification available is the
-  // title one — without it, what's left is a guess, and before 2026-07-31 that
-  // guess was made silently and was reliably the franchise's season 1 (a movie
-  // playing with season 1's subtitles under it, nothing logged).
-  const confident = Boolean(
-    nameMatch || classMatch || seasonMatch || titleMatch || (isEpisodic && wantedSeason === resolvedSeason)
-  );
+  // Reaching here means one of the tiers above matched, and every one of them
+  // is a positive identification — so an entry that got this far is identified
+  // by construction, and `confident` is simply true (2026-08-01). It used to be
+  // computed, because resolution could also fall through to `entries[0]`, which
+  // was a guess rather than a match; that fallback is gone, along with the
+  // "using X as a guess" warning that reported it. An unidentified title now
+  // returns `unresolved` above without reaching this point at all.
   const matchedBy = nameMatch
     ? "Crunchyroll's season name"
     : classMatch
@@ -1082,15 +1080,6 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     `[jp-immersion] Jimaku entry "${entry.english_name ?? entry.name}" (id ${entry.id}) ` +
       `for "${query}" episode ${episode} — matched by ${matchedBy}.`
   );
-  if (!confident) {
-    console.warn(
-      `[jp-immersion] couldn't identify which Jimaku entry "${query}" is` +
-        (isEpisodic ? ` (season ${wantedSeason})` : " — Crunchyroll publishes no season for this title, which is normal for a movie, OVA or special") +
-        `. Using "${entry.english_name ?? entry.name}" as a guess; if the subtitles are wrong, ` +
-        `pick the right entry in the subtitle switcher.`
-    );
-  }
-
   const listFiles = async (forEntry, { allEpisodes = false } = {}) => {
     const filesUrl = allEpisodes
       ? `${JIMAKU_API_BASE}/entries/${forEntry.id}/files`
@@ -1157,10 +1146,11 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     entryName: usedEntry.english_name ?? usedEntry.name,
     entrySeason: resolvedSeason,
     // Handed to the switcher panel so a wrong pick is fixable in-page rather
-    // than being a dead end (2026-07-31). `confident` says whether the entry
-    // was identified or guessed at; the candidate list is every entry the
+    // than being a dead end (2026-07-31). The candidate list is every entry the
     // search returned, which for an ambiguous film is where the right one is.
-    confident,
+    // `confident` is true for anything returned from here — see above; the
+    // switcher's own picker is driven by the `unresolved` response instead.
+    confident: true,
     entryId: usedEntry.id,
     candidates,
   };
