@@ -69,7 +69,7 @@ const sandbox = {
   TextEncoder,
 };
 vm.createContext(sandbox);
-vm.runInContext(`${src}\n;this.__resolveTextFiles = resolveTextFiles;`, sandbox, {
+vm.runInContext(`${src}\n;this.__resolveTextFiles = resolveTextFiles;this.__rankFiles = rankFiles;this.__applyFileHint = applyFileHint;`, sandbox, {
   filename: "background.js",
 });
 const resolveTextFiles = sandbox.__resolveTextFiles;
@@ -1036,6 +1036,58 @@ async function run() {
     console.log(`${problems.length ? "FAIL" : "PASS"}  ${c.why}`);
     for (const p of problems) console.log(`        ${p}`);
   }
+  // ── fileHint: what it actually does, now that it is understood ───────────
+  // Pinned because its purpose has been misread once already: it looks like a
+  // per-show patch for Naruto's episode numbering (which is what it was built
+  // for) but has been pure language-track disambiguation since 2026-07-17, and
+  // structurally cannot touch the Naruto case at all.
+  const rankFiles = sandbox.__rankFiles;
+  const applyFileHint = sandbox.__applyFileHint;
+  const named = (...names) => names.map((name) => ({ name }));
+  const hintCases = [
+    {
+      why: "picks one uploader's JPN-only cut over its own dual CHS+JPN cut",
+      files: named(
+        "[Haruhana] Tongari Boushi no Atelier - 01 [CHS, JPN].ass",
+        "[Haruhana] Tongari Boushi no Atelier - 01 [JPN].ass"
+      ),
+      hint: "[JPN]",
+      want: "[Haruhana] Tongari Boushi no Atelier - 01 [JPN].ass",
+    },
+    {
+      // The reason fileHint is NOT a Naruto workaround any more: these files
+      // are unbracketed direct-source rips, so there is no tag to scope by and
+      // the hint returns before comparing anything.
+      why: "cannot fire on unbracketed direct-source files — the Naruto: Shippuuden shape",
+      files: named(
+        "NARUTO－ナルト－.疾風伝.S01E01.第001話.帰郷.WEB-DL.Hulu.ja.srt",
+        "NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt"
+      ),
+      hint: "[JPN]",
+      want: null,
+    },
+    {
+      why: "does not reach across uploaders to satisfy the hint",
+      files: named("[SubsPlease] Show - 01.ass", "[Someone] Show - 01 [JPN].ass"),
+      hint: "[JPN]",
+      want: null,
+    },
+    {
+      why: "no hint configured leaves the ranking untouched",
+      files: named("[Haruhana] Show - 01 [CHS, JPN].ass", "[Haruhana] Show - 01 [JPN].ass"),
+      hint: null,
+      want: null,
+    },
+  ];
+  for (const c of hintCases) {
+    const got = applyFileHint(c.files, rankFiles(c.files), c.hint);
+    const ok = (got?.name ?? null) === c.want;
+    if (!ok) failed++;
+    cases.push(c);
+    console.log(`${ok ? "PASS" : "FAIL"}  fileHint: ${c.why}`);
+    if (!ok) console.log(`        got ${JSON.stringify(got?.name ?? null)}, want ${JSON.stringify(c.want)}`);
+  }
+
   console.log(failed ? `\n${failed} of ${cases.length} FAILED` : `\nall ${cases.length} passed`);
   process.exit(failed ? 1 : 0);
 }

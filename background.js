@@ -311,6 +311,32 @@ const PREFERRED_UPLOADERS = ["SubsPlease", "Haruhana", "VCB-Studio"];
 // unmodified default list anyway — same as if no preference existed at all,
 // with nothing written back to storage from here, so a single episode's gap
 // never touches the saved show+season preference.
+// LANGUAGE-TRACK disambiguation within ONE uploader's own releases — that is
+// all this does, despite having been introduced for something else.
+//
+// It arrived on 2026-07-06 as a per-show workaround for Naruto: Shippuuden's
+// Jimaku tagging (a Hulu batch upload numbers every season's opener "episode
+// 1"), and was rescoped on 2026-07-17 to only match within the top-ranked
+// pick's own bracket tag. That rescoping quietly ended its involvement in the
+// Naruto problem, and it **cannot** address it: those files are unbracketed
+// direct-source rips, so `topTag` is undefined and this returns null before
+// looking at anything (verified 2026-08-01). Naruto's per-file numbering
+// remains unsolved and is tracked as its own open question — see Section 8.
+//
+// What it does do, and what nothing else covers: `rankFiles` orders by
+// UPLOADER only, so it cannot choose between one uploader's dual CHS+JPN cut
+// and its JPN-only cut of the same episode. Confirmed still live on Witch Hat
+// Atelier's Haruhana release.
+function applyFileHint(textFiles, ranked, fileHint) {
+  const topTag = ranked[0]?.name.match(/^\[([^\]]+)\]/)?.[1];
+  if (!fileHint || !topTag) return null;
+  return (
+    textFiles.find(
+      (f) => f.name.startsWith(`[${topTag}]`) && f.name.toLowerCase().includes(fileHint.toLowerCase())
+    ) ?? null
+  );
+}
+
 function rankFiles(files, preferredUploader = null) {
   const uploaderPriority = preferredUploader
     ? [preferredUploader, ...PREFERRED_UPLOADERS.filter((u) => u !== preferredUploader)]
@@ -1601,14 +1627,7 @@ async function fetchSubtitles({ query, episode, fileHint = null, preferredUpload
   // tag. Falls through to no hint at all (matching pre-fileHint behavior)
   // when the top pick has no bracket tag to scope by (an unbracketed
   // direct-source file, e.g. Netflix/Amazon).
-  const topTag = ranked[0]?.name.match(/^\[([^\]]+)\]/)?.[1];
-  const hinted =
-    fileHint && topTag
-      ? textFiles.find(
-          (f) => f.name.startsWith(`[${topTag}]`) && f.name.toLowerCase().includes(fileHint.toLowerCase())
-        )
-      : null;
-  const file = hinted ?? ranked[0];
+  const file = applyFileHint(textFiles, ranked, fileHint) ?? ranked[0];
   const cues = await fetchAndParseFile(file, headers);
   return {
     cues,
