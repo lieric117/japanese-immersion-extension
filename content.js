@@ -80,13 +80,27 @@ function detectShowEpisode() {
     // degraded to the old number-only behaviour and the object dumped here
     // says what to try instead. Once per episode, not once per call — this
     // function runs on every watchdog tick as well as on every load.
-    if (detected.seasonName === null && data.partOfSeason && warnedMissingSeasonNameFor !== location.pathname) {
+    if (detected.seasonName === null && warnedMissingSeasonNameFor !== location.pathname) {
       warnedMissingSeasonNameFor = location.pathname;
-      console.warn(
-        "[jp-immersion] no partOfSeason.name on this page — season matching falls back to the season NUMBER, " +
-          "which Crunchyroll assigns by list position rather than by season. partOfSeason was:",
-        data.partOfSeason
-      );
+      if (data.partOfSeason) {
+        console.warn(
+          "[jp-immersion] no partOfSeason.name on this page — season matching falls back to the season NUMBER, " +
+            "which Crunchyroll assigns by list position rather than by season. partOfSeason was:",
+          data.partOfSeason
+        );
+      } else {
+        // Not gated on partOfSeason existing, as of 2026-07-31 — the ENTIRELY
+        // absent case was the one that mattered and the one that said nothing.
+        // Films, OVAs, specials and compilations have no season block at all,
+        // which used to be read as "season 1" in silence: a movie playing under
+        // the franchise's first season subtitles, with an empty console. Entry
+        // resolution now handles this case explicitly (see background.js's
+        // matchEntryByFullTitle); this line is what says the page is in it.
+        console.log(
+          "[jp-immersion] this title has no season information at all (normal for a movie, OVA or special) — " +
+            "the Jimaku entry will be identified by title instead."
+        );
+      }
     }
     return detected;
   }
@@ -371,7 +385,14 @@ function refreshEditLastCardControl() {
 // the next subtitle line, so a LATER capture may already have replaced this one
 // as "last card" by the time its Undo is pressed, and clearing unconditionally
 // would hide a button that points at a card which still exists.
+// Notes undone (or found already gone) this page session. Read by the deferred
+// audio attach (2026-07-31), which must not write to a note that no longer
+// exists — `lastAddedNote` can't answer that question, since capturing a second
+// word moves it on while the first note is still perfectly alive.
+const forgottenNotes = new Set();
+
 function forgetAddedNote(noteId) {
+  forgottenNotes.add(noteId);
   // The retained PCM buffer is a copy of a couple of megabytes; if the note it
   // belongs to has just been deleted, nothing can ever edit that audio again,
   // so it's released here rather than waiting for the next capture to overwrite
@@ -844,7 +865,11 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           return;
         }
         cues = response.cues;
-        renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected, response.entryName);
+        renderSwitcherOptions(switcherPanel, response.files, response.selectedUrl, detected, response.entryName, {
+          confident: response.entryConfident !== false,
+          entryId: response.entryId ?? null,
+          candidates: response.entryCandidates ?? [],
+        });
         // Forces an immediate re-render via the shared timeupdate listener
         // (see init()) instead of waiting for the video's own next natural
         // timeupdate tick — otherwise a paused video (or one that hasn't
@@ -1086,6 +1111,11 @@ function init() {
     renderEnglishCue(subtitleBoxEn, enText);
   }
   video.addEventListener("timeupdate", handleTimeUpdate);
+  // Skipping around detaches the audio clock's recorded cue extents from what
+  // is actually playing — see audio-capture.js's noteSeek. Live testing
+  // (2026-07-31) found this as occasional 22–40 second, mostly-silent clips
+  // captured shortly after seeking.
+  video.addEventListener("seeking", noteSeek);
 
   loadSubtitles(subtitleBox, switcherPanel);
 
@@ -1102,6 +1132,13 @@ function init() {
     // loadSubtitles). Runs for both branches below: leaving a watch page
     // needs the cues dropped just as much as switching episodes does.
     resetEnglishCaptions();
+    // Same reasoning, for the audio side (2026-07-31): the rolling buffer and
+    // the recorded cue extents describe an episode that is no longer playing.
+    // Without this, a capture still waiting for its line to finish went on to
+    // slice a buffer that by then held the NEXT episode — reported live as a
+    // card whose audio came from the episode navigated to, not the one the
+    // word was captured from.
+    resetCaptureForNavigation();
     // Navigating away from a watch page (e.g. back to browse/search) via SPA
     // navigation, not a full reload — hide the UI rather than letting
     // loadSubtitles run and eventually show "couldn't detect the
@@ -1147,9 +1184,13 @@ function init() {
   function rebindVideoIfSwapped() {
     const freshVideo = document.querySelector("video");
     if (!freshVideo || freshVideo === video) return false;
-    if (video) video.removeEventListener("timeupdate", handleTimeUpdate);
+    if (video) {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("seeking", noteSeek);
+    }
     video = freshVideo;
     video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("seeking", noteSeek);
     initAudioCapture(video);
     removeChip(); // anchored to the old <video> element's rect, now stale
     return true;
@@ -1262,13 +1303,66 @@ function buildSwitcherPanel() {
 // change instead of rebuilding it. `detected` (2026-07-16) is only needed to
 // derive the uploader-preference storage key when the user picks a file
 // manually — null is fine for the "nothing to show yet" clearing call.
-function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = null) {
+function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = null, entryInfo = null) {
   panel.textContent = "";
   if (!files || !files.length) {
     panel.style.display = "none";
     return;
   }
   panel.style.display = "flex";
+
+  // Entry picker (2026-07-31). Films, OVAs, specials and compilations carry no
+  // season information on Crunchyroll's page at all, so there is often nothing
+  // to identify which Jimaku entry they are — see background.js's
+  // matchEntryByFullTitle. Rather than guess silently, which is what shipped
+  // the "movie plays with season 1's subtitles" bug, an unidentified entry says
+  // so here and offers every candidate the search returned.
+  if (entryInfo && !entryInfo.confident && entryInfo.candidates?.length > 1) {
+    const warning = document.createElement("div");
+    warning.className = "jp-immersion-switcher-warning";
+    warning.textContent = "Couldn't tell which Jimaku entry this is — check these are the right subtitles:";
+    panel.appendChild(warning);
+
+    const entryLabel = document.createElement("label");
+    entryLabel.textContent = "Jimaku entry: ";
+    const entrySelect = document.createElement("select");
+    for (const candidate of entryInfo.candidates) {
+      const option = document.createElement("option");
+      option.value = String(candidate.id);
+      option.textContent = candidate.name;
+      if (candidate.id === entryInfo.entryId) option.selected = true;
+      entrySelect.appendChild(option);
+    }
+    entrySelect.addEventListener("change", () => {
+      const chosenId = Number(entrySelect.value);
+      entrySelect.disabled = true;
+      chrome.runtime.sendMessage(
+        { type: "FETCH_ENTRY_FILES", entryId: chosenId, episode: detected?.episodeNumber ?? null },
+        (response) => {
+          entrySelect.disabled = false;
+          if (!response || response.error) {
+            entrySelect.value = String(entryInfo.entryId);
+            warning.textContent = response?.error ?? "Couldn't load that entry.";
+            return;
+          }
+          cues = response.cues;
+          lastText = null;
+          // Re-rendered from the new entry's own file list, with the picker
+          // kept open on the entry now in use — the pick may well need
+          // another try, and collapsing the control after one attempt would
+          // make the second one harder than the first.
+          const chosen = entryInfo.candidates.find((c) => c.id === chosenId);
+          renderSwitcherOptions(panel, response.files, response.selectedUrl, detected, chosen?.name ?? null, {
+            ...entryInfo,
+            entryId: chosenId,
+          });
+          if (video) video.dispatchEvent(new Event("timeupdate"));
+        }
+      );
+    });
+    entryLabel.appendChild(entrySelect);
+    panel.appendChild(entryLabel);
+  }
 
   // Names the Jimaku ENTRY the files below came from (2026-07-26). Jimaku
   // indexes each season as a separate entry, and picking the wrong one has
@@ -1914,6 +2008,15 @@ function onWordClick(event) {
     sentenceText: merged ? merged.text : lastText,
     wordStart: Number(span.dataset.startOffset) + (merged ? merged.offsetShift : 0),
     wordSurface: span.dataset.surface,
+    // The English line for THIS sentence, snapshotted here with everything
+    // else rather than read when the capture completes. The chip used to read
+    // module-scope `lastEnglishText` at completion time — after the audio
+    // wait, by which point the subtitle has usually moved on — so it showed
+    // the NEXT line's translation, or a blank one when nothing followed
+    // (reported live 2026-07-31, capturing おかしい). The Anki field was always
+    // correct; only the chip was wrong, which is the worst place for it, since
+    // checking the capture is the chip's entire job.
+    translation: lastEnglishText ?? "",
   };
   // Show/episode opt-in field (2026-07-23) — captured the same way, though
   // in practice this one is stable for an entire episode's worth of clicks,
@@ -2203,13 +2306,21 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
       // Waits for the cue to actually finish before slicing, not just
       // "whatever's played so far" — fixes a real bug caught via live
       // testing (2026-07-22): clicking before the line ended produced a clip
-      // cut off mid-sentence. Bounded (audio-capture.js's own maxWaitMs, 8s)
-      // so a cue that never cleanly finishes (last line of an episode, a
-      // long pause) doesn't hang the button forever — the video keeps
-      // playing normally the whole time this awaits, nothing is paused or
+      // cut off mid-sentence.
+      //
+      // **Started here but NOT awaited (2026-07-31).** The card is written to
+      // Anki straight away and the audio field is filled in afterwards, in a
+      // second call. Awaiting it meant the whole capture — the button, the
+      // verification chip, everything — sat pending until the line finished,
+      // which for a sentence split across two cues means waiting out the
+      // SECOND half: the multi-second delay reported in the live pass. It also
+      // forced the wait to be short, so a capture that timed out silently
+      // wrote first-half-only audio; with nothing blocked on it the wait can
+      // now be generous instead (see sliceClipWavWhenReady's own maxWaitMs).
+      // The video keeps playing throughout either way — nothing is paused or
       // interrupted, matching the "keep watching" positioning that ruled out
       // rewind-and-recapture in the first place.
-      const audio = await sliceClipWavWhenReady(
+      const audioPending = sliceClipWavWhenReady(
         audioRequest.entry,
         undefined,
         audioRequest.mergeStart,
@@ -2233,11 +2344,13 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           frequency: showFreq && fr ? fr : null,
           // Same pattern again (2026-07-22) — matches the JLPT badge exactly.
           jlpt: showJlpt && jlpt ? jlpt : null,
-          // Null when capture was never available (DRM/browser-policy
-          // failure) or the clip has already aged out of the ring buffer —
-          // the field is simply left empty either way, same silent-degrade
-          // pattern as a missing frequency/JLPT tag.
-          audio,
+          // Always null on this call as of 2026-07-31 — the clip is still
+          // being waited for. It arrives in the follow-up update below, and
+          // stays absent entirely when capture was never available
+          // (DRM/browser-policy failure), the player was muted, or the clip
+          // aged out of the ring buffer: the same silent-degrade pattern as a
+          // missing frequency/JLPT tag.
+          audio: null,
           // Show/episode opt-in field (2026-07-23) — no popup badge (unlike
           // POS/frequency/JLPT), since "which episode is this" is redundant
           // in-context while already watching that exact episode; only
@@ -2270,6 +2383,27 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           // panel offer audio trimming for that note and degrade cleanly for
           // any older one, instead of silently editing the wrong clip.
           audioBufferNoteId = noteId;
+          // Second phase: the clip lands on the card whenever it's ready
+          // (2026-07-31). Deliberately fire-and-forget — the card already
+          // exists and is already correct in every other field, so a failure
+          // here means a card with no audio, which is the same degrade path a
+          // muted player already takes. Skipped entirely if the note has since
+          // been undone, so Undo can't be followed by a write that resurrects
+          // an audio field on a deleted note.
+          audioPending.then((audio) => {
+            if (!audio || forgottenNotes.has(noteId)) return;
+            chrome.runtime.sendMessage(
+              { type: "UPDATE_ANKI_NOTE", noteId, fields: {}, audio, previousAudioFilename: null },
+              (updateResponse) => {
+                if (!updateResponse || updateResponse.error) {
+                  console.warn(
+                    "[jp-immersion] card added, but its audio couldn't be attached:",
+                    updateResponse?.error ?? "no response from background"
+                  );
+                }
+              }
+            );
+          });
           noteCaptureComplete(cardEl.closest("#jp-immersion-popup") ?? activePopup ?? activeChip, {
             noteId,
             word,
@@ -2278,7 +2412,7 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
             sentenceText: captureContext?.sentenceText ?? "",
             wordStart: captureContext?.wordStart ?? -1,
             wordSurface: captureContext?.wordSurface ?? word,
-            translation: lastEnglishText ?? "",
+            translation: captureContext?.translation ?? "",
           });
           ankiRow.textContent = "";
           const doneLabel = document.createElement("span");
@@ -2441,13 +2575,19 @@ function mountChip(chip) {
 //
 // The POPUP was evaluated for this job and rejected on three counts: its layout
 // is built for dictionary lookup, not a sentence-level summary; its
-// "Adding…" → "Added to Anki" transition is gated on audio-capture completion
-// rather than subtitle timing, so it is often still pending when the subtitle
-// line changes; and some lines (single-word ones especially) simply aren't on
+// "Adding…" → "Added to Anki" transition was gated on audio-capture completion
+// rather than subtitle timing, so it was often still pending when the subtitle
+// line changed; and some lines (single-word ones especially) simply aren't on
 // screen long enough for any popup-based verification window to be reliable.
 // The chip's lifetime is already decoupled from the subtitle line's, which
-// solves the third for free, and it only ever carries this content once the
-// export has actually completed, which solves the second.
+// solves the third for free.
+//
+// The second reason no longer exists as of 2026-07-31: the Anki send is now
+// two-phase, so nothing waits on audio capture, and this chip appears the
+// moment the card is WRITTEN rather than when its clip lands. The rejection
+// stands on the other two counts, and the chip's content is unaffected either
+// way — it shows no audio, so the clip arriving later changes nothing it
+// displays.
 //
 // Deliberately shows JP sentence + highlighted word + reading + gloss + EN
 // only. POS/Frequency/JLPT/Source are excluded: they're deterministic outputs
@@ -2455,9 +2595,15 @@ function mountChip(chip) {
 // including them would spend a short, limited glance on low-value checking.
 // That also keeps this view independent of the real Anki card face, which is
 // expected to be redesigned in Phase 6.
-const CHIP_EXPANDED_BASE_MS = 2200;
-const CHIP_EXPANDED_PER_CHAR_MS = 85;
-const CHIP_EXPANDED_MAX_MS = 9000;
+// Retuned 2026-07-31 after the first live pass: a long merged sentence didn't
+// stay up long enough to read, while a single-word capture was not reported as
+// lingering — so the per-character term and the cap both rise and the base is
+// left near where it was. The cap stays below CHIP_LIFETIME_MS by a few
+// seconds, since an expanded duration at or above the chip's own lifetime would
+// mean the collapsed state never actually appeared.
+const CHIP_EXPANDED_BASE_MS = 2400;
+const CHIP_EXPANDED_PER_CHAR_MS = 110;
+const CHIP_EXPANDED_MAX_MS = 12000;
 
 // Scales with how much there is to read rather than using one fixed timer: a
 // single-word capture needs a fraction of the window a long merged sentence
@@ -2635,15 +2781,25 @@ function parseStoredSentence(html) {
   return { text, wordStart: ankiHtmlToPlain(String(html).slice(0, m.index)).length, wordSurface: ankiHtmlToPlain(m[1]) };
 }
 
-// Rebuilds the Sentence field's HTML after a free-text edit. The recorded offset
-// is only trustworthy while the sentence is untouched; once it's been edited the
-// word is re-located by search, and if it's been edited away entirely the
-// sentence is saved with no bolding rather than bolding something arbitrary.
-function buildEditedSentenceHtml(text, surface, originalText, originalStart) {
-  let start = -1;
-  if (text === originalText && originalStart >= 0) start = originalStart;
-  else if (surface) start = text.indexOf(surface);
-  if (start < 0 || !surface) return plainToAnkiHtml(text);
+// Rebuilds the Sentence field's HTML with `surface` marked as the target word.
+//
+// **Markup only — this never edits the sentence itself.** `preferredStart` is
+// the offset the caller believes the word sits at, and it is VERIFIED against
+// the text before use rather than trusted: an offset that doesn't actually
+// spell `surface` is a stale offset, and splicing at it corrupts the sentence
+// instead of bolding it. That was a real bug (reported live 2026-07-31):
+// changing the target word reused the OLD word's offset with the NEW word's
+// length, so どうやら うまくいったみたいだね targeting どうやら, re-pointed at
+// うまく, was rewritten as うまくら うまくいったみたいだね — the first three
+// characters overwritten mid-word. Every path now falls back to locating the
+// word by search, and to no bolding at all if it isn't in the sentence, so the
+// worst case is a card that's merely unbolded rather than one whose Japanese
+// has been mangled.
+function buildEditedSentenceHtml(text, surface, preferredStart) {
+  if (!surface) return plainToAnkiHtml(text);
+  const spelledAt = (i) => i >= 0 && text.slice(i, i + surface.length) === surface;
+  const start = spelledAt(preferredStart) ? preferredStart : text.indexOf(surface);
+  if (!spelledAt(start)) return plainToAnkiHtml(text);
   return (
     plainToAnkiHtml(text.slice(0, start)) +
     "<b>" + plainToAnkiHtml(surface) + "</b>" +
@@ -2657,6 +2813,10 @@ function parseSoundFilename(audioField) {
 }
 
 function closeEditPanel() {
+  // Closing the panel silences any preview still playing — otherwise a clip
+  // started just before Close carries on over the episode with no surface left
+  // to stop it from (reported live 2026-07-31).
+  stopPreview();
   if (editPanel) {
     if (editPanel._cleanup) editPanel._cleanup();
     editPanel.remove();
@@ -2677,7 +2837,34 @@ function openEditPanel(noteId) {
   // inside the fullscreen element.
   const reparent = () => getContainer().appendChild(panel);
   document.addEventListener("fullscreenchange", reparent);
-  panel._cleanup = () => document.removeEventListener("fullscreenchange", reparent);
+
+  // Keyboard events from inside the panel are stopped before anything else can
+  // act on them (2026-07-31). Crunchyroll binds its own player shortcuts at the
+  // page level, so typing a space into the sentence box paused the video and
+  // typing "m" muted it — the text never arrived and the episode reacted
+  // instead. Capture phase on `window` is what makes this work: it runs before
+  // any listener bound further down the tree, in either world. Unlike the
+  // failed `history.pushState` override (Phase 4.5), this genuinely crosses the
+  // isolated/main-world boundary, because it's one shared DOM event dispatch
+  // rather than a function reference each world holds its own copy of.
+  //
+  // `stopPropagation` only — never `preventDefault`, which would stop the
+  // character being typed at all. It also deliberately covers this extension's
+  // OWN Alt+arrow offset hotkeys: while the panel has focus, keys belong to the
+  // panel.
+  const swallowKeys = (event) => {
+    if (panel.contains(event.target)) event.stopPropagation();
+  };
+  for (const type of ["keydown", "keyup", "keypress"]) {
+    window.addEventListener(type, swallowKeys, true);
+  }
+
+  panel._cleanup = () => {
+    document.removeEventListener("fullscreenchange", reparent);
+    for (const type of ["keydown", "keyup", "keypress"]) {
+      window.removeEventListener(type, swallowKeys, true);
+    }
+  };
 
   // Always read the note back fresh rather than trusting anything cached from
   // capture: it may have been hand-edited in Anki since, and overwriting those
@@ -2770,7 +2957,10 @@ function renderEditPanel(panel, noteId, note) {
     const showing = picker.style.display !== "none";
     picker.style.display = showing ? "none" : "";
     changeBtn.textContent = showing ? "Change word" : "Cancel change";
-    if (!showing) openWordPicker(picker, refreshDerived);
+    // Segments whatever the sentence box says RIGHT NOW, not the stored
+    // sentence: picking a word out of a sentence the user has since edited
+    // would record an offset into text that no longer exists.
+    if (!showing) openWordPicker(picker, refreshDerived, sentenceInput.value);
   });
   wordSection.append(labelled("Word", wordSummary), changeBtn, picker);
   panel.appendChild(wordSection);
@@ -2883,9 +3073,15 @@ function renderEditPanel(panel, noteId, note) {
 // marked, using the SAME pipeline the subtitle line uses (buildGroupsForText),
 // so a word is segmented here exactly as it was at capture. Picking a token
 // opens its senses; picking a sense cascades all five derived fields at once.
-function openWordPicker(picker, onPicked) {
+function openWordPicker(picker, onPicked, currentText = null) {
   picker.textContent = "Segmenting…";
-  const { text, wordStart, wordSurface } = editState.storedSentence;
+  const { wordStart: storedStart, wordSurface } = editState.storedSentence;
+  const text = currentText ?? editState.storedSentence.text;
+  // The recorded offset describes the STORED sentence. Once that sentence has
+  // been edited it no longer points anywhere meaningful, so the "currently
+  // targeting" marker is simply not drawn rather than drawn on whatever token
+  // now happens to sit at that position.
+  const wordStart = text === editState.storedSentence.text ? storedStart : -1;
   if (!tokenizer) {
     picker.textContent = "Word segmentation isn't available right now.";
     return;
@@ -2913,7 +3109,7 @@ function openWordPicker(picker, onPicked) {
       if (wordStart >= 0 && start <= wordStart && start + group.surface.length > wordStart) {
         span.classList.add("jp-immersion-edit-picker-current");
       }
-      span.addEventListener("click", () => showSensesFor(group, senses, onPicked));
+      span.addEventListener("click", () => showSensesFor(group, senses, onPicked, start));
       line.appendChild(span);
     }
     picker.append(line, senses);
@@ -2926,7 +3122,7 @@ function openWordPicker(picker, onPicked) {
   });
 }
 
-function showSensesFor(group, container, onPicked) {
+function showSensesFor(group, container, onPicked, start = -1) {
   container.textContent = "Looking up…";
   chrome.runtime.sendMessage(
     {
@@ -2960,6 +3156,11 @@ function showSensesFor(group, container, onPicked) {
             frequency: entry.fr ?? "",
             jlpt: entry.jlpt ?? "",
             surface: group.surface,
+            // Where this token sits in the sentence that was segmented — the
+            // only offset that describes the NEW word. Reusing the captured
+            // word's offset here is what corrupted the sentence on save (see
+            // buildEditedSentenceHtml).
+            start,
           };
           onPicked();
         });
@@ -3080,7 +3281,27 @@ function buildAudioEditor(section, noteId, onChange) {
 
 // Plays a range straight from the retained buffer, so the preview is the same
 // audio the save would write rather than an approximation of it.
+// The one preview player, so a second play can't start on top of a first
+// (reported live 2026-07-31: adjusting the trim handles repeatedly left
+// several copies of the clip playing over each other, on top of the episode's
+// own audio). Held at module scope rather than per-editor because closing the
+// panel has to be able to silence it — see closeEditPanel.
+let previewPlayer = null;
+
+function stopPreview() {
+  if (!previewPlayer) return;
+  const { audio, url, restore } = previewPlayer;
+  previewPlayer = null;
+  audio.pause();
+  URL.revokeObjectURL(url);
+  if (restore) restore();
+}
+
 function previewRange(start, end, btn) {
+  // A preview already running is left alone rather than restarted: the request
+  // is almost always an accidental second click during a drag, and cutting the
+  // clip off to start it again is exactly the stutter this is meant to stop.
+  if (previewPlayer) return;
   const wav = encodeRetainedRange(start, end);
   if (!wav) {
     btn.textContent = "Nothing to play";
@@ -3089,8 +3310,16 @@ function previewRange(start, end, btn) {
   const bytes = Uint8Array.from(atob(wav), (c) => c.charCodeAt(0));
   const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
   const audio = new Audio(url);
-  audio.addEventListener("ended", () => URL.revokeObjectURL(url));
-  audio.play().catch(() => URL.revokeObjectURL(url));
+  const label = btn.textContent;
+  btn.textContent = "Playing…";
+  btn.disabled = true;
+  const restore = () => {
+    btn.textContent = label;
+    btn.disabled = false;
+  };
+  previewPlayer = { audio, url, restore };
+  audio.addEventListener("ended", stopPreview);
+  audio.play().catch(stopPreview);
 }
 
 function saveEditPanel(saveBtn, status, sentenceInput, translationInput) {
@@ -3102,8 +3331,18 @@ function saveEditPanel(saveBtn, status, sentenceInput, translationInput) {
   if (sentenceText !== storedSentence.text || pendingWord) {
     // A new word selection changes which token should be bolded, so the
     // sentence HTML is rebuilt in that case too, not only on a text edit.
+    // The offset comes from whichever selection is in force — the picker
+    // records where the token it segmented actually sits — and is only a
+    // HINT: buildEditedSentenceHtml verifies it spells the word before using
+    // it, so a sentence edited after the word was picked degrades to a search
+    // rather than to a corrupted splice.
     const surface = pendingWord ? pendingWord.surface : storedSentence.wordSurface;
-    fields.Sentence = buildEditedSentenceHtml(sentenceText, surface, storedSentence.text, storedSentence.wordStart);
+    const start = pendingWord
+      ? pendingWord.start
+      : sentenceText === storedSentence.text
+        ? storedSentence.wordStart
+        : -1;
+    fields.Sentence = buildEditedSentenceHtml(sentenceText, surface, start);
   }
   const translationText = translationInput.value;
   if (translationText !== ankiHtmlToPlain(original.Translation)) fields.Translation = plainToAnkiHtml(translationText);

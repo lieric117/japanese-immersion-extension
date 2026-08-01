@@ -20,9 +20,9 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is now complete**, including "Edit last card", rebuilt on 2026-07-30 as an in-page edit panel; only live verification is left. A large batch of changes from three live-testing rounds plus the 2026-07-29 generality pass, display fix and final build are all verified offline only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Work through the live-test checklist** — everything under `project-plan.md` Section 8, Ongoing "needs testing". Nothing there has been seen in a browser. Don't start Phase 6 until that reporting comes back.
-2. **Fix whatever that pass turns up**, then the audio/chip build's remaining untested scenarios (long session, SPA nav during capture).
+**Phase 5 — Anki export. Every build item is complete; the first full live-test pass ran on 2026-07-31** and returned ~20 findings, of which three batches are fixed (edit panel/chip, audio capture, and non-episodic content support). All fixes are offline-verified only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
+2. **Re-test the 2026-07-31 fixes live**, plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
 Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay).

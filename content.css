@@ -359,6 +359,22 @@
   max-width: 220px;
 }
 
+/* The panel is a single row until the entry picker appears (2026-07-31), which
+   adds a warning line and a second dropdown above the file one. Wrapping keeps
+   the one-row case pixel-identical to what it was, rather than restyling the
+   common case for the sake of the rare one. */
+#jp-immersion-switcher {
+  flex-wrap: wrap;
+}
+
+/* Reads as a caution without the alarm of red: this is a "check this" state,
+   not a failure — subtitles ARE loaded, they just might be the wrong ones. */
+.jp-immersion-switcher-warning {
+  flex-basis: 100%;
+  color: #ffd479;
+  line-height: 1.35;
+}
+
 /* Fourth in the top-left control column, below the switcher at 96px — same
    spacing as offset (16px) → upload (56px) → switcher (96px). Hidden until a
    card has been added, so the column is normally three tall, not four.

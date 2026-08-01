@@ -159,6 +159,9 @@ function makeEditAnkiNote(handler) {
       "document",
       [
         "let lastAddedNote = null;",
+        // Records notes undone this session, so the deferred audio attach
+        // (2026-07-31) can tell "superseded by a newer capture" from "deleted".
+        "const forgottenNotes = new Set();",
         "let editLastCardControl = null;",
         "let editLastCardButton = null;",
         // Stood in for by the harness: forgetAddedNote also releases the

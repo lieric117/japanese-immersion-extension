@@ -39,6 +39,7 @@ function makeHarness() {
     grab(/^const AUDIO_BUFFER_SECONDS = .*$/m, "AUDIO_BUFFER_SECONDS") +
     `
     let cueTimeline = [];
+    let cueEpoch = 0;
     let clock = 0;
     let audioCtx = { get currentTime() { return clock; } };
     let sliceCalls = [];
@@ -57,11 +58,15 @@ function makeHarness() {
     setup +
       grab(/^function markCueBoundary\([\s\S]*?\n\}/m, "markCueBoundary") +
       "\n" +
+      grab(/^function noteSeek\([\s\S]*?\n\}/m, "noteSeek") +
+      "\n" +
       grab(/^function sliceClipWavWhenReady\([\s\S]*?\n\}\n/m, "sliceClipWavWhenReady") +
       `
       return {
         markCueBoundary,
+        noteSeek,
         sliceClipWavWhenReady,
+        seekAway: () => { cueEpoch++; },
         tick: (t) => { clock = t; },
         timeline: () => cueTimeline,
         sliceCalls: () => sliceCalls,
@@ -206,6 +211,90 @@ async function fixtureTimeout() {
   check("second half never plays — falls back to the clicked line", h.sliceCalls().pop(), { start: 10, end: 12 });
 }
 
+// ── fixture: a display window WIDER than the merged sentence ─────────────────
+// The window spans every cue visible at that instant, so on a provider that
+// stacks cues it can start before the sentence and run on past it. Snapping the
+// clip to the window's edges then captures the neighbours too — the "bled into
+// the next line" half of the 2026-07-31 live report. Built at the timeline level
+// rather than by replay, so the window is exactly the awkward shape under test.
+async function fixtureWindowWiderThanSentence() {
+  const h = makeHarness();
+  h.tick(10);
+  const first = h.markCueBoundary("けれど", { start: 10, end: 12 });
+  h.tick(12);
+  // One window covering the sentence's second half AND what follows it.
+  h.markCueBoundary("それは違う\n(sign)", { start: 12, end: 20 });
+  h.tick(16);
+  h.markCueBoundary("", null);
+  await h.sliceClipWavWhenReady(first, 50, 10, 14);
+  check("a window running past the sentence is cut back to the sentence's end", h.sliceCalls().pop(), {
+    start: 10,
+    end: 14,
+  });
+
+  const h2 = makeHarness();
+  h2.tick(8);
+  // A window that STARTS before the merged sentence does — the mirror case.
+  h2.markCueBoundary("(sign)\nけれど", { start: 8, end: 12 });
+  h2.tick(12);
+  const second = h2.markCueBoundary("それは違う", { start: 12, end: 14 });
+  h2.tick(14);
+  h2.markCueBoundary("", null);
+  await h2.sliceClipWavWhenReady(second, 50, 10, 14);
+  check("a window starting before the sentence is cut forward to its start", h2.sliceCalls().pop(), {
+    start: 10,
+    end: 14,
+  });
+}
+
+// ── fixture: seeking and episode changes invalidate the recorded timings ─────
+async function fixtureSeekAndNavigation() {
+  const cues = [
+    { start: 10, end: 12, text: "けれど" },
+    { start: 12.5, end: 14.5, text: "それは違う" },
+  ];
+  const h = makeHarness();
+  replay(h, cues, 10); // only the first half has played
+  const first = h.timeline()[h.timeline().length - 1];
+  const pending = h.sliceClipWavWhenReady(first, 5000, 10, 14.5);
+  h.tick(11);
+  h.noteSeek(); // the user skips somewhere else mid-capture
+  replay(h, cues); // whatever plays next fills the buffer
+  const clip = await pending;
+  const ok = clip === null;
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  a capture spanning a seek exports no audio rather than the wrong audio` +
+      (ok ? "" : `\n        got ${JSON.stringify(h.sliceCalls().pop())}`)
+  );
+
+  // The open cue is closed at the jump, so its own clip still describes the
+  // audio that was actually heard up to that point.
+  const h2 = makeHarness();
+  h2.tick(10);
+  const open = h2.markCueBoundary("けれど", { start: 10, end: 12 });
+  h2.tick(11);
+  h2.noteSeek();
+  const closed = open.audioEnd === 11;
+  if (!closed) failed++;
+  console.log(
+    `${closed ? "PASS" : "FAIL"}  the open cue is closed at the seek, not left running across it` +
+      (closed ? "" : `\n        audioEnd = ${open.audioEnd}`)
+  );
+
+  // Widening must not reach back across a jump into timings recorded before it.
+  const h3 = makeHarness();
+  h3.tick(10);
+  h3.markCueBoundary("前の話", { start: 10, end: 12 });
+  h3.tick(12);
+  h3.noteSeek();
+  const after = h3.markCueBoundary("それは違う", { start: 12, end: 14 });
+  h3.tick(14);
+  h3.markCueBoundary("", null);
+  await h3.sliceClipWavWhenReady(after, 50, 10, 14);
+  check("widening stops at the seek instead of splicing across it", h3.sliceCalls().pop(), { start: 12, end: 14 });
+}
+
 // ── live: replay real Jimaku files and merge every adjacent display pair ──────
 async function live() {
   const { parseAss } = require(path.join(ROOT, "subtitle-parser.js"));
@@ -273,6 +362,8 @@ async function live() {
   await fixtureStackedCues();
   await fixtureWaitsForSecondHalf();
   await fixtureTimeout();
+  await fixtureWindowWiderThanSentence();
+  await fixtureSeekAndNavigation();
   if (process.argv.includes("--live")) await live();
   console.log(failed ? `\n${failed} FAILED` : `\nall passed`);
   process.exit(failed ? 1 : 0);

@@ -42,6 +42,8 @@ const {
   matchEntryBySeasonName,
   seasonNumberFromName,
   courSiblingEntries,
+  searchQueryLadder,
+  matchEntryByFullTitle,
 } = new Function(
   [
     grab(/^function stripApostrophes\([\s\S]*?\n\}/m, "stripApostrophes"),
@@ -56,7 +58,12 @@ const {
     grab(/^function matchEntryBySeasonName\([\s\S]*?\n\}/m, "matchEntryBySeasonName"),
     grab(/^function seasonNumberFromName\([\s\S]*?\n\}/m, "seasonNumberFromName"),
     grab(/^function courSiblingEntries\([\s\S]*?\n\}/m, "courSiblingEntries"),
-    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName, courSiblingEntries };",
+    grab(/^function looseTitle\([\s\S]*?\n\}/m, "looseTitle"),
+    grab(/^const MIN_SEARCH_QUERY_CHARS = .*$/m, "MIN_SEARCH_QUERY_CHARS"),
+    grab(/^const MAX_SEARCH_LADDER_RUNGS = .*$/m, "MAX_SEARCH_LADDER_RUNGS"),
+    grab(/^function searchQueryLadder\([\s\S]*?\n\}/m, "searchQueryLadder"),
+    grab(/^function matchEntryByFullTitle\([\s\S]*?\n\}/m, "matchEntryByFullTitle"),
+    "return { normalizeTitle, stripSeasonSuffix, entrySeasonNumber, matchEntryBySeasonName, seasonNumberFromName, courSiblingEntries, searchQueryLadder, matchEntryByFullTitle };",
   ].join("\n")
 )();
 
@@ -220,6 +227,101 @@ for (const c of courCases) {
   console.log(
     `${ok ? "PASS" : "FAIL"}  ${c.why}\n        -> [${got.join(", ")}]` + (ok ? "" : `   want [${c.wantSiblings.join(", ")}]`)
   );
+  cases.push(c);
+}
+
+// ── non-episodic content: films, OVAs, specials, compilations ───────────────
+// The 2026-07-31 live pass found two failures here, both stemming from
+// Crunchyroll publishing no `partOfSeason` block for this kind of title.
+// Everything below is measured against the live Jimaku API on the same date:
+// the zero-result searches are real, and so are the entries that exist anyway.
+// The same live search as DEMON_SLAYER above, with the film entries the
+// arc-season cases don't need — this is what a search including the movies
+// actually returns (live API, 2026-07-31).
+const DEMON_SLAYER_FILMS = [
+  { id: 846, name: "Kimetsu no Yaiba", english_name: "Demon Slayer: Kimetsu no Yaiba" },
+  { id: 12471, name: "Kimetsu no Yaiba: Mugenjou-hen Movie 1 - Akaza Sairai", english_name: "Demon Slayer: Kimetsu no Yaiba Infinity Castle" },
+  { id: 3335, name: "Kimetsu no Yaiba: Mugen Ressha-hen (TV)", english_name: "Demon Slayer: Kimetsu no Yaiba Mugen Train Arc" },
+  { id: 3338, name: "Kimetsu no Yaiba: Mugen Ressha-hen", english_name: "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" },
+];
+
+// A query ladder rung only ever runs when the one before it found NOTHING, so
+// these assert the rungs exist and are ordered, not that each one is used.
+const ladderCases = [
+  {
+    why: "a film's own subtitle is tried as a query — 'Mugen Train' finds the movie entry",
+    title: "Demon Slayer: Kimetsu no Yaiba - The Movie: Mugen Train",
+    wantIncludes: "Mugen Train",
+  },
+  {
+    why: "trailing words are dropped back to the franchise Jimaku indexes under",
+    title: "Re:ZERO -Starting Life in Another World- Memory Snow",
+    wantIncludes: "Re:ZERO -Starting Life in Another World",
+  },
+  {
+    why: "a dangling separator is trimmed, so the broadened query can still match",
+    title: "Attack on Titan Chronicle",
+    wantIncludes: "Attack on Titan",
+  },
+];
+for (const c of ladderCases) {
+  const ladder = searchQueryLadder(c.title);
+  const ok = ladder.includes(c.wantIncludes) && ladder[0] === c.title;
+  if (!ok) failed++;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${c.why}` + (ok ? "" : `\n        got [${ladder.join(" | ")}]`));
+  cases.push(c);
+}
+
+const titleCases = [
+  {
+    why: "a film whose full title Jimaku holds verbatim resolves to its own entry",
+    entries: DEMON_SLAYER_FILMS, title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle", full: true, want: 12471,
+  },
+  {
+    why: "punctuation differences don't stop the match (': ' vs. ' -…- ')",
+    entries: DEMON_SLAYER_FILMS, title: "Demon Slayer: Kimetsu no Yaiba - The Movie: Mugen Train", full: false, want: 3338,
+  },
+  {
+    why: "Jimaku's own single hit on the full title is trusted over local string comparison",
+    entries: [{ id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" }],
+    title: "Attack on Titan: THE LAST ATTACK", full: true, want: 11263,
+  },
+  {
+    // The regression this function exists to prevent: the franchise entry's
+    // name is a PREFIX of the OVA's Crunchyroll title, and matching on that is
+    // exactly how a movie ended up playing season 1's subtitles.
+    why: "the franchise entry is NOT accepted for an OVA that merely starts with its name",
+    entries: REZERO, title: `${RZ} Memory Snow`, full: false, want: null,
+  },
+  {
+    why: "an ambiguous compilation resolves to nothing rather than to season 1",
+    entries: AOT, title: "Attack on Titan Chronicle", full: false, want: null,
+  },
+];
+for (const c of titleCases) {
+  const got = matchEntryByFullTitle(c.entries, c.title, c.full);
+  const gotId = got ? got.id : null;
+  const ok = gotId === c.want;
+  if (!ok) failed++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${c.why}` + (ok ? "" : `\n        -> ${gotId}   want ${c.want}`)
+  );
+  cases.push(c);
+}
+
+// Confidence is what decides whether the switcher panel asks the user. A wrong
+// answer here is worse than a wrong entry: it's a wrong entry shown as correct.
+const confidenceCases = [
+  { why: "an identified film is confident", entries: DEMON_SLAYER_FILMS, title: "Demon Slayer: Kimetsu no Yaiba Infinity Castle", full: true, hasSeasonSignal: false, want: true },
+  { why: "an unidentified OVA is NOT confident", entries: REZERO, title: `${RZ} Memory Snow`, full: false, hasSeasonSignal: false, want: false },
+  { why: "an unidentified compilation is NOT confident", entries: AOT, title: "Attack on Titan Chronicle", full: false, hasSeasonSignal: false, want: false },
+];
+for (const c of confidenceCases) {
+  const titleMatch = matchEntryByFullTitle(c.entries, c.title, c.full);
+  const got = Boolean(titleMatch || c.hasSeasonSignal);
+  const ok = got === c.want;
+  if (!ok) failed++;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${c.why}` + (ok ? "" : `\n        -> ${got}   want ${c.want}`));
   cases.push(c);
 }
 

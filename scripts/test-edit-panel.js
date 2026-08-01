@@ -108,9 +108,9 @@ const helpers = new Function(
 // ── rebuilding the sentence after an edit ──────────────────────────────────
 {
   const original = "それはそれで それだ";
-  // Untouched text keeps the recorded offset, so the second occurrence stays
-  // bolded rather than the first.
-  const html = helpers.buildEditedSentenceHtml(original, "それ", original, 7);
+  // The offset is verified before use, so the second occurrence stays bolded
+  // rather than the first.
+  const html = helpers.buildEditedSentenceHtml(original, "それ", 7);
   check(
     "an unedited sentence keeps bolding the occurrence that was captured",
     html === "それはそれで <b>それ</b>だ",
@@ -118,7 +118,7 @@ const helpers = new Function(
   );
 }
 {
-  const html = helpers.buildEditedSentenceHtml("まったく違う文です", "それ", "元の文", 0);
+  const html = helpers.buildEditedSentenceHtml("まったく違う文です", "それ", 0);
   check(
     "if the word was edited out, the sentence saves with no bolding rather than guessing",
     html === "まったく違う文です" && !html.includes("<b>"),
@@ -126,7 +126,7 @@ const helpers = new Function(
   );
 }
 {
-  const html = helpers.buildEditedSentenceHtml("新しい それ の文", "それ", "元の文", 0);
+  const html = helpers.buildEditedSentenceHtml("新しい それ の文", "それ", 0);
   check(
     "an edited sentence re-locates the word",
     html === "新しい <b>それ</b> の文",
@@ -134,10 +134,44 @@ const helpers = new Function(
   );
 }
 {
-  const html = helpers.buildEditedSentenceHtml("a < b & c\nsecond line", "b", "x", 0);
+  const html = helpers.buildEditedSentenceHtml("a < b & c\nsecond line", "b", 0);
   check(
     "HTML-special characters are escaped and newlines become <br>",
     html === "a &lt; <b>b</b> &amp; c<br>second line",
+    html
+  );
+}
+// The live-testing bug this function was rewritten for (2026-07-31): changing
+// the target word passed the OLD word's offset with the NEW word's surface,
+// and the old code spliced at it — deleting `surface.length` characters of the
+// sentence at a position that didn't spell the word. The exact reported case,
+// which produced うまくら うまくいったみたいだね.
+{
+  const original = "どうやら うまくいったみたいだね";
+  const html = helpers.buildEditedSentenceHtml(original, "うまく", 0);
+  check(
+    "changing the target word never edits the sentence, only its bolding",
+    html === "どうやら <b>うまく</b>いったみたいだね",
+    html
+  );
+  check(
+    "the reported corruption (うまくら…) cannot be produced",
+    !helpers.ankiHtmlToPlain(html).startsWith("うまくら"),
+    html
+  );
+  check(
+    "the sentence's own characters survive the rebuild unchanged",
+    helpers.ankiHtmlToPlain(html) === original,
+    helpers.ankiHtmlToPlain(html)
+  );
+}
+{
+  // The new word's own offset is honoured when it's the RIGHT one — the second
+  // occurrence, not the first, when that's what the picker reported.
+  const html = helpers.buildEditedSentenceHtml("それはそれで それだ", "それ", 3);
+  check(
+    "a verified offset picks out the intended occurrence of a repeated word",
+    html === "それは<b>それ</b>で それだ",
     html
   );
 }
@@ -328,12 +362,14 @@ function makeAudioHarness() {
       grab(ac, /^const AUDIO_SILENCE_PEAK = .*$/m, "AUDIO_SILENCE_PEAK"),
       grab(ac, /^const AUDIO_EDIT_PAD_SECONDS = .*$/m, "AUDIO_EDIT_PAD_SECONDS"),
       "let audioCtx = null, ringBuffer = null, ringWritePos = 0, ringFilled = false, lastProcessAudioTime = 0;",
-      "let retainedClip = null, retainToken = 0, retainTopUpTimer = null;",
+      "let retainedClip = null, retainedBounds = null;",
       grab(ac, /^function resetRingBuffer\([\s\S]*?\n\}/m, "resetRingBuffer"),
       grab(ac, /^function normalizeLoudness\([\s\S]*?\n\}/m, "normalizeLoudness"),
       grab(ac, /^function encodeWav\([\s\S]*?\n\}/m, "encodeWav"),
       grab(ac, /^function sliceRawRange\([\s\S]*?\n\}/m, "sliceRawRange"),
       grab(ac, /^function retainClipForEditing\([\s\S]*?\n\}/m, "retainClipForEditing"),
+      grab(ac, /^function cutRetainedClip\([\s\S]*?\n\}/m, "cutRetainedClip"),
+      grab(ac, /^function topUpRetainedClip\([\s\S]*?\n\}/m, "topUpRetainedClip"),
       grab(ac, /^function retainedClipInfo\([\s\S]*?\n\}/m, "retainedClipInfo"),
       grab(ac, /^function encodeRetainedRange\([\s\S]*?\n\}/m, "encodeRetainedRange"),
       grab(ac, /^function clearRetainedClip\([\s\S]*?\n\}/m, "clearRetainedClip"),
@@ -357,6 +393,39 @@ function makeAudioHarness() {
        };`,
     ].join("\n")
   )((fn) => fn); // the delayed top-up runs immediately here, standing in for real time
+}
+
+// The post-roll doesn't exist yet at the moment a clip is retained — the line
+// has only just ended. Opening the trim editor before it has played must still
+// offer the full padding, which means re-cutting from the ring buffer on
+// demand. Reported live 2026-07-31 as the right-hand pad "not really being 3
+// seconds" when the panel was opened quickly.
+{
+  const h = makeAudioHarness();
+  const RATE = 8000;
+  const signal = (t) => (t >= 10 && t < 12 ? 0.4 * Math.sin(2 * Math.PI * 220 * t) : 0.02);
+  // The buffer ends exactly where the line does: nothing after it has played.
+  h.fill(12, RATE, signal);
+  h.retainClipForEditing(10, 12);
+  const early = h.retainedClipInfo(64);
+  check(
+    "retained immediately, there is no post-roll to offer yet",
+    early !== null && early.duration - early.clipEnd < 0.05,
+    JSON.stringify({ tail: early && early.duration - early.clipEnd })
+  );
+  // Three more seconds play, and the editor is opened only now.
+  h.fill(15, RATE, signal);
+  const later = h.retainedClipInfo(64);
+  check(
+    "opening the editor later re-cuts the buffer and the full pad is there",
+    Math.abs(later.duration - later.clipEnd - h.AUDIO_EDIT_PAD_SECONDS) < 0.05,
+    JSON.stringify({ tail: later.duration - later.clipEnd, pad: h.AUDIO_EDIT_PAD_SECONDS })
+  );
+  check(
+    "re-cutting doesn't move the clip's own bounds within the buffer",
+    Math.abs(later.clipEnd - later.clipStart - 2) < 0.05 && Math.abs(later.clipStart - h.AUDIO_EDIT_PAD_SECONDS) < 0.05,
+    JSON.stringify({ clipStart: later.clipStart, clipEnd: later.clipEnd })
+  );
 }
 
 {
