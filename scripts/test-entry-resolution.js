@@ -585,11 +585,21 @@ const cases = [
 
   // ── 5b. narrowing an unfiltered listing by the episode's own title ────────
   {
-    // Compound `name` again, in the OVA shape this time — here the two halves
-    // DIFFER, and it's the part after "E1 - " that names the individual OVA.
-    // Taking the pre-pipe half would narrow nothing.
-    why: "Re:Zero's Memory Snow narrows the OVA entry's files to the one naming it",
-    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: `${RZ} OVAs | E1 - Memory Snow` },
+    // VERBATIM from Memory Snow's live page (2026-08-01), and a different shape
+    // from the film page this parser was first built against — which is the
+    // point of using it raw. Two traps in one string: the episode code is
+    // "EEX", not numeric, so an `E\d+` marker pattern extracts nothing at all
+    // and leaves only the useless pre-pipe "OVAs"; and the title carries a
+    // "(Director's Cut)" qualifier that Jimaku's filenames don't have, so an
+    // exact-title comparison would narrow nothing even once the code parses.
+    why: "Re:Zero's Memory Snow narrows the OVA entry's files, from the real 'EEX' compound",
+    args: {
+      query: RZ,
+      episode: 1,
+      seasonNumber: 2,
+      seasonName: "OVAs",
+      episodeTitle: "OVAs | EEX - Memory Snow (Director’s Cut)",
+    },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
     files: FILES,
     expect: {
@@ -610,7 +620,7 @@ const cases = [
     // Falling through to everything is correct here; falling through to an
     // EMPTY list would not be.
     why: "The Frozen Bond finds no filename match and still lists everything, not nothing",
-    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: `${RZ} OVAs`, episodeTitle: `${RZ} OVAs | E1 - The Frozen Bond` },
+    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: "OVAs", episodeTitle: "OVAs | EEX - The Frozen Bond (Director’s Cut)" },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
     files: FILES,
     expect: {
@@ -619,14 +629,14 @@ const cases = [
       fileCount: 3,
       log: [
         `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
-        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond".`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
       ],
       warn: [],
     },
   },
   {
     why: "an AoT OAD narrows its entry's files by the OAD's own title",
-    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Attack on Titan OADs | E3 - Distress" },
+    args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "Attack on Titan OADs", episodeTitle: "Attack on Titan OADs | EEX - Distress" },
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: { entryId: 1597, confident: true, fileCount: 1 },

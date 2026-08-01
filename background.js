@@ -753,21 +753,57 @@ function matchEntryByNonEpisodicClass(entries, seasonName, query, contentTitles 
 // title is dropped — that names the franchise, not this work.
 const MIN_CONTENT_TITLE_CHARS = 4;
 const MAX_CONTENT_TITLE_SEARCHES = 2;
-const EPISODE_NAME_TAIL_RE = /\|\s*E\d+\s*[-–—]\s*(.+)$/u;
+// Crunchyroll's episode code is NOT always numeric. Measured shapes: "E1" on a
+// film, "EEX" on an extra, and it uses several more for specials and ONAs. So
+// the code is matched as an opaque token, anchored by the pipe before it and
+// the dash after — the first version of this required E<digits> and silently
+// stopped extracting anything on Memory Snow's real page. Anything after a
+// pipe is taken even when no code matches at all, so the next format Crunchyroll
+// invents degrades to a usable title rather than to nothing.
+const EPISODE_CODE_RE = /^E[A-Za-z0-9]{1,8}\s*[-–—]\s*/u;
+// A trailing qualifier Jimaku's filenames won't carry — "Memory Snow
+// (Director's Cut)" has to still match a file named "Memory.Snow". Kept as an
+// EXTRA candidate rather than a replacement, so the fuller title gets first go.
+const TRAILING_QUALIFIER_RE = /\s*[（([][^）)\]]*[）)\]]\s*$/u;
+
+// A candidate that is nothing but a format word ("OVAs", "Specials") names a
+// format, not a work — it can't narrow anything, and searching it returns
+// unrelated shows' OVA entries. Dropped for the same reason a candidate equal
+// to the series title is.
+function stripFormatWords(s) {
+  let out = String(s ?? "");
+  for (const [, re] of NON_EPISODIC_CLASSES) out = out.replace(new RegExp(re.source, "gi"), " ");
+  return out;
+}
+
 function contentTitleCandidates(episodeTitle, seasonName, query) {
   const series = looseTitle(query);
-  const raw = String(episodeTitle ?? "");
+  const raw = String(episodeTitle ?? "").trim();
   const out = [];
   const push = (s) => {
     const t = String(s ?? "").trim();
     const loose = looseTitle(t);
     if (!loose || loose.length < MIN_CONTENT_TITLE_CHARS || loose === series) return;
+    if (!looseTitle(stripFormatWords(t))) return;
     if (out.some((existing) => looseTitle(existing) === loose)) return;
     out.push(t);
   };
-  push(raw.match(EPISODE_NAME_TAIL_RE)?.[1]);
-  push(raw.includes("|") ? raw.slice(0, raw.indexOf("|")) : raw);
-  push(seasonName);
+  const pushWithVariants = (s) => {
+    const t = String(s ?? "").trim();
+    if (!t) return;
+    push(t);
+    const trimmed = t.replace(TRAILING_QUALIFIER_RE, "").trim();
+    if (trimmed && trimmed !== t) push(trimmed);
+  };
+  const pipe = raw.indexOf("|");
+  if (pipe >= 0) {
+    // Most specific first: the half that names this individual episode/film.
+    pushWithVariants(raw.slice(pipe + 1).trim().replace(EPISODE_CODE_RE, ""));
+    pushWithVariants(raw.slice(0, pipe));
+  } else {
+    pushWithVariants(raw);
+  }
+  pushWithVariants(seasonName);
   return out;
 }
 
