@@ -861,6 +861,58 @@ function filesMatchingTitle(files, contentTitles) {
   }
   return { files: [], title: null };
 }
+
+// Drops files that belong to a DIFFERENT episode of this season (2026-08-01).
+//
+// The asymmetry is the whole point, and it's why this works where positive
+// matching doesn't: confirming a file IS this episode requires the current
+// episode's title to survive translation into whatever the uploader named the
+// file, which is exactly what fails on Re:Zero's OVAs (Crunchyroll's "The
+// Frozen Bond" vs. the uploader's "Hyouketsu no Kizuna" — no shared
+// characters). Confirming a file is SOME OTHER episode only requires that
+// other episode's name to match, and a season's worth of sibling titles gives
+// many more chances for one of them to land. Frozen Bond's list was showing
+// Memory Snow's file; "Memory Snow" appears verbatim in that filename, so it
+// can be ruled out without ever solving the Frozen Bond translation problem.
+//
+// A sibling that matches the CURRENT content title is not a sibling — same
+// episode under a different spelling — so those are skipped, otherwise an
+// episode could exclude its own file.
+function excludeOtherEpisodeFiles(files, contentTitles, siblingTitles) {
+  // Sibling titles get the same trailing-qualifier variant as the current one:
+  // Crunchyroll labels both Re:Zero OVAs "(Director's Cut)" and no filename
+  // carries that, so without stripping it the sibling never matches and nothing
+  // is ever excluded.
+  const variants = (t) => {
+    const out = [];
+    for (const v of [t, String(t ?? "").replace(TRAILING_QUALIFIER_RE, "").trim()]) {
+      const loose = looseTitle(v);
+      if (loose && loose.length >= MIN_CONTENT_TITLE_CHARS && !out.includes(loose)) out.push(loose);
+    }
+    return out;
+  };
+  const mine = contentTitles.flatMap(variants);
+  const others = [];
+  for (const sibling of siblingTitles ?? []) {
+    for (const loose of variants(sibling)) {
+      // Same episode under a different spelling is not a sibling — otherwise an
+      // episode would rule out its own file.
+      if (mine.some((m) => m.includes(loose) || loose.includes(m))) continue;
+      if (others.some((o) => o.loose === loose)) continue;
+      others.push({ raw: sibling, loose });
+    }
+  }
+  if (!others.length) return { files, excluded: [] };
+  const kept = [];
+  const excluded = [];
+  for (const file of files) {
+    const name = looseTitle(file.name);
+    const hit = others.find((o) => name.includes(o.loose));
+    if (hit) excluded.push({ file, title: hit.raw });
+    else kept.push(file);
+  }
+  return { files: kept, excluded };
+}
 // Takes the candidate list from contentTitleCandidates, most-specific-first,
 // and returns the entry plus WHICH title identified it — the log line names it,
 // so a live console shows the signal that actually did the work rather than the
@@ -1123,7 +1175,7 @@ async function searchJimakuEntries(query, headers) {
   return searchRes.json();
 }
 
-async function resolveTextFiles(query, episode, headers, seasonNumber = null, seasonName = null, episodeTitle = null) {
+async function resolveTextFiles(query, episode, headers, seasonNumber = null, seasonName = null, episodeTitle = null, siblingTitles = []) {
   // Broadens the search rather than reporting nothing, when Jimaku's substring
   // index doesn't hold Crunchyroll's exact spelling — see searchQueryLadder.
   const ladder = searchQueryLadder(query);
@@ -1374,20 +1426,49 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       // "The Frozen Bond" vs. the uploader's "Hyouketsu no Kizuna") matches
       // nothing and correctly falls through to the full list rather than to an
       // empty one.
+      const label = entry.english_name ?? entry.name;
       const narrowed = filesMatchingTitle(all, contentTitles);
       if (narrowed.files.length && narrowed.files.length < all.length) {
         console.log(
-          `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
+          `[jp-immersion] "${label}" has no file numbered episode ${episode} — ` +
             `narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
         );
         files = narrowed.files;
       } else {
+        // Positive matching found nothing, so fall back to ruling files OUT by
+        // the season's other episode titles rather than listing everything
+        // (2026-08-01, user's call). The old behaviour showed files that
+        // demonstrably belong to other episodes — Frozen Bond's list included
+        // Memory Snow's file — and a list of confirmed-wrong files is worse
+        // than an honest "nothing here".
+        const surviving = excludeOtherEpisodeFiles(all, contentTitles, siblingTitles);
+        if (surviving.excluded.length) {
+          console.log(
+            `[jp-immersion] "${label}" has no file numbered episode ${episode} — ruled out ` +
+              `${surviving.excluded.length} of its ${all.length} files as belonging to other episodes ` +
+              `(${surviving.excluded.map((x) => `"${x.title}"`).join(", ")}).`
+          );
+        }
+        if (!surviving.files.length) {
+          // Every file was tied to a different episode, so Jimaku has nothing
+          // for THIS one. Reported as its own error rather than as an empty
+          // picker: the entry was identified correctly, so the way forward is
+          // manual upload, not choosing a different entry.
+          throw new Error(
+            `Jimaku has files for "${label}" but every one of them belongs to a different episode` +
+              (contentTitles.length ? `, not "${contentTitles[0]}"` : "") +
+              ` — use the manual upload fallback instead`
+          );
+        }
         console.log(
-          `[jp-immersion] "${entry.english_name ?? entry.name}" has no file numbered episode ${episode} — ` +
-            `listing all ${all.length} of its files instead (normal for a movie, OVA or special)` +
+          `[jp-immersion] "${label}" has no file numbered episode ${episode} — ` +
+            (surviving.excluded.length
+              ? `listing the ${surviving.files.length} of its ${all.length} files not tied to another episode`
+              : `listing all ${all.length} of its files instead`) +
+            ` (normal for a movie, OVA or special)` +
             (contentTitles.length ? `; none of them names "${contentTitles[0]}".` : ".")
         );
-        files = all;
+        files = surviving.files;
       }
     }
   }
@@ -1443,7 +1524,7 @@ async function fetchAndParseFile(file, headers) {
 // Takes the FETCH_SUBTITLES message itself rather than six positional
 // arguments (2026-07-27) — the list had grown past the point where a call site
 // was readable, and adding `seasonName` to it would have made a seventh.
-async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null, episodeTitle = null }) {
+async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null, episodeTitle = null, siblingTitles = [] }) {
   const headers = await getJimakuHeaders();
   const { textFiles, entryName, confident, entryId, candidates, unresolved } = await resolveTextFiles(
     query,
@@ -1451,7 +1532,8 @@ async function fetchSubtitles({ query, episode, fileHint = null, preferredUpload
     headers,
     seasonNumber,
     seasonName,
-    episodeTitle
+    episodeTitle,
+    siblingTitles
   );
   // Nothing matched, so nothing is loaded (2026-08-01). Returned as a normal
   // response rather than thrown: an error message replaces the subtitle box and

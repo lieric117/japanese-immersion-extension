@@ -150,8 +150,24 @@ let englishCueEpoch = 0;
 // already have.
 let englishCueUrl = null;
 
+// The season's other episode titles, from the sniffer (2026-08-01). Used only
+// to rule a Jimaku subtitle file OUT as belonging to a different episode — see
+// background.js's excludeOtherEpisodeFiles. Empty until the sniffer recognises
+// the page's own episode-list response, and everything degrades to the previous
+// behaviour while it is.
+let seasonEpisodeTitles = [];
+
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
+  const episodeTitles = event.data?.__jpImmersionEpisodeTitles;
+  if (Array.isArray(episodeTitles)) {
+    // Same pathname stamp as the caption URL below, and for the same reason: a
+    // replay carrying the PREVIOUS episode's season list would exclude files
+    // using the wrong season's titles.
+    const stamped = event.data.__jpImmersionEpisodePath;
+    if (stamped == null || stamped === location.pathname) seasonEpisodeTitles = episodeTitles;
+    return;
+  }
   const url = event.data?.__jpImmersionCaptionUrl;
   if (!url) return;
   if (url === englishCueUrl) return; // already fetched (or fetching) this exact file
@@ -232,6 +248,11 @@ function resetEnglishCaptions() {
   // (unlikely) case Crunchyroll reuses the same signed URL.
   englishCueEpoch++;
   englishCueUrl = null;
+  // Dropped on navigation for the same reason (2026-08-01): carrying the
+  // previous season's episode titles into a new show would rule out subtitle
+  // files using names that have nothing to do with it. The replay below
+  // repopulates it when the sniffer still holds this episode's list.
+  seasonEpisodeTitles = [];
   if (subtitleBoxEn) renderEnglishCue(subtitleBoxEn, "");
   requestCaptionReplay();
 }
@@ -860,6 +881,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
         seasonNumber: detected.seasonNumber,
         seasonName: detected.seasonName,
         episodeTitle: detected.episodeTitle,
+        siblingTitles: seasonEpisodeTitles,
         fileHint: FILE_HINT,
         preferredUploader,
       },

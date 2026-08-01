@@ -242,12 +242,18 @@ const FILES = {
       "[NanakoRaws] Re Zero kara Hajimeru Isekai Seikatsu - Hyouketsu no Kizuna (AT-X 1920x1080 x265 AAC).ass",
     ],
   },
+  // The complete real listing for this entry (live API, 2026-08-01) — all six.
+  // Three name their OAD outright; three are generic release names that no
+  // episode title can rule out, which is what makes this entry a good test of
+  // the exclusion's limits rather than just its happy path.
   1597: {
     all: [
       "Shingeki no Kyojin S00E07 (Ilse's Notebook Memoirs of a Recon Corps Member) 2013 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
+      "Shingeki no Kyojin S00E12 (The Sudden Visitor The Torturous Curse of Youth) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
       "Shingeki no Kyojin S00E13 (Distress) 2014 1080p Bluray REMUX AVC AAC 2.0 Dual Audio -ZR.srt",
       "[Kamigami] Shingeki no Kyojin - #3.25 OAD2 [1024x576 x264 AAC][CHT, JPN].ass",
       "[Kamigami] Shingeki no Kyojin - 03.5 OAD [DVD 848x480 x264 AAC][CHS, JPN].ass",
+      "[ReinForce] Shingeki no Kyojin - OAD3 (DVDRip 852x480 x264 FLAC).cht,jpn.ass",
     ],
   },
   // Attack on Titan season 1 and 2 — present only so a WRONG resolution to
@@ -572,10 +578,10 @@ const cases = [
     expect: {
       entryId: 1597,
       confident: true,
-      fileCount: 4,
+      fileCount: 6,
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
-        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 4 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan OADs".`,
+        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing all 6 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan OADs".`,
       ],
       warn: [],
     },
@@ -592,7 +598,7 @@ const cases = [
     args: { query: "Attack on Titan", episode: 1, seasonNumber: 66, seasonName: "OAD" },
     search: { "Attack on Titan": AOT },
     files: FILES,
-    expect: { entryId: 1597, confident: true, fileCount: 4 },
+    expect: { entryId: 1597, confident: true, fileCount: 6 },
     mustNotResolveTo: [3458, 1435],
   },
   {
@@ -638,23 +644,121 @@ const cases = [
     },
   },
   {
-    // The honest limit of title narrowing, asserted rather than hidden:
-    // Crunchyroll's English title and the uploader's romanised one share no
-    // characters, so nothing matches and the full list is still the answer.
-    // Falling through to everything is correct here; falling through to an
-    // EMPTY list would not be.
+    // The live finding this exclusion exists for: Frozen Bond's file list
+    // included MEMORY SNOW's file. Crunchyroll's "The Frozen Bond" shares no
+    // characters with the uploader's "Hyouketsu no Kizuna", so positive
+    // matching can never confirm which file is this OVA's — but "Memory Snow"
+    // appears verbatim in the sibling's filename, so that one can be ruled out
+    // without solving the translation problem at all.
     // RECONSTRUCTED, flagged per the standing rule: the compound SHAPE is
     // verbatim from Memory Snow's page (same season, same "EEX" marker, same
     // Director's Cut qualifier) but this OVA's own page was not captured, so
     // the title text is substituted rather than measured.
-    why: "The Frozen Bond finds no filename match and still lists everything, not nothing",
-    args: { query: RZ, episode: 1, seasonNumber: 2, seasonName: "OVAs", episodeTitle: "OVAs | EEX - The Frozen Bond (Director’s Cut)" },
+    why: "The Frozen Bond excludes Memory Snow's file instead of listing it",
+    args: {
+      query: RZ,
+      episode: 1,
+      seasonNumber: 2,
+      seasonName: "OVAs",
+      episodeTitle: "OVAs | EEX - The Frozen Bond (Director’s Cut)",
+      siblingTitles: ["Memory Snow (Director’s Cut)", "The Frozen Bond (Director’s Cut)"],
+    },
     search: { "Re:ZERO -Starting Life in Another World": REZERO },
     files: FILES,
     expect: {
       entryId: 3083,
+      // Down from 3: Memory Snow's file is gone, the two that plausibly are
+      // this OVA remain. Still more than one, so the switcher picks — but it
+      // no longer offers a file that is confirmed to be a different episode.
+      fileCount: 2,
+      confident: true,
+      log: [
+        `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — ruled out 1 of its 3 files as belonging to other episodes ("Memory Snow (Director’s Cut)").`,
+        `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing the 2 of its 3 files not tied to another episode (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    // The other half of the same report, with the entry's REAL six-file
+    // listing. Three files name their OAD outright and are ruled out; three are
+    // generic release names ("03.5 OAD", "OAD3") that no episode title can
+    // touch. So the honest result here is a SHORTER list, not an empty one —
+    // asserted as measured rather than bent to the tidier outcome. The
+    // wrong-episode files that prompted this report are gone, which was the
+    // actual complaint.
+    why: "an OAD Jimaku has no file for drops the identifiable wrong ones, keeping only untieable files",
+    args: {
+      query: "Attack on Titan",
+      episode: 1,
+      seasonNumber: 66,
+      seasonName: "Attack on Titan OADs",
+      episodeTitle: "Attack on Titan OADs | E5 - Wall Sina, Goodbye",
+      siblingTitles: [
+        "Ilse's Notebook",
+        "The Sudden Visitor: The Torturous Curse of Youth",
+        "Distress",
+        "Wall Sina, Goodbye",
+      ],
+    },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: {
+      entryId: 1597,
       confident: true,
       fileCount: 3,
+      log: [
+        `[jp-immersion] Jimaku entry "Attack on Titan OVA" (id 1597) for "Attack on Titan" episode 1 — matched by Crunchyroll listing this season as OVA/OAD.`,
+        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — ruled out 3 of its 6 files as belonging to other episodes ("Ilse's Notebook", "The Sudden Visitor: The Torturous Curse of Youth", "Distress").`,
+        `[jp-immersion] "Attack on Titan OVA" has no file numbered episode 1 — listing the 3 of its 6 files not tied to another episode (normal for a movie, OVA or special); none of them names "Wall Sina, Goodbye".`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    // SYNTHETIC, flagged per the standing rule: the "nothing survives" branch
+    // needs an entry whose every file names a sibling, and no real entry in
+    // this fixture set does — the AoT OADs always keep their generic release
+    // names. Built by giving the Re:Zero OVA entry sibling titles covering all
+    // three of its files. Guards the branch that matters most: a list of
+    // confirmed-wrong files is worse than an honest "nothing here".
+    why: "every file tied to another episode falls to manual upload, not an all-wrong list",
+    args: {
+      query: RZ,
+      episode: 1,
+      seasonNumber: 2,
+      seasonName: "OVAs",
+      episodeTitle: "OVAs | EEX - A Third OVA With No File",
+      siblingTitles: ["Memory Snow (Director\u2019s Cut)", "Hyouketsu no Kizuna", "\u6c37\u7d50\u306e\u7d46"],
+    },
+    search: { "Re:ZERO -Starting Life in Another World": REZERO },
+    files: FILES,
+    expect: {
+      throws:
+        'Jimaku has files for "Re:ZERO -Starting Life in Another World- OVAs" but every one of them belongs to a different episode, not "A Third OVA With No File" — use the manual upload fallback instead',
+    },
+  },
+  {
+    // Regression guard on the exclusion itself: with no sibling list (the
+    // sniffer hasn't recognised the page's episode-list response, or there
+    // isn't one), nothing is excluded and behaviour is exactly as before.
+    // The feature must degrade to the old listing, never to an empty one.
+    why: "no sibling titles available — falls back to the previous full listing",
+    args: {
+      query: RZ,
+      episode: 1,
+      seasonNumber: 2,
+      seasonName: "OVAs",
+      episodeTitle: "OVAs | EEX - The Frozen Bond (Director’s Cut)",
+      siblingTitles: [],
+    },
+    search: { "Re:ZERO -Starting Life in Another World": REZERO },
+    files: FILES,
+    expect: {
+      entryId: 3083,
+      fileCount: 3,
+      confident: true,
       log: [
         `[jp-immersion] Jimaku entry "Re:ZERO -Starting Life in Another World- OVAs" (id 3083) for "${RZ}" episode 1 — matched by Crunchyroll's season name.`,
         `[jp-immersion] "Re:ZERO -Starting Life in Another World- OVAs" has no file numbered episode 1 — listing all 3 of its files instead (normal for a movie, OVA or special); none of them names "The Frozen Bond (Director’s Cut)".`,
@@ -765,7 +869,8 @@ async function run() {
         { Authorization: "test-key" },
         c.args.seasonNumber,
         c.args.seasonName,
-        c.args.episodeTitle ?? null
+        c.args.episodeTitle ?? null,
+        c.args.siblingTitles ?? []
       );
     } catch (e) {
       error = e;

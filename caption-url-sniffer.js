@@ -43,7 +43,7 @@
   // uses (e.g. the request is made from a Web Worker or service worker, which
   // have their own separate global scopes this override never touches) — a
   // completely different problem from "saw the response, didn't recognise it".
-  const stats = { fetchCalls: 0, xhrCalls: 0, jsonBodies: 0, subtitleShaped: 0, found: 0 };
+  const stats = { fetchCalls: 0, xhrCalls: 0, jsonBodies: 0, subtitleShaped: 0, found: 0, episodeListsSeen: 0 };
 
   function pickEnglish(container) {
     if (!container || typeof container !== "object") return null;
@@ -60,11 +60,48 @@
     return { url: entry.url, format: entry.format ?? "ass", locale: preferred };
   }
 
+  // The season's other episode titles (2026-08-01), captured the same passive
+  // way and for the same reason: the page already fetches its own episode list
+  // to render the sidebar, so this needs no extra request and no auth token.
+  // Used by background.js to rule a subtitle file OUT as belonging to a
+  // different episode — see excludeOtherEpisodeFiles there.
+  //
+  // Detected by SHAPE, like the captions above, because Crunchyroll's endpoint
+  // naming isn't documented: an array of objects each carrying a `title` and an
+  // episode-number field. If the real shape differs, this simply never fires
+  // and the exclusion degrades to the previous "list what's left" behaviour —
+  // it fails closed, never on a guess. `episodeListsSeen` in the stats says
+  // which of those happened.
+  let lastEpisodeTitles = null;
+
+  function checkEpisodeList(data) {
+    const items = Array.isArray(data?.data) ? data.data : Array.isArray(data?.items) ? data.items : null;
+    if (!items || items.length < 2) return;
+    // Require the episode-number field on the items themselves, not just
+    // somewhere in the body — a `title` array alone matches far too much.
+    const looksEpisodic = items.some(
+      (i) => i && typeof i === "object" && ("episode_number" in i || "episode" in i)
+    );
+    if (!looksEpisodic) return;
+    const titles = [...new Set(items.map((i) => (typeof i?.title === "string" ? i.title.trim() : "")).filter(Boolean))];
+    if (titles.length < 2) return;
+    stats.episodeListsSeen++;
+    lastEpisodeTitles = titles;
+    console.log(`[jp-immersion] caption sniffer: captured ${titles.length} episode titles for this season.`);
+    postEpisodes(titles);
+  }
+
+  function postEpisodes(titles) {
+    window.postMessage({ __jpImmersionEpisodeTitles: titles, __jpImmersionEpisodePath: location.pathname }, "*");
+  }
+
   function checkAndForward(bodyText) {
     if (typeof bodyText !== "string" || bodyText.length === 0) return;
     // Cheap pre-filter before the JSON.parse — most page responses are large
     // and irrelevant, and this runs on every single one.
-    if (bodyText.indexOf("subtitles") === -1 && bodyText.indexOf("captions") === -1) return;
+    const maybeCaptions = bodyText.indexOf("subtitles") !== -1 || bodyText.indexOf("captions") !== -1;
+    const maybeEpisodes = bodyText.indexOf("episode_number") !== -1 || bodyText.indexOf('"episode"') !== -1;
+    if (!maybeCaptions && !maybeEpisodes) return;
     let data;
     try {
       data = JSON.parse(bodyText);
@@ -72,6 +109,12 @@
       return; // not a JSON response — most page requests aren't
     }
     stats.jsonBodies++;
+    if (maybeEpisodes) {
+      try {
+        checkEpisodeList(data);
+      } catch {}
+    }
+    if (!maybeCaptions) return;
     // `subtitles` is where Crunchyroll's `play` response carried translated
     // tracks when this was built; `captions` is checked as a fallback in case
     // that naming differs on some responses/regions, since neither is
@@ -142,6 +185,7 @@
   window.addEventListener("message", (event) => {
     if (!event.data?.__jpImmersionContentReady) return;
     if (lastFound) post(lastFound);
+    if (lastEpisodeTitles) postEpisodes(lastEpisodeTitles);
   });
 
   const originalFetch = window.fetch;
@@ -174,7 +218,11 @@
     return originalSend.apply(this, args);
   };
 
-  window.__jpImmersionSnifferStats = () => ({ ...stats, lastFoundHost: lastFound ? new URL(lastFound.url).hostname : null });
+  window.__jpImmersionSnifferStats = () => ({
+    ...stats,
+    lastFoundHost: lastFound ? new URL(lastFound.url).hostname : null,
+    episodeTitles: lastEpisodeTitles ? lastEpisodeTitles.length : 0,
+  });
 
   // Startup marker (2026-07-26). Without it, "no sniffer output at all" is
   // ambiguous between three very different states: the extension wasn't
