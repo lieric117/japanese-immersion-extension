@@ -150,22 +150,58 @@ let englishCueEpoch = 0;
 // already have.
 let englishCueUrl = null;
 
-// The season's other episode titles, from the sniffer (2026-08-01). Used only
+// Sibling episode titles for the season being watched (2026-08-01). Used only
 // to rule a Jimaku subtitle file OUT as belonging to a different episode — see
-// background.js's excludeOtherEpisodeFiles. Empty until the sniffer recognises
-// the page's own episode-list response, and everything degrades to the previous
-// behaviour while it is.
+// background.js's excludeOtherEpisodeFiles.
+//
+// Crunchyroll delivers these one at a time (its adjacent-episode lookups, see
+// caption-url-sniffer.js), never as a season, so they ACCUMULATE across visits
+// in `chrome.storage.local` keyed by series+season. A 2-episode OVA set is
+// fully covered by one page load; an 8-episode OAD set fills in as episodes get
+// watched. Partial coverage is still useful — every title learned is one more
+// file that can be ruled out — so this deliberately never waits for a complete
+// set. Empty means the previous listing behaviour, nothing worse.
 let seasonEpisodeTitles = [];
+
+// Keyed on the page's OWN series/season titles rather than Crunchyroll's
+// `season_id`, because the id appears only in sniffed responses while these two
+// come from the JSON-LD that's on every page — so a cache written on one visit
+// can be found on the next before anything has been sniffed at all.
+function siblingCacheKey(seriesTitle, seasonName) {
+  return `siblings:${seriesTitle ?? "?"}:${seasonName ?? "?"}`;
+}
+
+function looseSame(a, b) {
+  const norm = (s) =>
+    String(s ?? "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const x = norm(a);
+  return Boolean(x) && x === norm(b);
+}
 
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
-  const episodeTitles = event.data?.__jpImmersionEpisodeTitles;
-  if (Array.isArray(episodeTitles)) {
-    // Same pathname stamp as the caption URL below, and for the same reason: a
-    // replay carrying the PREVIOUS episode's season list would exclude files
-    // using the wrong season's titles.
-    const stamped = event.data.__jpImmersionEpisodePath;
-    if (stamped == null || stamped === location.pathname) seasonEpisodeTitles = episodeTitles;
+  const siblings = event.data?.__jpImmersionSiblingEpisodes;
+  if (Array.isArray(siblings)) {
+    const stamped = event.data.__jpImmersionSiblingPath;
+    if (stamped != null && stamped !== location.pathname) return;
+    const detected = detectShowEpisode();
+    if (!detected) return;
+    // An adjacent episode can legitimately be in the PREVIOUS season — the last
+    // episode of season 1 sits before the first OVA — and treating that as a
+    // sibling would rule out files using an unrelated season's titles. Both the
+    // series and the season have to agree before a title is trusted.
+    const mine = siblings
+      .filter((s) => looseSame(s.seriesTitle, detected.seriesTitle) && looseSame(s.seasonTitle, detected.seasonName))
+      .map((s) => s.title)
+      .filter(Boolean);
+    if (!mine.length) return;
+    const merged = [...new Set([...seasonEpisodeTitles, ...mine])];
+    if (merged.length === seasonEpisodeTitles.length) return;
+    seasonEpisodeTitles = merged;
+    chrome.storage.local.set({ [siblingCacheKey(detected.seriesTitle, detected.seasonName)]: merged });
     return;
   }
   const url = event.data?.__jpImmersionCaptionUrl;
@@ -871,8 +907,16 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
   // regardless of whether a preference exists. A saved preference with no
   // matching file this episode is a silent no-op there (the "sticky
   // fallback" requirement) — nothing to handle on this side.
-  chrome.storage.local.get(uploaderPrefKey(detected.seriesTitle, detected.seasonNumber), (stored) => {
-    const preferredUploader = stored[uploaderPrefKey(detected.seriesTitle, detected.seasonNumber)] ?? null;
+  const prefKey = uploaderPrefKey(detected.seriesTitle, detected.seasonNumber);
+  const sibKey = siblingCacheKey(detected.seriesTitle, detected.seasonName);
+  chrome.storage.local.get([prefKey, sibKey], (stored) => {
+    const preferredUploader = stored[prefKey] ?? null;
+    // Whatever previous visits learned, plus anything sniffed already on this
+    // load. Merged rather than either-or: on a first visit the cache is empty
+    // and only the live sniff has anything, and on a later visit a sniff may
+    // not have arrived yet when this fires.
+    const cached = Array.isArray(stored[sibKey]) ? stored[sibKey] : [];
+    seasonEpisodeTitles = [...new Set([...cached, ...seasonEpisodeTitles])];
     chrome.runtime.sendMessage(
       {
         type: "FETCH_SUBTITLES",

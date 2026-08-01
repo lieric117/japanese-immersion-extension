@@ -43,7 +43,7 @@
   // uses (e.g. the request is made from a Web Worker or service worker, which
   // have their own separate global scopes this override never touches) — a
   // completely different problem from "saw the response, didn't recognise it".
-  const stats = { fetchCalls: 0, xhrCalls: 0, jsonBodies: 0, subtitleShaped: 0, found: 0, episodeListsSeen: 0 };
+  const stats = { fetchCalls: 0, xhrCalls: 0, jsonBodies: 0, subtitleShaped: 0, found: 0, siblingEpisodesSeen: 0 };
 
   function pickEnglish(container) {
     if (!container || typeof container !== "object") return null;
@@ -60,39 +60,58 @@
     return { url: entry.url, format: entry.format ?? "ass", locale: preferred };
   }
 
-  // The season's other episode titles (2026-08-01), captured the same passive
-  // way and for the same reason: the page already fetches its own episode list
-  // to render the sidebar, so this needs no extra request and no auth token.
-  // Used by background.js to rule a subtitle file OUT as belonging to a
-  // different episode — see excludeOtherEpisodeFiles there.
+  // Sibling episode titles (2026-08-01), used by background.js to rule a Jimaku
+  // subtitle file OUT as belonging to a DIFFERENT episode — see
+  // excludeOtherEpisodeFiles there.
   //
-  // Detected by SHAPE, like the captions above, because Crunchyroll's endpoint
-  // naming isn't documented: an array of objects each carrying a `title` and an
-  // episode-number field. If the real shape differs, this simply never fires
-  // and the exclusion degrades to the previous "list what's left" behaviour —
-  // it fails closed, never on a guess. `episodeListsSeen` in the stats says
-  // which of those happened.
-  let lastEpisodeTitles = null;
-
-  function checkEpisodeList(data) {
-    const items = Array.isArray(data?.data) ? data.data : Array.isArray(data?.items) ? data.items : null;
-    if (!items || items.length < 2) return;
-    // Require the episode-number field on the items themselves, not just
-    // somewhere in the body — a `title` array alone matches far too much.
-    const looksEpisodic = items.some(
-      (i) => i && typeof i === "object" && ("episode_number" in i || "episode" in i)
+  // There is no batched "episodes in this season" response to watch for; that
+  // was an assumption, and searching a real page's network log found nothing
+  // like it. What Crunchyroll's frontend actually fires on every episode load
+  // is ADJACENT-episode lookups — `/content/v2/discover/previous_episode/{id}`
+  // and its next_episode counterpart — each returning exactly one episode,
+  // nested differently from the CMS season endpoint:
+  //
+  //   data[].panel.title                            "Memory Snow (Director's Cut)"
+  //   data[].panel.episode_metadata.season_id       "GYVDVV35Y"
+  //   data[].panel.episode_metadata.season_title    "OVAs"
+  //   data[].panel.episode_metadata.series_title    "Re:ZERO -Starting Life…"
+  //
+  // So one page load yields one or two siblings, not a season. content.js
+  // accumulates them per season across visits (see its own cache): a 2-episode
+  // OVA set is fully covered by a single load, and an 8-episode OAD set fills
+  // in as episodes are watched — partial coverage still rules out real files,
+  // which is the whole point of excluding rather than matching.
+  //
+  // Shape-detected like the captions above, and still fails closed: no match
+  // means no siblings and the previous listing behaviour. The season/series
+  // titles are forwarded rather than filtered here because this MAIN-world
+  // script has no access to the extension's own state — content.js checks them
+  // against the page's own JSON-LD, since an adjacent episode can legitimately
+  // belong to the PREVIOUS season and must not be treated as a sibling.
+  function checkAdjacentEpisode(data) {
+    const items = Array.isArray(data?.data) ? data.data : null;
+    if (!items || !items.length) return;
+    const found = [];
+    for (const item of items) {
+      const panel = item?.panel;
+      const meta = panel?.episode_metadata;
+      if (!panel || !meta || typeof meta !== "object") continue;
+      const title = typeof panel.title === "string" ? panel.title.trim() : "";
+      if (!title || typeof meta.season_id !== "string" || !meta.season_id) continue;
+      found.push({
+        title,
+        seasonId: meta.season_id,
+        seasonTitle: typeof meta.season_title === "string" ? meta.season_title : null,
+        seriesTitle: typeof meta.series_title === "string" ? meta.series_title : null,
+      });
+    }
+    if (!found.length) return;
+    stats.siblingEpisodesSeen += found.length;
+    console.log(
+      `[jp-immersion] caption sniffer: saw ${found.length} adjacent episode(s) — ` +
+        found.map((s) => `"${s.title}" (season ${s.seasonTitle ?? s.seasonId})`).join(", ")
     );
-    if (!looksEpisodic) return;
-    const titles = [...new Set(items.map((i) => (typeof i?.title === "string" ? i.title.trim() : "")).filter(Boolean))];
-    if (titles.length < 2) return;
-    stats.episodeListsSeen++;
-    lastEpisodeTitles = titles;
-    console.log(`[jp-immersion] caption sniffer: captured ${titles.length} episode titles for this season.`);
-    postEpisodes(titles);
-  }
-
-  function postEpisodes(titles) {
-    window.postMessage({ __jpImmersionEpisodeTitles: titles, __jpImmersionEpisodePath: location.pathname }, "*");
+    window.postMessage({ __jpImmersionSiblingEpisodes: found, __jpImmersionSiblingPath: location.pathname }, "*");
   }
 
   function checkAndForward(bodyText) {
@@ -100,7 +119,7 @@
     // Cheap pre-filter before the JSON.parse — most page responses are large
     // and irrelevant, and this runs on every single one.
     const maybeCaptions = bodyText.indexOf("subtitles") !== -1 || bodyText.indexOf("captions") !== -1;
-    const maybeEpisodes = bodyText.indexOf("episode_number") !== -1 || bodyText.indexOf('"episode"') !== -1;
+    const maybeEpisodes = bodyText.indexOf("episode_metadata") !== -1;
     if (!maybeCaptions && !maybeEpisodes) return;
     let data;
     try {
@@ -111,7 +130,7 @@
     stats.jsonBodies++;
     if (maybeEpisodes) {
       try {
-        checkEpisodeList(data);
+        checkAdjacentEpisode(data);
       } catch {}
     }
     if (!maybeCaptions) return;
@@ -185,7 +204,7 @@
   window.addEventListener("message", (event) => {
     if (!event.data?.__jpImmersionContentReady) return;
     if (lastFound) post(lastFound);
-    if (lastEpisodeTitles) postEpisodes(lastEpisodeTitles);
+
   });
 
   const originalFetch = window.fetch;
@@ -221,7 +240,6 @@
   window.__jpImmersionSnifferStats = () => ({
     ...stats,
     lastFoundHost: lastFound ? new URL(lastFound.url).hostname : null,
-    episodeTitles: lastEpisodeTitles ? lastEpisodeTitles.length : 0,
   });
 
   // Startup marker (2026-07-26). Without it, "no sniffer output at all" is
