@@ -187,8 +187,10 @@ console.log(h("1. Non-episodic classification"));
 console.log(`   flagged as a side format : ${out.flagged.length}`);
 for (const r of out.flagged.slice(0, 25)) console.log(`     [${r.as}] ${r.series} — "${r.season}" (season ${r.seasonNumber}, ${r.episodes} ep)`);
 if (out.flagged.length > 25) console.log(`     …and ${out.flagged.length - 25} more`);
-console.log(`\n   MISSED — reads as a side format but the classifier says episodic: ${out.missed.length}`);
-if (!out.missed.length) console.log("     (none — no Mugen-Train-shaped gaps in this sample)");
+console.log(`\n   REVIEW — reads as a side format but classifies as episodic: ${out.missed.length}`);
+console.log("   (a candidate, not a verdict: classification is only needed when the season NAME");
+console.log("    doesn't already match a Jimaku entry outright — check before changing anything)");
+if (!out.missed.length) console.log("     (none)");
 for (const r of out.missed) console.log(`     ${r.series} — "${r.season}" (season ${r.seasonNumber}, ${r.episodes} ep)`);
 if (out.overFlagged.length) {
   console.log(`\n   flagged but NOT obviously a side format (check for false positives): ${out.overFlagged.length}`);

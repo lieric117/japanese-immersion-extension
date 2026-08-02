@@ -150,6 +150,26 @@ const AOT = [
 
 const NARUTO = [{ id: 2142, name: "Naruto: Shippuuden", english_name: "Naruto: Shippuden" }];
 
+
+// The real 13-entry result for "Sword Art Online" (live API, 2026-08-01). The
+// EXTRA EDITION entry sits twelfth — a truncated copy of this list produced a
+// false bug report while investigating, which is why it is kept in full.
+const SAO = [
+  { id: 2193, name: "Sword Art Online", english_name: "Sword Art Online" },
+  { id: 1993, name: "Sword Art Online II", english_name: "Sword Art Online II" },
+  { id: 1212, name: "Sword Art Online: Alicization", english_name: "Sword Art Online: Alicization" },
+  { id: 3856, name: "Sword Art Online: Alicization - War of Underworld", english_name: "Sword Art Online: Alicization - War of Underworld" },
+  { id: 3857, name: "Sword Art Online: Alicization - War of Underworld Part 2", english_name: "Sword Art Online: Alicization - War of Underworld Part 2" },
+  { id: 1339, name: "Sword Art Online the Movie: Ordinal Scale", english_name: "Sword Art Online the Movie: Ordinal Scale" },
+  { id: 1374, name: "Sword Art Online the Movie -Progressive- Aria of a Starless Night", english_name: "Sword Art Online the Movie -Progressive- Aria of a Starless Night" },
+  { id: 3686, name: "Sword Art Online the Movie -Progressive- Scherzo of Deep Night", english_name: "Sword Art Online the Movie -Progressive- Scherzo of Deep Night" },
+  { id: 12246, name: "Unanswered//butterfly: Sword Art Online", english_name: "Unanswered//butterfly: Sword Art Online" },
+  { id: 1571, name: "Sword Art Online Alternative: Gun Gale Online", english_name: "Sword Art Online Alternative: Gun Gale Online" },
+  { id: 7663, name: "Sword Art Online Alternative: Gun Gale Online II", english_name: "Sword Art Online Alternative: Gun Gale Online II" },
+  { id: 3855, name: "Sword Art Online EXTRA EDITION", english_name: "Sword Art Online EXTRA EDITION" },
+  { id: 140, name: "Sword Oratoria", english_name: "Sword Oratoria" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1027,6 +1047,35 @@ const cases = [
     files: FILES,
     expect: { entryId: 2142, confident: true, fileCount: 1 },
     expectFileNames: ["NARUTO－ナルト－.疾風伝.S07E05.第148話.闇の後継者.WEB-DL.Hulu.ja.srt"],
+  },
+
+  {
+    // From the 2026-08-01 catalogue sweep, which flagged this as a possible
+    // classifier gap — it isn't one. The season name matches a Jimaku entry
+    // EXACTLY, so the name tier resolves it and no format classification is
+    // needed. Pinned because the sweep will keep flagging it, and because
+    // season_number 100 is a real out-of-range value that must not derail it.
+    why: "SAO EXTRA EDITION — an unclassified side format still resolves by season name",
+    args: {
+      query: "Sword Art Online",
+      episode: 1,
+      seasonNumber: 100,
+      seasonName: "Sword Art Online EXTRA EDITION",
+      episodeTitle: "Sword Art Online EXTRA EDITION | E1 - Sword Art Online EXTRA EDITION",
+    },
+    search: { "Sword Art Online": SAO },
+    files: { 3855: { 1: ["[Uploader] Sword Art Online Extra Edition.ass"] } },
+    expect: {
+      entryId: 3855,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Sword Art Online EXTRA EDITION" (id 3855) for "Sword Art Online" episode 1 — matched by Crunchyroll's season name.`,
+      ],
+      warn: [],
+    },
+    // The silent-wrong-content answer: the franchise's own season 1 entry.
+    mustNotResolveTo: [2193],
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────
