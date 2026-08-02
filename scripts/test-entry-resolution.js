@@ -1419,6 +1419,35 @@ async function run() {
     if (!ok) console.log(`        got ${JSON.stringify(got?.name ?? null)}, want ${JSON.stringify(c.want)}`);
   }
 
+  // ── the episode number Crunchyroll actually means ────────────────────────
+  // Extracted from content.js (the resolver's `episode` argument comes from
+  // here). Both compound titles below are verbatim from live pages, captured
+  // after One Piece episode 1156 resolved against episode 1.
+  const contentSrc = fs.readFileSync(path.join(__dirname, "..", "content.js"), "utf8");
+  const grabbed = contentSrc.match(/^const EPISODE_CODE_IN_NAME_RE = .*$\n^function episodeNumberFromName\([\s\S]*?\n\}/m);
+  if (!grabbed) throw new Error("could not extract episodeNumberFromName from content.js — renamed?");
+  const episodeNumberFromName = new Function(`${grabbed[0]}; return episodeNumberFromName;`)();
+  const episodeCases = [
+    // The live bug: JSON-LD said episodeNumber 1, the title says 1156, and
+    // 1156 is both what Crunchyroll displays and what Jimaku indexes by.
+    ["Elbaph (1156-current) | E1156 - The Long-sought Elbaph! The Big Reunion Banquet!", 1156],
+    // Agrees with episodeNumber here — the fix must be a no-op on this one.
+    ["Naruto Shippuden: The Long-Awaited Reunion | E33 - The New Target", 33],
+    // Non-numeric codes say nothing about position; must fall back.
+    ["OVAs | EEX - Memory Snow (Director’s Cut)", null],
+    // No code at all — the standalone-film shape.
+    ["Attack on Titan: THE LAST ATTACK | Attack on Titan: THE LAST ATTACK", null],
+    ["", null],
+  ];
+  for (const [name, want] of episodeCases) {
+    const got = episodeNumberFromName(name);
+    const ok = got === want;
+    if (!ok) failed++;
+    cases.push({ why: name });
+    console.log(`${ok ? "PASS" : "FAIL"}  episode number from ${JSON.stringify(name.slice(0, 52))} -> ${got}`);
+    if (!ok) console.log(`        want ${want}`);
+  }
+
   // ── season-title classification, against REAL catalogue titles ───────────
   // Every string below is verbatim from the 2026-08-01 catalogue sweep. The
   // sweep exists to find exactly this: "East Blue Special Edition HD,

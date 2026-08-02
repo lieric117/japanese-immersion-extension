@@ -51,6 +51,18 @@ const FILE_HINT = "[JPN]";
 // caller can show a clear error instead of querying Jimaku with a wrong or
 // empty title.
 let warnedMissingSeasonNameFor = null;
+let warnedEpisodeMismatchFor = null;
+
+// The episode number Crunchyroll bakes into its own page title, e.g. the 1156
+// in "Elbaph (1156-current) | E1156 - The Long-sought Elbaph!". Numeric only:
+// the same slot carries non-numeric codes for extras ("EEX"), which say nothing
+// about position and must fall back to `episodeNumber`.
+const EPISODE_CODE_IN_NAME_RE = /\|\s*E(\d{1,4})\s*[-–—]/u;
+function episodeNumberFromName(name) {
+  const m = String(name ?? "").match(EPISODE_CODE_IN_NAME_RE);
+  return m ? Number(m[1]) : null;
+}
+
 function detectShowEpisode() {
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
     let data;
@@ -61,8 +73,29 @@ function detectShowEpisode() {
     }
     if (data["@type"] !== "TVEpisode") continue;
     const seriesTitle = data.partOfSeries?.name;
-    const episodeNumber = data.episodeNumber;
-    if (!seriesTitle || !Number.isInteger(episodeNumber)) continue;
+    const jsonLdEpisode = data.episodeNumber;
+    if (!seriesTitle || !Number.isInteger(jsonLdEpisode)) continue;
+    // `episodeNumber` is NOT reliably the episode Crunchyroll itself displays,
+    // and it is not the number Jimaku indexes by (2026-08-01). Measured on two
+    // real pages:
+    //
+    //   One Piece Elbaph  episodeNumber: 1     name: "… | E1156 - …"   shown: 1156
+    //   Naruto S2 opener  episodeNumber: 33    name: "… | E33 - …"     shown: 33
+    //
+    // The code inside `name` matched the displayed episode on both, and the
+    // CMS API's own `episode_number` on both; `episodeNumber` matched on only
+    // one. So the code is preferred where it's numeric. This was a live
+    // wrong-episode load: One Piece episode 1156 resolved against episode 1.
+    const nameEpisode = episodeNumberFromName(data.name);
+    const episodeNumber = nameEpisode ?? jsonLdEpisode;
+    if (nameEpisode !== null && nameEpisode !== jsonLdEpisode && warnedEpisodeMismatchFor !== location.pathname) {
+      warnedEpisodeMismatchFor = location.pathname;
+      console.warn(
+        `[jp-immersion] this page's JSON-LD says episodeNumber ${jsonLdEpisode} but its title says ` +
+          `episode ${nameEpisode} — using ${nameEpisode}, which is what Crunchyroll displays and what ` +
+          `Jimaku indexes by. Title was: ${JSON.stringify(data.name)}`
+      );
+    }
     const detected = {
       seriesTitle,
       episodeNumber,
