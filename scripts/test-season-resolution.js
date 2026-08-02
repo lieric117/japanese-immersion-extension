@@ -64,6 +64,7 @@ const {
     grab(/^const MIN_SEARCH_QUERY_CHARS = .*$/m, "MIN_SEARCH_QUERY_CHARS"),
     grab(/^const MAX_SEARCH_LADDER_RUNGS = .*$/m, "MAX_SEARCH_LADDER_RUNGS"),
     grab(/^function searchQueryLadder\([\s\S]*?\n\}/m, "searchQueryLadder"),
+    grab(/^function queryWordsAppearIn\([\s\S]*?\n\}/m, "queryWordsAppearIn"),
     grab(/^function matchEntryByFullTitle\([\s\S]*?\n\}/m, "matchEntryByFullTitle"),
     grab(/^const NON_EPISODIC_CLASSES = \[[\s\S]*?\n\];/m, "NON_EPISODIC_CLASSES"),
     grab(/^function nonEpisodicClass\([\s\S]*?\n\}/m, "nonEpisodicClass"),

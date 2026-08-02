@@ -578,7 +578,7 @@ const cases = [
       log: [
         `[jp-immersion] Jimaku entry "Attack on Titan the Movie: The Last Attack" (id 11263) for "Attack on Titan" episode 0 — matched by Jimaku's only match for "Attack on Titan: THE LAST ATTACK".`,
         `[jp-immersion] not asking Jimaku for episode 0 of "Attack on Titan the Movie: The Last Attack" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
-        `[jp-immersion] "Attack on Titan the Movie: The Last Attack" — listing all 2 of its files instead (normal for a movie, OVA or special); none of them names "Attack on Titan: THE LAST ATTACK".`,
+        `[jp-immersion] "Attack on Titan the Movie: The Last Attack" — listing all 2 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },
@@ -601,6 +601,44 @@ const cases = [
     files: FILES,
     expect: { unresolved: true, confident: false, noFileFetch: true, minCandidates: 2, warnCount: 1 },
     mustNotResolveTo: [12471, 3338, 846],
+  },
+
+  {
+    // THE 2026-08-01 REGRESSION. Crunchyroll files Chronicle under a separate
+    // series entity called "Attack on Titan Movies", and searching that returns
+    // exactly ONE Jimaku entry — The Last Attack. The lone-result branch of
+    // matchEntryByFullTitle accepted it outright, with no containment check of
+    // any kind, and loaded a different film's subtitles confidently and
+    // silently. A collection's name must not identify one of its members.
+    why: "AoT Chronicle via the 'Movies' bucket — a lone result must not be a different film",
+    args: {
+      query: "Attack on Titan Movies",
+      episode: 0,
+      seasonNumber: null,
+      seasonName: null,
+      episodeTitle: "Attack on Titan Movies | Attack on Titan Movies",
+    },
+    // Verbatim: this query really does return only Last Attack's entry.
+    search: { "Attack on Titan Movies": LAST_ATTACK_ONLY },
+    files: FILES,
+    expect: { unresolved: true, confident: false, noFileFetch: true },
+    mustNotResolveTo: [11263],
+  },
+  {
+    // The case the lone-result branch exists for, kept adjacent so the floor
+    // can't be tightened until it breaks this too: the query's own words all
+    // appear in the entry, which merely says more ("the Movie:" in the middle).
+    why: "a lone result IS still trusted when the query's own words are all in it",
+    args: {
+      query: "Attack on Titan: THE LAST ATTACK",
+      episode: 0,
+      seasonNumber: null,
+      seasonName: null,
+      episodeTitle: "Attack on Titan: THE LAST ATTACK | Attack on Titan: THE LAST ATTACK",
+    },
+    search: { "Attack on Titan: THE LAST ATTACK": LAST_ATTACK_ONLY },
+    files: FILES,
+    expect: { entryId: 11263, confident: true, fileCount: 1 },
   },
 
   // ── 3. matched, but no usable subtitle file ───────────────────────────────
@@ -976,6 +1014,57 @@ const cases = [
     search: { "Attack on Titan": AOT },
     files: FILES,
     expect: { entryId: 1597, confident: true, fileCount: 1 },
+  },
+
+  {
+    // Reported 2026-08-01: OADs 4-8 all still listed episode 1's file. Cause is
+    // a re-translation, not a cache fault — Crunchyroll's title for OAD 1 is
+    // "Ilse's Notebook: Memoirs of a Scout Regiment Member" while the file says
+    // "…Memoirs of a Recon Corps Member". No shared text in the subtitle, but
+    // the segment before the colon is identical in both, which is what the
+    // prefix variant matches on. Both titles verbatim from real data.
+    why: "a re-translated sibling is still ruled out via the segment before its colon",
+    args: {
+      query: "Attack on Titan",
+      episode: 4,
+      seasonNumber: 66,
+      seasonName: "Attack on Titan OADs",
+      episodeTitle: "Attack on Titan OADs | E4 - No Regrets: Part 1",
+      siblingTitles: [
+        "Ilse's Notebook: Memoirs of a Scout Regiment Member",
+        "The Sudden Visitor: The Torturous Curse of Youth",
+        "Distress",
+        "No Regrets: Part 1",
+        "No Regrets: Part 2",
+      ],
+    },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    expect: { entryId: 1597, confident: true, fileCount: 3 },
+    // Episode 1's file must be gone despite sharing no subtitle wording.
+    expectFileNames: [
+      "[Kamigami] Shingeki no Kyojin - #3.25 OAD2 [1024x576 x264 AAC][CHT, JPN].ass",
+      "[Kamigami] Shingeki no Kyojin - 03.5 OAD [DVD 848x480 x264 AAC][CHS, JPN].ass",
+      "[ReinForce] Shingeki no Kyojin - OAD3 (DVDRip 852x480 x264 FLAC).cht,jpn.ass",
+    ],
+  },
+  {
+    // The self-protection that makes the prefix variant safe: two episodes
+    // sharing a prefix must not rule each other out. "No Regrets: Part 2" is a
+    // sibling of "Part 1", and its prefix is identical to this episode's own.
+    why: "episodes sharing a title prefix do not exclude each other's files",
+    args: {
+      query: "Attack on Titan",
+      episode: 5,
+      seasonNumber: 66,
+      seasonName: "Attack on Titan OADs",
+      episodeTitle: "Attack on Titan OADs | E5 - No Regrets: Part 2",
+      siblingTitles: ["No Regrets: Part 1", "No Regrets: Part 2"],
+    },
+    search: { "Attack on Titan": AOT },
+    files: FILES,
+    // Nothing is excluded: the only siblings share this episode's own prefix.
+    expect: { entryId: 1597, confident: true, fileCount: 6 },
   },
 
   // Generality: the same mechanism on a different franchise, and reached via

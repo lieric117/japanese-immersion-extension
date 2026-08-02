@@ -746,13 +746,41 @@ function searchQueryLadder(title) {
 // "Re:ZERO -Starting Life in Another World-" is contained in "Re:ZERO
 // -Starting Life in Another World- Memory Snow", and matching it would
 // reintroduce exactly the bug this exists to fix.
+// Every word of the query appears somewhere in the entry's name. Weaker than
+// containment (word order and adjacency don't matter, so an entry that
+// interpolates "the Movie:" still qualifies) but strong enough that a query
+// naming a collection can't be satisfied by one of its members.
+function queryWordsAppearIn(title, entry) {
+  const words = looseTitle(title).split(" ").filter(Boolean);
+  if (!words.length) return false;
+  return [entry.name, entry.english_name]
+    .filter(Boolean)
+    .some((field) => {
+      const present = new Set(looseTitle(field).split(" ").filter(Boolean));
+      return words.every((w) => present.has(w));
+    });
+}
+
 function matchEntryByFullTitle(entries, title, wasFullQuery) {
   const wanted = looseTitle(title);
   if (!wanted) return null;
   const fields = (e) => [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean);
   const exact = entries.find((e) => fields(e).includes(wanted));
   if (exact) return exact;
-  if (wasFullQuery && entries.length === 1) return entries[0];
+  // The lone-result trust needs a floor, added 2026-08-01 after it confidently
+  // resolved AoT's Chronicle to a different film. Crunchyroll files Chronicle
+  // under a series called "Attack on Titan Movies", and searching that returns
+  // exactly ONE entry — "Attack on Titan the Movie: The Last Attack" — which
+  // this branch then accepted outright. A COLLECTION's name must not identify
+  // one of its members.
+  //
+  // The floor is that every word of the query appears in the entry's name.
+  // That still admits the case this branch exists for ("Attack on Titan: THE
+  // LAST ATTACK" → "Attack on Titan the Movie: The Last Attack", where the
+  // entry merely says more) while rejecting the bucket name, whose own word
+  // "movies" appears nowhere in it. The bidirectional franchise check used for
+  // single-result SEARCHES can't be reused here: it rejects both of these.
+  if (wasFullQuery && entries.length === 1 && queryWordsAppearIn(title, entries[0])) return entries[0];
   const contained = entries.filter((e) => fields(e).some((f) => f.includes(wanted)));
   return contained.length === 1 ? contained[0] : null;
 }
@@ -997,9 +1025,20 @@ function excludeOtherEpisodeFiles(files, contentTitles, siblingTitles) {
   // Crunchyroll labels both Re:Zero OVAs "(Director's Cut)" and no filename
   // carries that, so without stripping it the sibling never matches and nothing
   // is ever excluded.
+  // The segment before a colon is kept as a third variant. Episode titles get
+  // re-translated between eras: Crunchyroll's OAD 1 is "Ilse's Notebook:
+  // Memoirs of a Scout Regiment Member" while the file on Jimaku says "…
+  // Memoirs of a Recon Corps Member" — the same episode, no shared text in the
+  // subtitle, but "Ilse's Notebook" is identical in both. Without this the file
+  // stayed in the candidate list for OADs 4–8 (reported 2026-08-01). Episodes
+  // sharing a prefix protect themselves: a sibling variant that overlaps the
+  // current episode's own title is skipped below, so "No Regrets: Part 1" and
+  // "Part 2" never rule each other out.
   const variants = (t) => {
     const out = [];
-    for (const v of [t, String(t ?? "").replace(TRAILING_QUALIFIER_RE, "").trim()]) {
+    const raw = String(t ?? "");
+    const beforeColon = raw.includes(":") ? raw.slice(0, raw.indexOf(":")).trim() : null;
+    for (const v of [t, raw.replace(TRAILING_QUALIFIER_RE, "").trim(), beforeColon]) {
       const loose = looseTitle(v);
       if (loose && loose.length >= MIN_CONTENT_TITLE_CHARS && !out.includes(loose)) out.push(loose);
     }
@@ -1643,7 +1682,12 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
               ? `listing the ${surviving.files.length} of its ${all.length} files not tied to another episode`
               : `listing all ${all.length} of its files instead`) +
             ` (normal for a movie, OVA or special)` +
-            (contentTitles.length ? `; none of them names "${contentTitles[0]}".` : ".")
+            // Only worth saying when there was actually a choice to make. On a
+            // film whose entry holds one subtitle and one archive it reads as a
+            // failure report for something that resolved fine (2026-08-01).
+            (contentTitles.length && surviving.files.filter((f) => !ARCHIVE_RE.test(f.name)).length > 1
+              ? `; none of them names "${contentTitles[0]}".`
+              : ".")
         );
         files = surviving.files;
       }
