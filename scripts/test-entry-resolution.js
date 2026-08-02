@@ -1437,6 +1437,10 @@ async function run() {
     ["OVAs | EEX - Memory Snow (Director’s Cut)", null],
     // No code at all — the standalone-film shape.
     ["Attack on Titan: THE LAST ATTACK | Attack on Titan: THE LAST ATTACK", null],
+    // A prologue: code "0" with no episode_number of its own. Real, and the
+    // reason the number guard now runs after the code is read rather than
+    // before — 0 is a usable episode number, null is not.
+    ["Gundam Build Divers | E0 - Prologue", 0],
     ["", null],
   ];
   for (const [name, want] of episodeCases) {

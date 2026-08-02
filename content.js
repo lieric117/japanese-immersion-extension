@@ -73,8 +73,7 @@ function detectShowEpisode() {
     }
     if (data["@type"] !== "TVEpisode") continue;
     const seriesTitle = data.partOfSeries?.name;
-    const jsonLdEpisode = data.episodeNumber;
-    if (!seriesTitle || !Number.isInteger(jsonLdEpisode)) continue;
+    const jsonLdEpisode = Number.isInteger(data.episodeNumber) ? data.episodeNumber : null;
     // `episodeNumber` is NOT reliably the episode Crunchyroll itself displays,
     // and it is not the number Jimaku indexes by (2026-08-01). Measured on two
     // real pages:
@@ -88,6 +87,13 @@ function detectShowEpisode() {
     // wrong-episode load: One Piece episode 1156 resolved against episode 1.
     const nameEpisode = episodeNumberFromName(data.name);
     const episodeNumber = nameEpisode ?? jsonLdEpisode;
+    // Checked AFTER the title code, not before it (2026-08-01). Crunchyroll
+    // publishes real, watchable entries with no `episode_number` at all —
+    // prologues carrying the code "0", and films — measured across a 2,385
+    // episode sample. Rejecting the page on the number alone threw away a
+    // usable code and produced "Couldn't detect the show/episode" on content
+    // that resolves perfectly well once the code is read.
+    if (!seriesTitle || !Number.isInteger(episodeNumber)) continue;
     if (nameEpisode !== null && nameEpisode !== jsonLdEpisode && warnedEpisodeMismatchFor !== location.pathname) {
       warnedEpisodeMismatchFor = location.pathname;
       console.warn(

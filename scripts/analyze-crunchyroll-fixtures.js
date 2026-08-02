@@ -81,6 +81,8 @@ const out = {
   longRunners: [],
   truncated: [],
   errored: 0,
+  codeVsNumber: { agree: 0, disagree: [], nonNumeric: [], missing: [] },
+  dupSeasonNumbers: [],
 };
 
 for (const series of seriesList) {
@@ -122,6 +124,20 @@ for (const series of seriesList) {
     else if (looksSide) out.missed.push(row);
     if (cls && !looksSide) out.overFlagged.push({ ...row, as: cls[0] });
 
+    // 2b. The CMS's own episode CODE vs its episode_number. This mirrors the
+    // JSON-LD `name`-code vs `episodeNumber` split that caused One Piece to
+    // resolve episode 1156 against episode 1 (Decisions Log 2026-08-01), and
+    // is the only way to check that split at scale without JSON-LD.
+    for (const e of eps) {
+      const code = e.episode;
+      const num = e.episode_number;
+      const row = { series: series.seriesTitle ?? series.seriesId, season: title, code, num, title: e.title };
+      if (code === undefined || code === null || code === "") out.codeVsNumber.missing.push(row);
+      else if (!/^\d+$/.test(String(code))) out.codeVsNumber.nonNumeric.push(row);
+      else if (Number(code) === num) out.codeVsNumber.agree++;
+      else out.codeVsNumber.disagree.push(row);
+    }
+
     // 2. JSON-LD `name` shapes
     for (const ld of season.jsonLd ?? []) {
       const name = ld?.data?.name;
@@ -134,6 +150,19 @@ for (const series of seriesList) {
       // does the parser get a usable title out of it?
       const cands = X.contentTitleCandidates(name, ld?.data?.partOfSeason?.name, ld?.data?.partOfSeries?.name);
       if (!cands.length) bucket.unparsed = (bucket.unparsed ?? 0) + 1;
+    }
+  }
+
+  // `season_number` is not unique within a series — measured, not assumed.
+  const bySeasonNumber = new Map();
+  for (const se of seasons) bySeasonNumber.set(se.season_number, (bySeasonNumber.get(se.season_number) ?? 0) + 1);
+  for (const [num, count] of bySeasonNumber) {
+    if (count > 1) {
+      out.dupSeasonNumbers.push({
+        series: series.seriesTitle ?? series.seriesId,
+        seasonNumber: num,
+        titles: seasons.filter((se) => se.season_number === num).map((se) => se.title),
+      });
     }
   }
 
@@ -215,6 +244,26 @@ if (!out.longRunners.length) console.log("   (none in this sample)");
 for (const r of out.longRunners.sort((a, b) => b.episodes - a.episodes)) {
   const n = out.numbering.find((x) => x.series === r.series);
   console.log(`   ${r.series} — ${r.seasons} seasons, ${r.episodes} episodes, numbering: ${n?.verdict ?? "unknown"}`);
+}
+
+console.log(h("4b. Episode CODE vs episode_number (the field split that broke One Piece)"));
+{
+  const c = out.codeVsNumber;
+  console.log(`   agree: ${c.agree}   disagree: ${c.disagree.length}   non-numeric code: ${c.nonNumeric.length}   no code: ${c.missing.length}`);
+  for (const r of c.disagree.slice(0, 10)) console.log(`   ⚠ ${r.series} — "${r.season}": code ${JSON.stringify(r.code)} vs number ${r.num}  (${JSON.stringify(String(r.title).slice(0, 34))})`);
+  for (const r of c.nonNumeric.slice(0, 6)) console.log(`     non-numeric: ${r.series} code ${JSON.stringify(r.code)} number ${r.num}`);
+  const noNumber = [...c.missing, ...c.disagree, ...c.nonNumeric].filter((r) => !Number.isInteger(r.num));
+  if (noNumber.length) {
+    console.log(`\n   ${noNumber.length} episode(s) have NO usable episode_number at all — detection depends on the`);
+    console.log("   title code for these, and fails outright if that's absent too:");
+    for (const r of noNumber.slice(0, 8)) console.log(`     ${r.series} — ${JSON.stringify(String(r.title).slice(0, 46))} (code ${JSON.stringify(r.code)})`);
+  }
+}
+
+console.log(h("4c. Series where season_number is not unique"));
+if (!out.dupSeasonNumbers.length) console.log("   (none)");
+for (const r of out.dupSeasonNumbers) {
+  console.log(`   ${r.series} — season_number ${r.seasonNumber} used by ${r.titles.length}: ${JSON.stringify(r.titles.map((t) => t.slice(0, 40)))}`);
 }
 
 console.log(h("5. Episode lists that don't match their declared count"));
