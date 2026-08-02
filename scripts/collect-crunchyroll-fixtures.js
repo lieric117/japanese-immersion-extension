@@ -22,6 +22,14 @@
 //      Progress is logged as it goes; it downloads a JSON file at the end and
 //      also leaves the result on `window.crFixtureData`.
 //
+// AUTH EXPIRES MID-RUN, and the walk is built around that (2026-08-01): a real
+// 30-series run lost its token after roughly three series and then failed 55
+// times identically. A hook keeps the page's freshest Authorization header on
+// hand for the whole session, a 401 triggers one shared refresh and retries the
+// request, and runs RESUME — re-running the same list keeps whatever completed
+// and fetches only the rest. Leave the tab focused; background tabs throttle
+// timers and the page mints new tokens more slowly when it isn't visible.
+//
 // INPUT FORMAT: an array of series ids ("GRGG9798R") and/or any URL containing
 // one ("https://www.crunchyroll.com/series/GRGG9798R/naruto-shippuden").
 // Mixed is fine; duplicates are ignored.
@@ -42,14 +50,57 @@
 
   let authHeaders = null;
   let jsonLdAvailable = null;
+  // Whatever Authorization header the PAGE last used. Kept current by a hook
+  // installed for the whole session (see installAuthWatcher) — Crunchyroll's
+  // tokens are short-lived, measured at under two minutes of collecting in the
+  // 2026-08-01 run, so a header captured once at diagnose() time is stale long
+  // before a 30-series walk finishes.
+  const authState = (window.__crFixturesAuth ??= { latest: null });
 
   function seriesIdOf(input) {
     const m = String(input ?? "").match(SERIES_ID_RE);
     return m ? m[1] : null;
   }
 
-  async function api(path, headers = authHeaders) {
-    const res = await fetch(path, { headers: headers ?? {}, credentials: "include" });
+  function installAuthWatcher() {
+    // Installed once per tab and never removed. Bound to window-scoped state so
+    // re-pasting this file reuses the existing hook instead of orphaning it.
+    if (window.__crFixturesWatching) return;
+    window.__crFixturesWatching = true;
+    const originalFetch = window.fetch;
+    window.fetch = function (...args) {
+      try {
+        const [input, init] = args;
+        const h = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+        const auth = h.get("authorization");
+        // Ignore this script's own requests, or it would just echo back the
+        // stale token it is trying to replace.
+        if (auth && !args[2]?.__crFixturesOwn) authState.latest = auth;
+      } catch {}
+      return originalFetch.apply(this, args);
+    };
+    const originalSend = XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+      if (String(name).toLowerCase() === "authorization" && value) authState.latest = value;
+      return originalSend.apply(this, arguments);
+    };
+  }
+  installAuthWatcher();
+
+  async function rawFetch(path, headers) {
+    // Third argument marks it as ours so the watcher above skips it.
+    return window.fetch(path, { headers: headers ?? {}, credentials: "include" }, { __crFixturesOwn: true });
+  }
+
+  // Retries once through a re-auth on 401. Everything in the walk goes through
+  // here, so a token expiring mid-run costs one refresh rather than every
+  // remaining series (the 2026-08-01 report: 55 consecutive identical 401s).
+  async function api(path, headers, { allowRefresh = true } = {}) {
+    const res = await rawFetch(path, headers ?? authHeaders);
+    if (res.status === 401 && allowRefresh) {
+      const ok = await refreshAuth();
+      if (ok) return api(path, null, { allowRefresh: false });
+    }
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status} for ${path}`);
       err.status = res.status;
@@ -66,11 +117,75 @@
 
   async function worksWith(headers) {
     try {
-      await api(PROBE, headers);
+      await api(PROBE, headers, { allowRefresh: false });
       return true;
     } catch {
       return false;
     }
+  }
+
+  // Re-acquires a working token mid-run, cheapest source first, and verifies
+  // each with a real request. Only prompts the user once the free options are
+  // exhausted — a long walk shouldn't need babysitting for something the page
+  // refreshes on its own.
+  let refreshing = null;
+  function refreshAuth() {
+    // Concurrent 401s share one refresh instead of stampeding.
+    if (refreshing) return refreshing;
+    refreshing = (async () => {
+      const current = authHeaders?.Authorization ?? null;
+
+      // 1. The page may have refreshed its own token since we started.
+      if (authState.latest && authState.latest !== current && (await worksWith({ Authorization: authState.latest }))) {
+        authHeaders = { ...authHeaders, Authorization: authState.latest };
+        console.log("%c  [auth] refreshed from the page's own traffic. ✔", "color:#859900");
+        return true;
+      }
+      // 2. Storage may hold a newer one even if it didn't hold a usable one at
+      //    diagnose() time — the key can rotate.
+      for (const c of candidateTokens()) {
+        const header = `Bearer ${c.token}`;
+        if (header === current) continue;
+        if (await worksWith({ Authorization: header })) {
+          authHeaders = { ...authHeaders, Authorization: header };
+          console.log(`%c  [auth] refreshed from storage key "${c.key}". ✔`, "color:#859900");
+          return true;
+        }
+      }
+      // 3. Wait for the page to mint a new one. It does this on its own
+      //    schedule; interacting with the page just makes it happen sooner.
+      console.log(
+        "%c  [auth] token expired and no fresh one is available yet. Waiting up to 120s.\n" +
+          "         To speed this up, interact with the page WITHOUT navigating away —\n" +
+          "         scroll a carousel, open the profile menu, hover a shelf. Do NOT click a\n" +
+          "         link that reloads the page, which would kill this script mid-run.",
+        "color:#b58900"
+      );
+      const deadline = Date.now() + 120000;
+      while (Date.now() < deadline) {
+        await sleep(2000);
+        if (authState.latest && authState.latest !== current && (await worksWith({ Authorization: authState.latest }))) {
+          authHeaders = { ...authHeaders, Authorization: authState.latest };
+          console.log("%c  [auth] recovered. ✔ resuming.", "color:#859900");
+          return true;
+        }
+        for (const c of candidateTokens()) {
+          const header = `Bearer ${c.token}`;
+          if (header !== current && (await worksWith({ Authorization: header }))) {
+            authHeaders = { ...authHeaders, Authorization: header };
+            console.log("%c  [auth] recovered from storage. ✔ resuming.", "color:#859900");
+            return true;
+          }
+        }
+      }
+      console.log("%c  [auth] gave up waiting. Remaining series will fail; re-run to resume.", "color:#dc322f");
+      return false;
+    })();
+    const p = refreshing;
+    p.finally(() => {
+      if (refreshing === p) refreshing = null;
+    });
+    return p;
   }
 
   function looksLikeJwt(v) {
@@ -92,34 +207,6 @@
         } catch {}
       }
     }
-  }
-
-  // Last resort, and the only method that cannot be wrong: take the header off
-  // one of the page's own requests. Same principle the extension's caption
-  // sniffer already relies on.
-  function captureFromPageTraffic(timeoutMs = 20000) {
-    return new Promise((resolve) => {
-      const originalFetch = window.fetch;
-      const done = (headers) => {
-        window.fetch = originalFetch;
-        resolve(headers);
-      };
-      const timer = setTimeout(() => done(null), timeoutMs);
-      window.fetch = function (...args) {
-        try {
-          const [input, init] = args;
-          const h = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-          const auth = h.get("authorization");
-          if (auth) {
-            clearTimeout(timer);
-            const out = { Authorization: auth };
-            for (const k of ["x-cr-tab-id", "x-cr-device-id"]) if (h.get(k)) out[k] = h.get(k);
-            done(out);
-          }
-        } catch {}
-        return originalFetch.apply(this, args);
-      };
-    });
   }
 
   async function diagnose() {
@@ -146,7 +233,13 @@
             "        loads data). Waiting up to 20s…",
           "color:#b58900"
         );
-        authHeaders = await captureFromPageTraffic();
+        const deadline = Date.now() + 20000;
+        while (!authHeaders && Date.now() < deadline) {
+          await sleep(1000);
+          if (authState.latest && (await worksWith({ Authorization: authState.latest }))) {
+            authHeaders = { Authorization: authState.latest };
+          }
+        }
         if (authHeaders) console.log("  auth: captured from the page's own request. ✔");
         else {
           console.log("%c  auth: FAILED — nothing captured. Nothing else will work; stop here.", "color:#dc322f");
@@ -235,18 +328,32 @@
     }
     const { jsonLdPerSeason = EPISODE_SAMPLE_JSONLD, adjacentPerSeries = true } = options;
 
-    const ids = [...new Set((inputs ?? []).map(seriesIdOf).filter(Boolean))];
-    if (!ids.length) {
+    const allIds = [...new Set((inputs ?? []).map(seriesIdOf).filter(Boolean))];
+    if (!allIds.length) {
       console.log("%c[cr-fixtures] no usable series ids in that input.", "color:#dc322f");
       return null;
     }
 
+    // Resumable by default: a re-run with the same list keeps whatever the
+    // previous attempt completed and only fetches what's missing. Token expiry
+    // then costs the remainder of one run rather than the whole walk.
+    const previous = options.resume ?? window.crFixtureData ?? null;
     const out = {
       capturedAt: new Date().toISOString(),
       note: "Real Crunchyroll catalogue data. Curated fields plus one raw episode per season.",
-      series: {},
+      series: { ...(previous?.series ?? {}) },
       errors: [],
     };
+    const ids = allIds.filter((id) => !out.series[id]);
+    const carried = allIds.length - ids.length;
+    if (carried) {
+      console.log(`%c[cr-fixtures] resuming — ${carried} series already collected, ${ids.length} to go.`, "color:#268bd2");
+    }
+    if (!ids.length) {
+      console.log("%c[cr-fixtures] everything on this list is already collected. Nothing to do.", "color:#859900");
+      window.crFixtureData = out;
+      return out;
+    }
     let nSeasons = 0;
     let nEpisodes = 0;
     let nJsonLd = 0;
@@ -296,6 +403,7 @@
         }
 
         out.series[seriesId] = entry;
+        window.crFixtureData = out; // live, so a crash or expiry still leaves progress
         console.log(
           `  [${i + 1}/${ids.length}] ${entry.seriesTitle ?? seriesId}: ` +
             `${entry.seasons.length} season(s), ${entry.seasons.reduce((n, s) => n + s.episodes.length, 0)} episode(s)`
@@ -308,6 +416,7 @@
 
     window.crFixtureData = out;
     const json = JSON.stringify(out, null, 1);
+    const failedIds = [...new Set(out.errors.filter((e) => e.seriesId && !out.series[e.seriesId]).map((e) => e.seriesId))];
 
     console.log(
       `%c[cr-fixtures] DONE — ${Object.keys(out.series).length} series, ${nSeasons} seasons, ` +
@@ -316,6 +425,13 @@
       "font-weight:bold;color:#268bd2"
     );
     if (out.errors.length) console.log("  errors:", out.errors);
+    if (failedIds.length) {
+      console.log(
+        `%c  ${failedIds.length} series did not collect. Re-run to resume — completed ones are skipped:\n` +
+          `  await crFixtures.run(${JSON.stringify(failedIds)})`,
+        "color:#b58900"
+      );
+    }
 
     // Downloaded rather than copied: this is routinely several MB, which the
     // console's own copy() truncates without saying so.
