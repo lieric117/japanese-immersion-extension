@@ -1542,7 +1542,17 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       const matched = matchFilesByEpisodeNumber(all, episode, seasonNumber);
       console.log(
         `[jp-immersion] Jimaku's own episode filter is unusable on "${entry.english_name ?? entry.name}" ` +
-          `(${disagrees ? "it returned several different episodes" : "it returned only archives"}) — ` +
+          // Names the trigger that actually fired. All three are distinct
+          // failure shapes and a live console has to be able to tell them
+          // apart — reporting the third as "only archives" (which it isn't)
+          // would misdirect the next report.
+          `(${
+            disagrees
+              ? "it returned several different episodes"
+              : archivesOnly
+                ? "it returned only archives"
+                : `it returned files for a different episode`
+          }) — ` +
           (matched
             ? `matched ${matched.files.length} file(s) from its full listing by ${matched.how}.`
             : `and its filenames carry no episode numbering to match on, so its answer stands.`)

@@ -1006,7 +1006,16 @@ const cases = [
     args: { query: "Naruto: Shippuden", episode: 1, seasonNumber: 1, seasonName: null },
     search: { "Naruto: Shippuden": NARUTO },
     files: FILES,
-    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expect: {
+      entryId: 2142,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Naruto: Shippuden" (id 2142) for "Naruto: Shippuden" episode 1 — matched by season 1.`,
+        `[jp-immersion] Jimaku's own episode filter is unusable on "Naruto: Shippuden" (it returned several different episodes) — matched 1 file(s) from its full listing by absolute episode 1.`,
+      ],
+      warn: [],
+    },
     expectFileNames: ["NARUTO－ナルト－.疾風伝.S01E01.第001話.帰郷.WEB-DL.Hulu.ja.srt"],
   },
   {
@@ -1015,7 +1024,16 @@ const cases = [
     args: { query: "Naruto: Shippuden", episode: 144, seasonNumber: 7, seasonName: null },
     search: { "Naruto: Shippuden": NARUTO },
     files: FILES,
-    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expect: {
+      entryId: 2142,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Naruto: Shippuden" (id 2142) for "Naruto: Shippuden" episode 144 — matched by an exact title match.`,
+        `[jp-immersion] Jimaku's own episode filter is unusable on "Naruto: Shippuden" (it returned only archives) — matched 1 file(s) from its full listing by absolute episode 144.`,
+      ],
+      warn: [],
+    },
     expectFileNames: ["NARUTO－ナルト－.疾風伝.S07E01.第144話.風来坊.WEB-DL.Hulu.ja.srt"],
   },
   {
@@ -1037,7 +1055,16 @@ const cases = [
     args: { query: "Naruto: Shippuden", episode: 33, seasonNumber: 2, seasonName: null },
     search: { "Naruto: Shippuden": NARUTO },
     files: FILES,
-    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expect: {
+      entryId: 2142,
+      confident: true,
+      fileCount: 1,
+      log: [
+        `[jp-immersion] Jimaku entry "Naruto: Shippuden" (id 2142) for "Naruto: Shippuden" episode 33 — matched by an exact title match.`,
+        `[jp-immersion] Jimaku's own episode filter is unusable on "Naruto: Shippuden" (it returned files for a different episode) — matched 1 file(s) from its full listing by absolute episode 33.`,
+      ],
+      warn: [],
+    },
     expectFileNames: ["NARUTO－ナルト－.疾風伝.S02E01.第033話.新たなる目標.ターゲット.WEB-DL.Hulu.ja.srt"],
   },
   {
