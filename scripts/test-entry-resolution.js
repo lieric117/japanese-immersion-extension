@@ -170,6 +170,10 @@ const SAO = [
   { id: 140, name: "Sword Oratoria", english_name: "Sword Oratoria" },
 ];
 
+const CUCURUZ = [
+  { id: 2034, name: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island", english_name: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -639,6 +643,48 @@ const cases = [
     search: { "Attack on Titan: THE LAST ATTACK": LAST_ATTACK_ONLY },
     files: FILES,
     expect: { entryId: 11263, confident: true, fileCount: 1 },
+  },
+
+  {
+    // VERBATIM from Cucuruz Doan's Island's live page, and from Jimaku's real
+    // answer for it. A fourth film with the duplicated-title-no-marker shape,
+    // and the one that carries `episodeNumber: 0` — checked because the CMS
+    // API reports null for this same page, and because a 0 that gets treated
+    // as absent is exactly how the detection-order bug behaved. Nothing in the
+    // episode path uses falsy tests: every site is `??` or Number.isInteger.
+    why: "Cucuruz Doan's Island — a film with episodeNumber 0, where the CMS says null",
+    args: {
+      query: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island",
+      episode: 0,
+      seasonNumber: 1,
+      seasonName: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island",
+      episodeTitle:
+        "Mobile Suit Gundam: Cucuruz Doan\u2019s Island | Mobile Suit Gundam: Cucuruz Doan\u2019s Island",
+    },
+    search: { "Mobile Suit Gundam: Cucuruz Doan\u2019s Island": CUCURUZ },
+    files: {
+      2034: {
+        all: [
+          "[Nekomoe kissaten] Mobile Suit Gundam Cucuruz Doan\u2019s Island [Movie][BDRip].JPSC.ass",
+          "\u6a5f\u52d5\u6226\u58eb\u30ac\u30f3\u30c0\u30e0.\u30af\u30af\u30eb\u30b9\u30fb\u30c9\u30a2\u30f3\u306e\u5cf6.WEBRip.Amazon.ja-jp[sdh].srt",
+          "\u6a5f\u52d5\u6226\u58eb\u30ac\u30f3\u30c0\u30e0.\u30af\u30af\u30eb\u30b9\u30fb\u30c9\u30a2\u30f3\u306e\u5cf6.WEBRip.Netflix.ja[cc].srt",
+        ],
+      },
+    },
+    expect: {
+      entryId: 2034,
+      confident: true,
+      fileCount: 3,
+      log: [
+        `[jp-immersion] Jimaku entry "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" (id 2034) for "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" episode 0 — matched by Jimaku's only match for "Mobile Suit Gundam: Cucuruz Doan\u2019s Island".`,
+        `[jp-immersion] not asking Jimaku for episode 0 of "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" — listing all 3 of its files instead (normal for a movie, OVA or special).`,
+      ],
+      warn: [],
+    },
+    // The episode filter must never be asked: `?episode=0` on a film is
+    // meaningless, and asking it is what the non-episodic gate exists to stop.
+    noEpisodeFilterRequest: true,
   },
 
   // ── 3. matched, but no usable subtitle file ───────────────────────────────
@@ -1318,6 +1364,10 @@ async function run() {
         if (result.entryId !== null) problems.push(`unresolved but still selected entry ${result.entryId}`);
         if (result.textFiles.length) problems.push(`unresolved but returned ${result.textFiles.length} files`);
       }
+    }
+    if (x.noEpisodeFilterRequest) {
+      const filtered = fetchMock.calls.filter((u) => /\/files\?episode=/.test(u));
+      if (filtered.length) problems.push(`asked Jimaku's episode filter ${filtered.length} time(s): ${filtered.join(", ")}`);
     }
     if (x.noFileFetch) {
       const fileCalls = fetchMock.calls.filter((u) => /\/files(\?|$)/.test(u));
