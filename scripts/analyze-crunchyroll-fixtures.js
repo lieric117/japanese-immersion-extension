@@ -61,8 +61,13 @@ const seriesList = Object.values(data.series ?? {});
 // Words that make a human read a season title as non-episodic. Deliberately
 // WIDER than the resolver's own classifier — the gap between the two is the
 // finding, so this must not just re-implement it.
+// Wider than the resolver's own classifier in what it covers (prologue, extras,
+// shorts, "the final chapters"), but it shares one exclusion: "Special Edition"
+// is a qualifier on an ordinary season, not a format. Without that this reports
+// One Piece's three Special Edition arcs as misses on every run — noise that
+// buries a real one.
 const LOOKS_SIDE_FORMAT =
-  /\b(ova|ovas|oad|oads|ona|special|specials|movie|movies|film|films|picture drama|recap|compilation|prologue|epilogue|extra|extras|short|shorts|the final chapters)\b/i;
+  /\b(ova|ovas|oad|oads|ona|specials?(?!\s+(?:edition|version|cut|feature|screening|broadcast))|movie|movies|film|films|picture drama|recap|compilation|prologue|epilogue|extra|extras|short|shorts|the final chapters)\b/i;
 
 const out = {
   seasons: 0,
@@ -75,6 +80,7 @@ const out = {
   seasonNumbers: new Map(),
   longRunners: [],
   truncated: [],
+  errored: 0,
 };
 
 for (const series of seriesList) {
@@ -91,7 +97,10 @@ for (const series of seriesList) {
     // At One Piece scale the episodes endpoint may paginate; if it does, every
     // downstream conclusion is drawn from a partial list. Compared against the
     // season's own declared count so a gap is visible rather than assumed away.
-    if (Number.isInteger(season.number_of_episodes) && season.number_of_episodes !== eps.length) {
+    // A season whose fetch ERRORED has no episode list to be short — reporting
+    // it as truncated buries the real signal under auth noise, which is what
+    // the first partial capture did (28 of 32 "short" seasons were all 401s).
+    if (!season.error && Number.isInteger(season.number_of_episodes) && season.number_of_episodes !== eps.length) {
       out.truncated.push({
         series: series.seriesTitle ?? series.seriesId,
         season: title,
@@ -99,6 +108,8 @@ for (const series of seriesList) {
         got: eps.length,
       });
     }
+
+    if (season.error) out.errored++;
 
     const sn = season.season_number;
     out.seasonNumbers.set(sn, (out.seasonNumbers.get(sn) ?? 0) + 1);
@@ -127,7 +138,7 @@ for (const series of seriesList) {
   }
 
   // 3 + 4. numbering convention, from the episode lists themselves
-  const numbered = seasons.filter((s) => (s.episodes ?? []).length && Number.isInteger(s.season_number));
+  const numbered = seasons.filter((s) => !s.error && (s.episodes ?? []).length && Number.isInteger(s.season_number));
   const ordered = [...numbered].sort((a, b) => a.season_number - b.season_number);
   if (ordered.length >= 2) {
     const later = ordered.slice(1);
@@ -164,6 +175,12 @@ function shapeOf(name) {
 // ── report ──────────────────────────────────────────────────────────────────
 const h = (s) => `\n${s}\n${"─".repeat(s.length)}`;
 console.log(`Analysed ${seriesList.length} series, ${out.seasons} seasons, ${out.episodes} episodes.`);
+if (out.errored) {
+  console.log(
+    `${out.errored} season(s) failed to fetch — their episode lists are absent, not empty. ` +
+      `Re-run to fill them in; conclusions below cover only what was collected.`
+  );
+}
 if (data.errors?.length) console.log(`(${data.errors.length} collection error(s) — see the JSON.)`);
 
 console.log(h("1. Non-episodic classification"));

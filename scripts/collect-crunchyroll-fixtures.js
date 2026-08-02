@@ -367,6 +367,8 @@
         );
         await sleep(DELAY_MS);
         const seasons = seasonsRes?.data ?? [];
+        // The seasons response doesn't carry the series title; the episodes
+        // below do, so it's backfilled once one arrives.
         const entry = { seriesId, seriesTitle: seasons[0]?.series_title ?? null, seasons: [] };
 
         for (const season of seasons) {
@@ -379,6 +381,7 @@
             const eps = epRes?.data ?? [];
             seasonOut.episodes = eps.map((e) => pick(e, episodeFields));
             seasonOut.rawEpisodeSample = eps[0] ?? null;
+            if (!entry.seriesTitle && eps[0]?.series_title) entry.seriesTitle = eps[0].series_title;
             nEpisodes += eps.length;
 
             for (const ep of eps.slice(0, jsonLdPerSeason)) {

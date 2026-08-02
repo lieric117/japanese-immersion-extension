@@ -69,7 +69,7 @@ const sandbox = {
   TextEncoder,
 };
 vm.createContext(sandbox);
-vm.runInContext(`${src}\n;this.__resolveTextFiles = resolveTextFiles;this.__rankFiles = rankFiles;this.__applyFileHint = applyFileHint;`, sandbox, {
+vm.runInContext(`${src}\n;this.__resolveTextFiles = resolveTextFiles;this.__rankFiles = rankFiles;this.__applyFileHint = applyFileHint;this.__nonEpisodicClass = nonEpisodicClass;`, sandbox, {
   filename: "background.js",
 });
 const resolveTextFiles = sandbox.__resolveTextFiles;
@@ -1252,6 +1252,39 @@ async function run() {
     cases.push(c);
     console.log(`${ok ? "PASS" : "FAIL"}  fileHint: ${c.why}`);
     if (!ok) console.log(`        got ${JSON.stringify(got?.name ?? null)}, want ${JSON.stringify(c.want)}`);
+  }
+
+  // ── season-title classification, against REAL catalogue titles ───────────
+  // Every string below is verbatim from the 2026-08-01 catalogue sweep. The
+  // sweep exists to find exactly this: "East Blue Special Edition HD,
+  // Subtitled (1-61)" is 61 episodes of ordinary One Piece, and the plain
+  // /specials?/ rule classed it as a side format — which would have suppressed
+  // the season match and skipped Jimaku's episode filter across a whole arc.
+  const nonEpisodicClass = sandbox.__nonEpisodicClass;
+  const classCases = [
+    ["East Blue (1-61)", null],
+    ["East Blue Special Edition HD, Subtitled (1-61)", null],
+    ["Alabasta Special Edition HD, Subtitled (62-143)", null],
+    ["One Piece Log: Fish-Man Island Saga Remastered & Re-Edited", null],
+    ["Elbaph (1156-current)", null],
+    ["HEROINES", null],
+    ["Solo Leveling Season 2 -Arise from the Shadow-", null],
+    ["OVA Season 1", "ova"],
+    ["OVA Season 2", "ova"],
+    // Retained true positives from earlier rounds — the narrowing must not
+    // cost the cases the classifier was built for.
+    ["Attack on Titan OADs", "ova"],
+    ["OVAs", "ova"],
+    ["Attack on Titan Final Season THE FINAL CHAPTERS Special 1", "special"],
+    ["Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train", "movie"],
+  ];
+  for (const [title, want] of classCases) {
+    const got = nonEpisodicClass(title)?.[0] ?? null;
+    const ok = got === want;
+    if (!ok) failed++;
+    cases.push({ why: title });
+    console.log(`${ok ? "PASS" : "FAIL"}  season title: ${JSON.stringify(title)} -> ${got ?? "episodic"}`);
+    if (!ok) console.log(`        want ${want ?? "episodic"}`);
   }
 
   console.log(failed ? `\n${failed} of ${cases.length} FAILED` : `\nall ${cases.length} passed`);

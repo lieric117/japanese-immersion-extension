@@ -782,7 +782,13 @@ function matchEntryByFullTitle(entries, title, wasFullQuery) {
 const NON_EPISODIC_CLASSES = [
   ["ova", /\b(?:ovas?|oads?|onas?)\b/i, "OVA/OAD"],
   ["movie", /\b(?:movies?|films?|gekijouban)\b/i, "a film"],
-  ["special", /\b(?:specials?)\b/i, "a special"],
+  // "Special" is a format; "Special Edition" is a QUALIFIER on an ordinary
+  // season and must not be read as one. Found by the 2026-08-01 catalogue
+  // sweep: One Piece lists "East Blue Special Edition HD, Subtitled (1-61)"
+  // alongside "East Blue (1-61)" — 61 episodes of ordinary TV that the plain
+  // /specials?/ rule classed as a side format, which would have suppressed the
+  // season match and skipped Jimaku's episode filter for the whole arc.
+  ["special", /\b(?:specials?)\b(?!\s+(?:edition|version|cut|feature|screening|broadcast))/i, "a special"],
   ["picture-drama", /\bpicture drama\b/i, "a picture drama"],
   ["recap", /\b(?:recaps?|compilation)\b/i, "a recap"],
 ];
