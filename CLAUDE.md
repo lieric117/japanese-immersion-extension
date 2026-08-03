@@ -20,11 +20,12 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete; the first full live-test pass ran on 2026-07-31** and returned ~20 findings, of which three batches are fixed (edit panel/chip, audio capture, and non-episodic content support). All fixes are offline-verified only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Live-test the entry-resolution work** — checklist Section A in `project-plan.md` (rewritten 2026-08-01; every expectation there changed). Three rounds have now shipped fixes that passed offline while failing live on real Crunchyroll metadata, so this outranks the remaining known bugs.
-2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
-3. **Re-test the 2026-07-31 fixes live** (checklist groups B–D), plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
+**Phase 5 — Anki export. Every build item is complete.** The 2026-07-31 live pass returned ~20 findings; **entry resolution is now fixed and verified live (2026-08-01, checklist Section A passed in full)**, and the edit-panel/chip and audio-capture batches are fixed but still offline-verified only. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape (see Build Order Phase 5, "remaining").
+2. **Re-test the 2026-07-31 fixes live** (checklist groups B–D), plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
 3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
+
+Section A of the live-test checklist is now that area's **regression script**, not outstanding work — re-run it only if `resolveTextFiles`, the sibling sniffer or the episode-number extraction changes.
 
 Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/39/57/33/354/109/9/9/35/2`), `test-display-filters.js`, `test-entry-resolution.js`, `test-sibling-sniffer.js`, `test-season-resolution.js`, `test-english-bridging.js`, `test-edit-last-card.js`, `test-edit-panel.js`, `test-render-pipeline.js`, `test-merged-audio-span.js` (`--live` for the real-file replay). `collect-crunchyroll-fixtures.js` is NOT a node script — it's pasted into a logged-in browser console to bulk-collect real catalogue data for fixtures (see its header); `analyze-crunchyroll-fixtures.js <collected.json>` then sweeps that capture against the real resolver.
 
