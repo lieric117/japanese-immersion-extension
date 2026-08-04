@@ -398,7 +398,20 @@ This closes out every currently-known Phase 4.5 build-order item, and the oval-a
 - **Dead resolver code removed (2026-08-01).** The computed `confident` flag and the "using X as a guess" warning it gated were only reachable through the `entries[0]` fallback, which the change above deleted. The switcher's second warning variant was checked and kept — it is still reached from the entry picker's own change handler. See Decisions Log.
 
 *Remaining, in priority order:*
-1. **One item left from the 2026-08-02 report: episodes that exist on Jimaku but load nothing** (Shangri-La Frontier 43–50, My Dress-Up Darling season 2 past episode 16). **Diagnosed, not fixed.** Crunchyroll numbers these seasons ABSOLUTELY while Jimaku's season-2 entry numbers them per season, and Jimaku's index happens to carry both conventions only for the earlier episodes: measured on entry 7707, `?episode=43` returns nothing while `?episode=18` — the same episode, season-relative — returns three files. So the files exist and are simply unreachable through the number asked. The fix needs an offset between the two numberings, and the offset is not available at runtime: the extension sees one episode, not the season's first. Options worth weighing are deriving it from the entry's own filenames (they carry both forms), or probing `?episode=1` and reading the number out of what comes back. Needs a design decision before building.
+1. **One item left from the 2026-08-02 report: episodes that exist on Jimaku but load nothing** (Shangri-La Frontier 43–50, My Dress-Up Darling season 2 past episode 16). Crunchyroll numbers these seasons absolutely while Jimaku's season-2 entry numbers them per season, so the file exists but is unreachable through the number asked — measured on entry 7707, `?episode=43` returns nothing while `?episode=18`, the same episode, returns three files.
+
+   **Deriving the offset from dual-numbered filenames — the Naruto method — was checked against the real listings and does not apply.** Naruto works because 500 of its 506 filenames carry *both* numberings at once (`S07E01.第144話`). Neither of these entries has a single such file:
+
+   | entry | filenames with both | season-relative | bare numbers |
+   |---|---|---|---|
+   | Naruto: Shippuuden | **500 / 506** | — | — |
+   | Shangri-La Frontier S2 (7707) | **0 / 103** | `S2 - 01..25` | `26..42` |
+   | My Dress-Up Darling S2 (9834) | **0 / 78** | `S2 - 01..12` | `01..15` |
+
+   A population-based variant (lowest bare number minus lowest relative number) also fails, and Dress-Up Darling shows why: **two uploaders use bare numbers with opposite meanings** — `[Haruhana]` numbers 13–15 absolutely, `[shincaps]` numbers 01–12 per season. Nothing in a bare number says which convention it follows. That entry would yield an offset of 0, and SLF only "works" for 26–42 because the absolute-numbering uploader stopped at 42.
+
+   **A different mechanism does fit the evidence and is worth a decision.** Jimaku's own index has already resolved the ambiguity — it files Haruhana's "‑ 13" under episode 1. So the offset is derivable by *probing that index* rather than by reading filenames: when the episode lookup returns nothing, request `?episode=1`, read the episode-position numbers out of the filenames that come back, and take the offset from the highest plausible one (26 → 25 for SLF; 13 → 12 for Dress-Up Darling, both correct). One extra request, only on an entry that has already failed. Not built — it is a different mechanism from the Naruto one and deserves its own decision.
+
 2. **Subtitle-text filtering group** — stage directions and speaker attributions that aren't the whole line, `((`/`))` pairs, and full-width punctuation stripping. One root cause, reported 2026-07-31, not yet fixed.
 3. **NanakoRaws line-break shape** — one sentence rendering across four lines; needs a real file before changing how stacked cues are joined for display.
 4. **Re-test the 2026-07-31 fixes** — checklist groups B–D (audio capture, two-phase Anki send, edit panel), untouched by today's work and still unverified.
