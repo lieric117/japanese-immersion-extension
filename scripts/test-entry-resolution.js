@@ -198,6 +198,21 @@ const ONE_PIECE = [
   { id: 3411, name: "One Piece Film: Red", english_name: "One Piece Film: Red" },
 ];
 
+
+// Live API, 2026-08-02. The season-2 entries carry their marker only in the
+// ENGLISH name; the Japanese one has none (Slimes) or a Roman numeral the
+// parser doesn't read (Mushoku), so both default to season 1.
+const SLIMES = [
+  { id: 1047, name: "Slime Taoshite 300-nen, Shiranai Uchi ni Level MAX ni Nattemashita", english_name: "I've Been Killing Slimes for 300 Years and Maxed Out My Level" },
+  { id: 9394, name: "Slime Taoshite 300-nen, Shiranai Uchi ni Level MAX ni Nattemashita: Sono ni", english_name: "I've Been Killing Slimes For 300 Years And Maxed Out My Level Season 2" },
+];
+
+const MUSHOKU = [
+  { id: 1927, name: "Mushoku Tensei II: Isekai Ittara Honki Dasu", english_name: "Mushoku Tensei: Jobless Reincarnation Season 2" },
+  { id: 12216, name: "Mushoku Tensei III: Isekai Ittara Honki Dasu", english_name: "Mushoku Tensei: Jobless Reincarnation Season 3" },
+  { id: 1426, name: "Mushoku Tensei: Isekai Ittara Honki Dasu", english_name: "Mushoku Tensei: Jobless Reincarnation" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1317,6 +1332,45 @@ const cases = [
     // is season 1's and can't stand in for an unnumbered bonus.
     expect: { unresolved: true, confident: false, noFileFetch: true, minCandidates: 2 },
     mustNotResolveTo: [1135],
+  },
+
+  {
+    // VERBATIM from the live page. The bug this fixes is subtle: entry 9394 is
+    // SEASON 2 by its English name, but its Japanese name ("…: Sono ni")
+    // carries no season marker and so reads as season 1. Taking the number
+    // from one field and the title from the other made it match a season-1
+    // page, which then played season 2's subtitles. Mushoku Tensei had the
+    // same shape via Roman numerals ("Mushoku Tensei II").
+    why: "Slimes 300 Years season 1 must not take season 2's entry",
+    args: {
+      query: "I've Been Killing Slimes For 300 Years And Maxed Out My Level",
+      episode: 1,
+      seasonNumber: 1,
+      seasonName: "I've Been Killing Slimes For 300 Years And Maxed Out My Level",
+      episodeTitle:
+        "I've Been Killing Slimes For 300 Years And Maxed Out My Level | E1 - I Maxed Out My Level",
+    },
+    search: { "I've Been Killing Slimes For 300 Years And Maxed Out My Level": SLIMES },
+    files: { 1047: { 1: ["[SubsPlease] Slime Taoshite 300-nen - 01.ass"] } },
+    expect: { entryId: 1047, confident: true, fileCount: 1 },
+    mustNotResolveTo: [9394],
+  },
+  {
+    // Search order matters here: Jimaku returns the SEASON 2 entry first, so a
+    // find() that accepted the mismatched field pair took it before ever
+    // reaching season 1's. Ordered as the live API returns it.
+    why: "the season-2 entry appearing FIRST in the results still doesn't win",
+    args: {
+      query: "Mushoku Tensei: Jobless Reincarnation",
+      episode: 1,
+      seasonNumber: 1,
+      seasonName: "Mushoku Tensei: Jobless Reincarnation",
+      episodeTitle: "Mushoku Tensei: Jobless Reincarnation | E1 - Jobless Reincarnation",
+    },
+    search: { "Mushoku Tensei: Jobless Reincarnation": MUSHOKU },
+    files: { 1426: { 1: ["[Uploader] Mushoku Tensei - 01.ass"] } },
+    expect: { entryId: 1426, confident: true, fileCount: 1 },
+    mustNotResolveTo: [1927, 12216],
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────

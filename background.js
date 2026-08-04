@@ -1435,7 +1435,14 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     const byTitle = await searchJimakuEntries(candidate, headers);
     noteSolo(byTitle, candidate);
     const known = new Set(entries.map((e) => e.id));
-    const added = byTitle.filter((e) => !known.has(e.id));
+    // Only entries belonging to THIS franchise are merged. A short episode
+    // title is a common word — Tokyo Ghoul's OVA "Jack" pulled 24 unrelated
+    // shows into the candidate pool, several of them containing "jack", which
+    // made the title match ambiguous and lost an episode that had resolved
+    // fine on its own (reported 2026-08-02). The search is still worth making;
+    // it is what finds a film the series search misses. What it must not do is
+    // widen the pool with shows that have nothing to do with this one.
+    const added = byTitle.filter((e) => !known.has(e.id) && sharesFranchise(e, query));
     if (added.length) {
       console.log(
         `[jp-immersion] also searched this title's own name "${candidate}" — ` +
@@ -1466,15 +1473,25 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // entry for side-format content and mislabel the log line that says why.
   const seasonMatch = !isEpisodic
     ? undefined
-    : entries.find((e) => {
-        const seasonOk =
-          entrySeasonNumber(e.name) === wantedSeason || entrySeasonNumber(e.english_name) === wantedSeason;
-        if (!seasonOk) return false;
-        return (
-          normalizeTitle(stripSeasonSuffix(e.name)) === normalizedQuery ||
-          normalizeTitle(stripSeasonSuffix(e.english_name)) === normalizedQuery
-        );
-      });
+    : // The season number and the title must come from the SAME field. Read
+      // independently — season from either name, title from either name — an
+      // entry can pass on a combination that describes no real season, which
+      // is how "…Maxed Out My Level" season 1 loaded SEASON 2's subtitles
+      // (reported 2026-08-02). Entry 9394 is season 2 by its English name, but
+      // its Japanese name ("…: Sono ni") carries no marker and so defaults to
+      // season 1; the old test took the season from the Japanese field and the
+      // title from the English one and called it a match. Checking each field
+      // as a unit makes that impossible: the English name is season 2 and
+      // fails the number, the Japanese name fails the title.
+      entries.find((e) =>
+        [e.name, e.english_name]
+          .filter(Boolean)
+          .some(
+            (field) =>
+              entrySeasonNumber(field) === wantedSeason &&
+              normalizeTitle(stripSeasonSuffix(field)) === normalizedQuery
+          )
+      );
   const plainMatch = entries.find(
     (e) => normalizeTitle(e.name) === normalizedQuery || normalizeTitle(e.english_name) === normalizedQuery
   );
