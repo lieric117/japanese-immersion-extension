@@ -1,0 +1,265 @@
+{
+ "capturedAt": "2026-08-02",
+ "note": "Hand-built from values MEASURED in the 2026-08-02 investigation: Crunchyroll season titles and numbers from live JSON-LD, episode codes/titles from live pages or the CMS. Exists to prove audit-resolution.js catches the six known bugs. Not a substitute for a real collector capture. Season 2 included for Slimes and Mushoku deliberately: the collision check needs every season of a show present, which is why the audit requires whole shows rather than samples.",
+ "series": {
+  "G6NV7Z50Y": {
+   "seriesId": "G6NV7Z50Y",
+   "seriesTitle": "Tokyo Ghoul",
+   "seasons": [
+    {
+     "id": "s1",
+     "title": "Tokyo Ghoul",
+     "season_number": 1,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Tragedy"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "Incubation"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "title": "Tokyo Ghoul: Root A",
+     "season_number": 2,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "New Surge"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "Nightmare"
+      }
+     ]
+    },
+    {
+     "id": "s3",
+     "title": "Tokyo Ghoul OVA",
+     "season_number": 3,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Pinto"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "Jack"
+      }
+     ]
+    }
+   ]
+  },
+  "GW4HM79VM": {
+   "seriesId": "GW4HM79VM",
+   "seriesTitle": "I've Been Killing Slimes For 300 Years And Maxed Out My Level",
+   "seasons": [
+    {
+     "id": "s1",
+     "title": "I've Been Killing Slimes For 300 Years And Maxed Out My Level",
+     "season_number": 1,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "I Maxed Out My Level"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "I Made a Disciple"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "title": "I've Been Killing Slimes For 300 Years And Maxed Out My Level Season 2",
+     "season_number": 2,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "I Fought a Dragon"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "I Went to a Festival"
+      }
+     ]
+    }
+   ]
+  },
+  "GMUKQ0PV3": {
+   "seriesId": "GMUKQ0PV3",
+   "seriesTitle": "Mushoku Tensei: Jobless Reincarnation",
+   "seasons": [
+    {
+     "id": "s1",
+     "title": "Mushoku Tensei: Jobless Reincarnation",
+     "season_number": 1,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Jobless Reincarnation"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "Master"
+      }
+     ]
+    },
+    {
+     "id": "s2",
+     "title": "Mushoku Tensei: Jobless Reincarnation Season 2",
+     "season_number": 2,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Bonds"
+      },
+      {
+       "episode": "2",
+       "episode_number": 2,
+       "title": "Dungeon"
+      }
+     ]
+    }
+   ]
+  },
+  "G79H23Z8P": {
+   "seriesId": "G79H23Z8P",
+   "seriesTitle": "Shangri-La Frontier",
+   "seasons": [
+    {
+     "id": "s2",
+     "title": "Season 2",
+     "season_number": 2,
+     "number_of_episodes": 3,
+     "episodes": [
+      {
+       "episode": "43",
+       "episode_number": 43,
+       "title": "x"
+      },
+      {
+       "episode": "50",
+       "episode_number": 50,
+       "title": "y"
+      },
+      {
+       "episode": "30",
+       "episode_number": 30,
+       "title": "z"
+      }
+     ]
+    },
+    {
+     "id": "s1",
+     "title": "Season 1",
+     "season_number": 1,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "14.5",
+       "episode_number": 15,
+       "title": "Shangri-La Frontier Special Bonus Episode"
+      },
+      {
+       "episode": "15",
+       "episode_number": 15,
+       "title": "An ordinary episode 15"
+      }
+     ]
+    }
+   ]
+  },
+  "GG5H5XQ0D": {
+   "seriesId": "GG5H5XQ0D",
+   "seriesTitle": "My Dress-Up Darling",
+   "seasons": [
+    {
+     "id": "s2",
+     "title": "Season 2",
+     "season_number": 2,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "17",
+       "episode_number": 17,
+       "title": "x"
+      },
+      {
+       "episode": "13",
+       "episode_number": 13,
+       "title": "y"
+      }
+     ]
+    }
+   ]
+  },
+  "GY5P4PJ8Y": {
+   "seriesId": "GY5P4PJ8Y",
+   "seriesTitle": "Demon Slayer: Kimetsu no Yaiba",
+   "seasons": [
+    {
+     "id": "mt",
+     "title": "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
+     "season_number": 2,
+     "number_of_episodes": 1,
+     "episodes": [
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train"
+      }
+     ]
+    }
+   ]
+  },
+  "GYEXQKJG6": {
+   "seriesId": "GYEXQKJG6",
+   "seriesTitle": "Dr. STONE",
+   "seasons": [
+    {
+     "id": "s1",
+     "title": "Dr. STONE",
+     "season_number": 1,
+     "number_of_episodes": 2,
+     "episodes": [
+      {
+       "episode": "EX",
+       "episode_number": 1,
+       "title": "Behind the Scenes of Dr. STONE"
+      },
+      {
+       "episode": "1",
+       "episode_number": 1,
+       "title": "Stone World"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "errors": []
+}
