@@ -213,6 +213,12 @@ const MUSHOKU = [
   { id: 1426, name: "Mushoku Tensei: Isekai Ittara Honki Dasu", english_name: "Mushoku Tensei: Jobless Reincarnation" },
 ];
 
+
+const DRESS_UP = [
+  { id: 2022, name: "Sono Bisque Doll wa Koi wo Suru", english_name: "My Dress-Up Darling" },
+  { id: 9834, name: "Sono Bisque Doll wa Koi wo Suru Season 2", english_name: "My Dress-Up Darling Season 2" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1371,6 +1377,78 @@ const cases = [
     files: { 1426: { 1: ["[Uploader] Mushoku Tensei - 01.ass"] } },
     expect: { entryId: 1426, confident: true, fileCount: 1 },
     mustNotResolveTo: [1927, 12216],
+  },
+
+  {
+    // Crunchyroll numbers this season absolutely (43) while Jimaku's entry for
+    // it numbers from 1, so the file exists and the number asked can't reach
+    // it. The offset is read out of what Jimaku files under episode 1 — its
+    // highest position there is 26, so episode 1 IS Crunchyroll's 26.
+    // Filenames verbatim from entry 7707.
+    why: "Shangri-La Frontier episode 43 reaches the file Jimaku numbers 18",
+    args: {
+      query: "Shangri-La Frontier",
+      episode: 43,
+      seasonNumber: 2,
+      seasonName: "Season 2",
+      episodeTitle: "Season 2 | E43 - x",
+    },
+    search: { "Shangri-La Frontier": SLF },
+    files: {
+      7707: {
+        1: [
+          "Shangri-La Frontier (2024) - 26 \u300c\u534a\u88f8\u3068\u6109\u5feb\u306a\u4ef2\u9593\u9054\u300d (TBS 1920x1080 x264 AAC).ass",
+          "[NanakoRaws] Shangri-La Frontier S2 - 01 (TBS 1920x1080 x265 AAC).ass",
+        ],
+        18: ["[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).ass"],
+      },
+    },
+    expect: { entryId: 7707, confident: true, fileCount: 1 },
+    expectFileNames: ["[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).ass"],
+  },
+  {
+    // The same, on the entry whose bare numbers carry OPPOSITE meanings —
+    // [Haruhana] numbers 13 absolutely, [shincaps] numbers 01 per season. No
+    // filename says which, which is why the offset is asked of Jimaku's index
+    // (it files "- 13" under episode 1) rather than parsed out of the names.
+    why: "My Dress-Up Darling episode 17 reaches the file Jimaku numbers 5",
+    args: {
+      query: "My Dress-Up Darling",
+      episode: 17,
+      seasonNumber: 2,
+      seasonName: "Season 2",
+      episodeTitle: "Season 2 | E17 - x",
+    },
+    search: { "My Dress-Up Darling": DRESS_UP },
+    files: {
+      9834: {
+        1: [
+          "[Haruhana] Sono Bisque Doll wa Koi wo Suru - 13 [WebRip][HEVC-10bit 1080p][JPN].ass",
+          "[NanakoRaws] Sono Bisque Doll wa Koi wo Suru S2 - 01v2 (AT-X 1920x1080 x265 AAC).ass",
+          "[shincaps] Sono Bisque Doll wa Koi wo Suru - 01 (AT-X 1440x1080 MPEG2 AAC).ass",
+        ],
+        5: ["[NanakoRaws] Sono Bisque Doll wa Koi wo Suru S2 - 05 (AT-X 1920x1080 x265 AAC).ass"],
+      },
+    },
+    expect: { entryId: 9834, confident: true, fileCount: 1 },
+    expectFileNames: ["[NanakoRaws] Sono Bisque Doll wa Koi wo Suru S2 - 05 (AT-X 1920x1080 x265 AAC).ass"],
+  },
+  {
+    // The retry must not fire when the number asked already works — measured
+    // live: episode 13 resolves directly, no probe, no offset.
+    why: "an episode the asked number already reaches takes no offset detour",
+    args: {
+      query: "My Dress-Up Darling",
+      episode: 13,
+      seasonNumber: 2,
+      seasonName: "Season 2",
+      episodeTitle: "Season 2 | E13 - x",
+    },
+    search: { "My Dress-Up Darling": DRESS_UP },
+    files: {
+      9834: { 13: ["[Haruhana] Sono Bisque Doll wa Koi wo Suru - 13 [WebRip][HEVC-10bit 1080p][JPN].ass"] },
+    },
+    expect: { entryId: 9834, confident: true, fileCount: 1 },
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────

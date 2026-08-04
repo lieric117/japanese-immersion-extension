@@ -337,6 +337,47 @@ function parseFileEpisode(name) {
   };
 }
 
+// The episode positions stated in a filename, e.g. the 26 in "Shangri-La
+// Frontier (2024) - 26 「…」" or the 13 in "…wa Koi wo Suru - 13 [WebRip]".
+// Anchored on " - " so a hyphen inside a title ("Shangri-La", "HEVC-10bit")
+// can't be read as a separator, and on a following delimiter so a year in
+// parentheses or a resolution can't be read as a position.
+const FILE_POSITION_RE = /\s[-–—]\s(\d{1,4})(?:v\d+)?(?=[\s[(「【]|$)/gu;
+function filePositionNumbers(name) {
+  const out = [];
+  for (const m of String(name ?? "").matchAll(FILE_POSITION_RE)) {
+    const n = Number(m[1]);
+    if (n >= 1 && n <= 2000) out.push(n);
+  }
+  return out;
+}
+
+// How far Crunchyroll's numbering runs ahead of this ENTRY's own, derived by
+// asking Jimaku what it files under episode 1 and reading the position out of
+// the answer (2026-08-02).
+//
+// Needed because Crunchyroll numbers a later season absolutely while Jimaku's
+// entry for that season numbers from 1, so the file exists and the number
+// asked can't reach it: on entry 7707 `?episode=43` returns nothing while
+// `?episode=18` — the same episode — returns three files.
+//
+// Deriving this from filenames alone was tried first and does not work here.
+// The Naruto method reads both numberings out of ONE filename (500 of its 506
+// carry `S07E01.第144話` together); neither of these entries has a single such
+// file. Nor can the two numbering populations be compared: My Dress-Up
+// Darling's entry has [Haruhana] numbering 13–15 absolutely and [shincaps]
+// numbering 01–12 per season, both bare, with nothing in the number saying
+// which. Jimaku's own index is the only thing that has already resolved that
+// ambiguity — it files Haruhana's "- 13" under episode 1 — so it is asked
+// rather than second-guessed.
+function episodeOffsetFromFirst(files) {
+  const positions = files.flatMap((f) => filePositionNumbers(f.name));
+  if (!positions.length) return 0;
+  // The highest position among episode 1's files is that episode's absolute
+  // number; everything below it is another uploader numbering from 1.
+  return Math.max(...positions) - 1;
+}
+
 // Whether Jimaku's answer for one episode actually describes one episode.
 //
 // Keyed on 第N話 ONLY, deliberately. The obvious signal — "the results disagree
@@ -1617,10 +1658,10 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
     `[jp-immersion] Jimaku entry "${entry.english_name ?? entry.name}" (id ${entry.id}) ` +
       `for "${query}" episode ${episode} — matched by ${matchedBy}.`
   );
-  const listFiles = async (forEntry, { allEpisodes = false } = {}) => {
+  const listFiles = async (forEntry, { allEpisodes = false, episode: wantedEpisode = episode } = {}) => {
     const filesUrl = allEpisodes
       ? `${JIMAKU_API_BASE}/entries/${forEntry.id}/files`
-      : `${JIMAKU_API_BASE}/entries/${forEntry.id}/files?episode=${episode}`;
+      : `${JIMAKU_API_BASE}/entries/${forEntry.id}/files?episode=${wantedEpisode}`;
     const filesRes = await fetch(filesUrl, { headers });
     if (!filesRes.ok) {
       throw new Error(`Jimaku file lookup failed (${filesRes.status})`);
@@ -1708,6 +1749,34 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       usedEntry = sibling;
       files = siblingFiles;
       break;
+    }
+  }
+  // Still nothing, on a season Jimaku numbers from 1 while Crunchyroll numbers
+  // absolutely. Ask what it files under episode 1, read that episode's own
+  // position out of the answer, and retry with the difference removed — see
+  // episodeOffsetFromFirst for why this is asked rather than parsed. Costs one
+  // extra request, only on an entry that has already come back empty, and the
+  // retry has to actually return something before it is believed.
+  // Gated on the entry being a LATER season of its show. A season-1 entry has
+  // no offset to have — its episode 1 is Crunchyroll's episode 1 — and reading
+  // one out of a batch file that happens to sit under episode 1 would send the
+  // retry somewhere arbitrary.
+  const isLaterSeasonEntry =
+    entrySeasonNumber(entry.name) > 1 || entrySeasonNumber(entry.english_name) > 1;
+  if (isEpisodic && !files.length && episode > 1 && isLaterSeasonEntry) {
+    const first = await listFiles(entry, { episode: 1 });
+    const offset = episodeOffsetFromFirst(first);
+    const localEpisode = episode - offset;
+    if (offset > 0 && localEpisode >= 1) {
+      const retry = await listFiles(entry, { episode: localEpisode });
+      if (retry.length) {
+        console.log(
+          `[jp-immersion] "${entry.english_name ?? entry.name}" has nothing under episode ${episode}, but it ` +
+            `numbers this season from 1 — its episode 1 is Crunchyroll's ${offset + 1}, so episode ${episode} ` +
+            `is its ${localEpisode}. Found ${retry.length} file(s) there.`
+        );
+        files = retry;
+      }
     }
   }
   // Non-episodic content doesn't reliably carry an episode number on Jimaku's

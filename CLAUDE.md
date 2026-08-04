@@ -20,11 +20,10 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete.** The 2026-07-31 live pass returned ~20 findings; the edit-panel/chip and audio-capture batches are fixed but still offline-verified only. Entry resolution passed checklist Section A live on 2026-08-01, but a 2026-08-02 pass over shows outside both catalogue sweeps found six more issues — **three fixed, three still open**. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
-1. **Finish the 2026-08-02 report** — episodes that exist on Jimaku but load nothing, Tokyo Ghoul OVA ep 1 listing every file, and Slimes 300 Years S2 (see Build Order Phase 5, item 1).
-2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
-3. **Re-test the 2026-07-31 fixes live** (checklist groups B–D), plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
-4. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
+**Phase 5 — Anki export. Every build item is complete.** The 2026-07-31 live pass returned ~20 findings; the edit-panel/chip and audio-capture batches are fixed but still offline-verified only. Entry resolution passed checklist Section A live on 2026-08-01, but a 2026-08-02 pass over shows outside both catalogue sweeps found six more issues, **all now fixed**. Details in `project-plan.md` Section 6 Phase 5 and the Decisions Log. Next, in priority order:
+1. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
+2. **Re-test the 2026-07-31 fixes live** (checklist groups B–D), plus the 20–30 minute continuous-session check no pass has reached yet. Don't start Phase 6 until that reporting comes back.
+3. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
 
 **Testing resolution correctness needs `scripts/sweep-resolution.js`, NOT `analyze-crunchyroll-fixtures.js`** — the latter only checks season-title classification and metadata shapes, never calls `resolveTextFiles`, and its "zero misses" results were twice mistaken for evidence that shows resolve correctly. Don't run the sweep alongside the other live tests; it saturates Jimaku's rate limit and their failures then look like regressions.
 
