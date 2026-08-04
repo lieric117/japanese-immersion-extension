@@ -25,6 +25,20 @@
 //
 // SUSPECT is the signal. A season named "Root A" resolving to the entry named
 // after the bare franchise is exactly what this is for.
+//
+// TWO THINGS TO KNOW BEFORE READING THE OUTPUT:
+//
+//   - SUSPECT is a READING LIST, not a verdict. Shows whose Jimaku entry
+//     legitimately covers every season produce SUSPECT on every one of them —
+//     One Piece has a single "ONE PIECE" entry for all 24 arc seasons, and
+//     resolving each to it is correct. The heuristic cannot tell that apart
+//     from Tokyo Ghoul's "Root A" landing on season 1's entry, which is a bug.
+//     A human has to look.
+//
+//   - DON'T RUN THIS ALONGSIDE THE OTHER LIVE TESTS. It saturates Jimaku's
+//     rate limit for minutes at a time; `test-render-pipeline.js` and
+//     `test-merged-audio-span.js --live` will fail with confusing errors while
+//     it runs, and those failures are contention, not regressions.
 
 "use strict";
 
