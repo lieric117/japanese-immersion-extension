@@ -27,14 +27,19 @@
 //   3. COLLISION — two different Crunchyroll seasons of one show resolve to the
 //      same Jimaku entry, while a distinct entry plausibly exists for each.
 //      This is the Tokyo Ghoul / Slimes / Mushoku shape.
-//   4. EMPTY — nothing loaded, or it threw.
+//   4. EMPTY — nothing loaded and it was not a deliberate refusal.
 //
 // FLAGGED for a human (a flag here MAY be correct behaviour):
 //   5. NARROWED — the result is a strict subset of the entry's usable files,
 //      and at least one excluded file states no identity that would place it in
 //      another episode. Possible over-narrowing (the Mugen Train shape) — but a
 //      legitimately narrowed OVA collection looks the same from here.
-//   6. UNACCOUNTED — the season's own name is not reflected in the resolved
+//   6. DECLINED — the resolver deliberately refused: no entry it could
+//      identify, or an episode with no position that nothing names. The picker
+//      or the manual-upload message is shown. Correct for content Jimaku has
+//      nothing identifiable for (Tokyo Ghoul's "Root A" cannot be reached from
+//      Jimaku's "√A" by any means), so it is listed rather than scored.
+//   7. UNACCOUNTED — the season's own name is not reflected in the resolved
 //      entry's name. Sometimes correct (Attack on Titan's OADs resolve to an
 //      entry called "…OVA"; One Piece's 24 arcs all share one entry), so this
 //      is a reading list, not a verdict.
@@ -202,7 +207,17 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
         const label = { series: seriesTitle, season: season.title, episode, episodeTitle: ep.title };
 
         if (error || !result || result.unresolved || !result.textFiles?.length) {
-          add("EMPTY", true, { ...label, detail: error ?? (result?.unresolved ? "no entry identified" : "no files") });
+          // DECLINED vs EMPTY. Declining is sometimes the correct answer — an
+          // episode Jimaku has nothing identifiable for should show the picker
+          // rather than a guess, and Tokyo Ghoul's "Root A" cannot be reached
+          // from Jimaku's "√A" by any means. Scoring both as a defect would
+          // report the intended behaviour as a bug on every run, which is the
+          // kind of noise that made the earlier sweeps useless.
+          const declined = Boolean(result?.unresolved) || /manual upload fallback|no numbered position/.test(error ?? "");
+          add(declined ? "DECLINED" : "EMPTY", !declined, {
+            ...label,
+            detail: error ?? (result?.unresolved ? "no entry identified — picker shown" : "no files"),
+          });
           perEpisode.push({ episode, files: [], entryId: result?.entryId ?? null });
           continue;
         }
@@ -300,7 +315,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
     if (f.seasons) console.log(`      ${JSON.stringify(f.seasons)}`);
     for (const n of f.files ?? []) console.log(`      · ${String(n).slice(0, 72)}`);
   }
-  console.log(`\nFLAGGED FOR REVIEW (${flagged.length}):  NARROWED ${count("NARROWED")}   UNACCOUNTED ${count("UNACCOUNTED")}`);
+  console.log(`\nFLAGGED FOR REVIEW (${flagged.length}):  DECLINED ${count("DECLINED")}   NARROWED ${count("NARROWED")}   UNACCOUNTED ${count("UNACCOUNTED")}`);
   console.log(`  (these MAY be correct — see the header for why neither can be decided automatically)`);
   for (const f of flagged.slice(0, 25)) {
     console.log(`  [${f.kind}] ${f.series} / ${f.season} ep${f.episode}: ${f.detail}`);

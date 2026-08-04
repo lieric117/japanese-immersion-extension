@@ -1790,8 +1790,22 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // gate was "no season signal at all" until 2026-08-01, which excluded the
   // OVA collections Crunchyroll publishes AS seasons: Re:Zero's OVAs resolved
   // to the right entry and then hard-errored on its four unnumbered files.
+  // An episode with no POSITION is not the same as an entry with one WORK in
+  // it, and only the second justifies listing everything. A film's entry holds
+  // that film, so showing all of it is right; a bonus episode sitting inside an
+  // ordinary TV season has an entry full of OTHER episodes, and showing all of
+  // it served 73 files of Dr. STONE season 1 for "Behind the Scenes"
+  // (2026-08-02). Where the missing position is the ONLY reason this isn't
+  // episodic, an unidentified result is reported rather than padded out.
+  const unnumberedOnly = unnumbered && !sideFormat && !standalone;
   if (!files.length && !isEpisodic) {
-    const all = await listFiles(entry, { allEpisodes: true });
+    const all = unnumberedOnly ? [] : await listFiles(entry, { allEpisodes: true });
+    if (unnumberedOnly) {
+      throw new Error(
+        `This episode has no numbered position in its season, and nothing in ` +
+          `"${entry.english_name ?? entry.name}" names it — use the manual upload fallback instead`
+      );
+    }
     if (all.length) {
       // Narrowed by the episode's own title first (2026-08-01). An OVA
       // collection's files are one per OVA, so dumping all of them leaves the

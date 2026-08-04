@@ -219,6 +219,13 @@ const DRESS_UP = [
   { id: 9834, name: "Sono Bisque Doll wa Koi wo Suru Season 2", english_name: "My Dress-Up Darling Season 2" },
 ];
 
+
+const DR_STONE_ENTRIES = [
+  { id: 730, name: "Dr. STONE", english_name: "Dr. STONE" },
+  { id: 3678, name: "Dr. STONE: STONE WARS", english_name: "Dr. STONE: STONE WARS" },
+  { id: 3679, name: "Dr. STONE: NEW WORLD", english_name: "Dr. STONE New World" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1449,6 +1456,28 @@ const cases = [
       9834: { 13: ["[Haruhana] Sono Bisque Doll wa Koi wo Suru - 13 [WebRip][HEVC-10bit 1080p][JPN].ass"] },
     },
     expect: { entryId: 9834, confident: true, fileCount: 1 },
+  },
+
+  {
+    // An unnumbered bonus INSIDE an ordinary TV season. Having no position
+    // makes it non-episodic, but that must not be read as "the entry is one
+    // work": Dr. STONE's entry is a full season of other episodes, and listing
+    // it served all 73 of them for "Behind the Scenes" (reported 2026-08-02).
+    // A film's entry legitimately holds only that film — this one doesn't.
+    why: "an unnumbered bonus in a normal season refuses rather than listing the whole season",
+    args: {
+      query: "Dr. STONE",
+      episode: 1,
+      seasonNumber: 1,
+      seasonName: "Dr. STONE",
+      episodeTitle: "Dr. STONE | EEX - Behind the Scenes of Dr. STONE",
+    },
+    search: { "Dr. STONE": DR_STONE_ENTRIES },
+    files: { 730: { all: ["Dr..STONE.S01E01.STONE.WORLD.srt", "Dr..STONE.S01E02.KING.srt"] } },
+    expect: {
+      throws:
+        'This episode has no numbered position in its season, and nothing in "Dr. STONE" names it — use the manual upload fallback instead',
+    },
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────
