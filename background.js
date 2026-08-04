@@ -902,7 +902,29 @@ const MAX_CONTENT_TITLE_SEARCHES = 2;
 // stopped extracting anything on Memory Snow's real page. Anything after a
 // pipe is taken even when no code matches at all, so the next format Crunchyroll
 // invents degrades to a usable title rather than to nothing.
-const EPISODE_CODE_RE = /^E[A-Za-z0-9]{1,8}\s*[-–—]\s*/u;
+const EPISODE_CODE_RE = /^E([A-Za-z0-9.]{1,10})\s*[-–—]\s*/u;
+
+// Whether the episode sits at a NUMBERED position in its season, read from the
+// code Crunchyroll puts in the page title. Three answers, and the middle one is
+// the point: a code that exists but isn't a plain integer means this episode
+// has no position, so the number that arrives alongside it describes something
+// else. Measured 2026-08-02:
+//
+//   "Season 1 | E14.5 - Shangri-La Frontier Special Bonus Episode"  episodeNumber 15
+//   "Dr. STONE | EEX - Behind the Scenes of Dr. STONE"              episodeNumber 1
+//
+// Both loaded a real, different episode's subtitles confidently — 14.5 played
+// episode 15's, the bonus played episode 1's. Treated as non-episodic from
+// here, exactly like an OVA collection, so the number is never used to pick a
+// file and matching falls to the title instead.
+function episodeCodeKind(episodeTitle) {
+  const raw = String(episodeTitle ?? "");
+  const pipe = raw.indexOf("|");
+  if (pipe < 0) return null;
+  const m = raw.slice(pipe + 1).trim().match(EPISODE_CODE_RE);
+  if (!m) return null;
+  return /^\d+$/.test(m[1]) ? "integer" : "other";
+}
 // A trailing qualifier Jimaku's filenames won't carry — "Memory Snow
 // (Director's Cut)" has to still match a file named "Memory.Snow". Kept as an
 // EXTRA candidate rather than a replacement, so the fuller title gets first go.
@@ -1365,7 +1387,16 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
   const sideFormat = nonEpisodicClass(seasonName);
   const standalone = looksLikeStandaloneWork(episodeTitle);
-  const isEpisodic = hasSeasonSignal && !sideFormat && !standalone;
+  const unnumbered = episodeCodeKind(episodeTitle) === "other";
+  const isEpisodic = hasSeasonSignal && !sideFormat && !standalone && !unnumbered;
+  // Only when the code is what DECIDED it — an OVA collection is already
+  // non-episodic from its season name, and saying it twice is noise.
+  if (unnumbered && hasSeasonSignal && !sideFormat && !standalone) {
+    console.log(
+      `[jp-immersion] this episode's code isn't a number, so its position in the season is ` +
+        `undefined — not using episode ${episode} to pick a file. Title was: ${JSON.stringify(episodeTitle)}`
+    );
+  }
   // ONE work, not a collection of them — a film, or a page whose title names
   // the same work twice. Narrowing an entry's files by title is meaningless
   // here and actively harmful: every file in a film's entry IS that film, so
@@ -1466,6 +1497,29 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // are silent wrong-content loads of exactly the kind the live pass caught, so
   // a movie with no title evidence resolves to nothing and asks. Collections
   // are exempt: a franchise has one OVA bucket, and classMatch identifies it.
+  // When Jimaku SPLITS a franchise into per-season entries, the entry named
+  // after the bare franchise is season 1 — not a container for everything. So
+  // for a season with a name of its own that nothing matched, falling back to
+  // that entry is a confident wrong load, which is what Tokyo Ghoul's "Root A"
+  // and ":re" did (reported 2026-08-02: both played season 1's subtitles).
+  // Nothing lexical can reach Jimaku's "√A" from Crunchyroll's "Root A", so the
+  // honest outcome is the picker rather than a guess.
+  //
+  // Gated on visible evidence of splitting — some entry carrying a season
+  // marker above 1 — because the opposite arrangement is just as real and must
+  // not break: One Piece's 27 search results contain NO season-marked entry,
+  // its single "ONE PIECE" entry genuinely holds all 24 arcs, and every arc
+  // season resolving to it is correct. Measured on both, not assumed.
+  const franchiseIsSplit = entries.some(
+    (e) => entrySeasonNumber(e.name) > 1 || entrySeasonNumber(e.english_name) > 1
+  );
+  const seasonNameIsDistinct = Boolean(seasonName) && looseTitle(seasonName) !== looseTitle(query);
+  const isBareFranchise = (e) =>
+    Boolean(e) &&
+    [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean).some((f) => f === looseTitle(query));
+  const franchiseFallbackUnsafe = franchiseIsSplit && seasonNameIsDistinct;
+  const safeTitleMatch = franchiseFallbackUnsafe && isBareFranchise(titleMatch) ? null : titleMatch;
+  const safePlainMatch = franchiseFallbackUnsafe && isBareFranchise(plainMatch) ? null : plainMatch;
   const filmUnidentified = sideFormat?.[0] === "movie" && !nameMatch && !contentMatch && !soloHit;
   // soloHit sits BELOW classMatch deliberately: an episode-title search can
   // return one unrelated show (an OAD named "Distress" would), and for a
@@ -1474,7 +1528,15 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // flagship-series fallback The Last Attack hit.
   const entry = filmUnidentified
     ? null
-    : nameMatch ?? contentMatch ?? classMatch ?? soloHit?.entry ?? seasonMatch ?? titleMatch ?? plainMatch ?? null;
+    : nameMatch ?? contentMatch ?? classMatch ?? soloHit?.entry ?? seasonMatch ?? safeTitleMatch ?? safePlainMatch ?? null;
+  // Reported only when it CHANGED the answer — a higher tier resolving this
+  // correctly anyway is the normal case and saying so every time is noise.
+  if (!entry && franchiseFallbackUnsafe && (titleMatch || plainMatch)) {
+    console.log(
+      `[jp-immersion] "${seasonName}" matched no entry, and Jimaku splits this franchise into separate ` +
+        `seasons — declining to fall back to "${query}", which is season 1's entry, not this season's.`
+    );
+  }
   const candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
   if (!entry) {
     // Still logged unconditionally, and still before any decision about the
@@ -1527,7 +1589,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
           ? `Jimaku's only match for "${soloHit.title}"`
           : seasonMatch
             ? `season ${wantedSeason}`
-            : titleMatch
+            : safeTitleMatch
               ? "an exact title match"
               : "an exact entry-name match";
   // Logged on EVERY load, not only on a detected mismatch (2026-07-31). Every

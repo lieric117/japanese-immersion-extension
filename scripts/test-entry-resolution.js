@@ -174,6 +174,30 @@ const CUCURUZ = [
   { id: 2034, name: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island", english_name: "Mobile Suit Gundam: Cucuruz Doan\u2019s Island" },
 ];
 
+
+// Real search results (live API, 2026-08-02).
+const TOKYO_GHOUL = [
+  { id: 1766, name: "Tokyo Ghoul", english_name: "Tokyo Ghoul" },
+  { id: 1866, name: "Tokyo Ghoul \u221aA", english_name: "Tokyo Ghoul \u221aA" },
+  { id: 2988, name: "Tokyo Ghoul: [JACK]", english_name: "Tokyo Ghoul: [JACK]" },
+  { id: 2989, name: "Tokyo Ghoul: [PINTO]", english_name: "Tokyo Ghoul: [PINTO]" },
+  { id: 3758, name: "Tokyo Ghoul:re", english_name: "Tokyo Ghoul:re" },
+  { id: 3759, name: "Tokyo Ghoul:re 2", english_name: "Tokyo Ghoul:re 2" },
+];
+
+const SLF = [
+  { id: 1135, name: "Shangri-La Frontier", english_name: "Shangri-La Frontier" },
+  { id: 7707, name: "Shangri-La Frontier 2nd Season", english_name: "Shangri-La Frontier Season 2" },
+];
+
+// Trimmed, but the property that matters is verbatim: NO entry carries a
+// season marker, so nothing here looks like a split franchise.
+const ONE_PIECE = [
+  { id: 1563, name: "ONE PIECE", english_name: "ONE PIECE" },
+  { id: 3409, name: "One Piece Film: Gold", english_name: "One Piece Film: Gold" },
+  { id: 3411, name: "One Piece Film: Red", english_name: "One Piece Film: Red" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1238,6 +1262,61 @@ const cases = [
     },
     // The silent-wrong-content answer: the franchise's own season 1 entry.
     mustNotResolveTo: [2193],
+  },
+
+  {
+    // VERBATIM from Tokyo Ghoul: Root A's live page. Jimaku calls this season
+    // "Tokyo Ghoul √A" — nothing lexical reaches that from "Root A" — so the
+    // honest outcome is the picker. Before 2026-08-02 it fell back to the bare
+    // franchise entry and played season 1's subtitles, confidently.
+    why: "Tokyo Ghoul Root A — must not fall back to season 1's entry",
+    args: {
+      query: "Tokyo Ghoul",
+      episode: 1,
+      seasonNumber: 2,
+      seasonName: "Tokyo Ghoul: Root A",
+      episodeTitle: "Tokyo Ghoul: Root A | E1 - New Surge",
+    },
+    search: { "Tokyo Ghoul": TOKYO_GHOUL },
+    files: {},
+    expect: { unresolved: true, confident: false, noFileFetch: true, minCandidates: 2 },
+    mustNotResolveTo: [1766],
+  },
+  {
+    // The arrangement that must NOT be broken by the fix above, and the reason
+    // it is gated on visible evidence of splitting: One Piece's 27 search
+    // results contain no season-marked entry, its single "ONE PIECE" entry
+    // really does hold all 24 arcs, and an arc season resolving to it is right.
+    why: "One Piece's arc season still resolves to the single franchise entry",
+    args: {
+      query: "One Piece",
+      episode: 62,
+      seasonNumber: 3,
+      seasonName: "Alabasta (62-143)",
+      episodeTitle: "Alabasta (62-143) | E62 - Coming Up! The Legendary Adventurer",
+    },
+    search: { "One Piece": ONE_PIECE },
+    files: { 1563: { 62: ["[Uploader] One Piece - 062.ass"] } },
+    expect: { entryId: 1563, confident: true, fileCount: 1 },
+  },
+  {
+    // VERBATIM from Shangri-La Frontier's bonus episode. Its code is "14.5",
+    // which is not a position, and `episodeNumber` is 15 — a real, different
+    // episode whose subtitles it used to load.
+    why: "a decimal episode code means no position — must not load episode 15",
+    args: {
+      query: "Shangri-La Frontier",
+      episode: 15,
+      seasonNumber: 1,
+      seasonName: "Season 1",
+      episodeTitle: "Season 1 | E14.5 - Shangri-La Frontier Special Bonus Episode",
+    },
+    search: { "Shangri-La Frontier": SLF },
+    files: { 1135: { 15: ["[Uploader] Shangri-La Frontier - 15.ass"] } },
+    // Season 2's entry proves Jimaku splits this franchise, so the bare entry
+    // is season 1's and can't stand in for an unnumbered bonus.
+    expect: { unresolved: true, confident: false, noFileFetch: true, minCandidates: 2 },
+    mustNotResolveTo: [1135],
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────
