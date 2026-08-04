@@ -92,7 +92,26 @@ if (!KEY) {
 // ── throttle ────────────────────────────────────────────────────────────────
 const SPACING_MS = 700;
 let lastRequest = 0;
+// Response cache keyed on URL. The resolver re-runs the same entry search for
+// every episode of a season, which at 2,500 episodes is hours of identical
+// requests; the catalogue does not change during a run, so one answer per URL
+// is enough. Roughly a 3x reduction in wall time on a full capture.
+const responseCache = new Map();
+let cacheHits = 0;
 async function throttledFetch(url, init) {
+  const key = String(url);
+  if (responseCache.has(key)) {
+    cacheHits++;
+    const { status, body } = responseCache.get(key);
+    return { ok: status >= 200 && status < 300, status, json: async () => JSON.parse(body), text: async () => body };
+  }
+  const res = await uncachedFetch(url, init);
+  const body = await res.text();
+  responseCache.set(key, { status: res.status, body });
+  return { ok: res.ok, status: res.status, json: async () => JSON.parse(body), text: async () => body };
+}
+
+async function uncachedFetch(url, init) {
   for (let attempt = 0; ; attempt++) {
     const wait = Math.max(0, lastRequest + SPACING_MS - Date.now());
     if (wait) await new Promise((r) => setTimeout(r, wait));
@@ -204,6 +223,9 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
           error = e.message;
         }
         episodesTested++;
+        if (episodesTested % 50 === 0) {
+          process.stdout.write(`   … ${episodesTested} episodes, ${findings.filter((f) => f.proven).length} proven defects so far\n`);
+        }
         const label = { series: seriesTitle, season: season.title, episode, episodeTitle: ep.title };
 
         if (error || !result || result.unresolved || !result.textFiles?.length) {
@@ -308,6 +330,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
 
   console.log(`\n${"═".repeat(78)}`);
   console.log(`Audited ${episodesTested} episodes across ${seriesList.length} show(s), resolver: ${path.basename(backgroundPath)}`);
+  console.log(`(${responseCache.size} distinct Jimaku requests, ${cacheHits} served from cache)`);
   console.log(`\nPROVEN DEFECTS (${proven.length}):  MIXED ${count("MIXED")}   DUPLICATE ${count("DUPLICATE")}   COLLISION ${count("COLLISION")}   EMPTY ${count("EMPTY")}`);
   for (const f of proven.slice(0, 40)) {
     console.log(`  [${f.kind}] ${f.series}${f.season ? ` / ${f.season}` : ""}${f.episode != null ? ` ep${f.episode}` : ""}`);
