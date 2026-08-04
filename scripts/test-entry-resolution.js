@@ -504,16 +504,16 @@ const cases = [
     expect: {
       entryId: 3338,
       confident: true,
-      // 1, not 2: with Jimaku's `?episode=` filter no longer consulted for a
-      // film, title matching now narrows to the file that actually names the
-      // film ("…The Movie Mugen Train (Fujitv…)") instead of handing the
-      // switcher every file in the entry.
-      fileCount: 1,
+      // Every usable file in the entry, deliberately. This is one film, so
+      // all of them ARE it — narrowing by title here would only discard the
+      // Judas and Netflix releases because Fujitv's happens to spell the title
+      // the way Crunchyroll does (reported 2026-08-02).
+      fileCount: 2,
       log: [
         `[jp-immersion] also searched this title's own name "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — 1 entry the series search didn't return.`,
         `[jp-immersion] Jimaku entry "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" (id 3338) for "Demon Slayer: Kimetsu no Yaiba" episode 1 — matched by Crunchyroll's season name.`,
         `[jp-immersion] not asking Jimaku for episode 1 of "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
-        `[jp-immersion] "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — narrowed its 3 files to 1 matching this title's own name "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train".`,
+        `[jp-immersion] "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train" — listing all 3 of its files instead (normal for a movie, OVA or special).`,
       ],
       warn: [],
     },

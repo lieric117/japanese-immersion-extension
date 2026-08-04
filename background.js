@@ -1364,7 +1364,17 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // nonEpisodicClass for the three live failures that distinction caused.
   const hasSeasonSignal = seasonNumber !== null || seasonName !== null;
   const sideFormat = nonEpisodicClass(seasonName);
-  const isEpisodic = hasSeasonSignal && !sideFormat && !looksLikeStandaloneWork(episodeTitle);
+  const standalone = looksLikeStandaloneWork(episodeTitle);
+  const isEpisodic = hasSeasonSignal && !sideFormat && !standalone;
+  // ONE work, not a collection of them — a film, or a page whose title names
+  // the same work twice. Narrowing an entry's files by title is meaningless
+  // here and actively harmful: every file in a film's entry IS that film, so
+  // the only thing a title filter can do is discard the other providers'
+  // releases. Reported 2026-08-02: Mugen Train showed 1 of its 4 files, the
+  // Judas and Netflix releases dropped because only Fujitv's happens to spell
+  // the film's title the way Crunchyroll does. Exclusion by sibling title still
+  // runs — that only ever removes a file belonging to a DIFFERENT episode.
+  const singleWork = sideFormat?.[0] === "movie" || standalone;
   // Jimaku's index matching a spelling this code can't derive is better
   // evidence than any local string comparison — the same principle
   // matchEntryByFullTitle already applies to a single full-query hit, extended
@@ -1644,7 +1654,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       // nothing and correctly falls through to the full list rather than to an
       // empty one.
       const label = entry.english_name ?? entry.name;
-      const narrowed = filesMatchingTitle(all, contentTitles);
+      const narrowed = singleWork ? { files: [], title: null } : filesMatchingTitle(all, contentTitles);
       if (narrowed.files.length && narrowed.files.length < all.length) {
         console.log(
           `[jp-immersion] "${label}" — narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
@@ -1685,7 +1695,10 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
             // Only worth saying when there was actually a choice to make. On a
             // film whose entry holds one subtitle and one archive it reads as a
             // failure report for something that resolved fine (2026-08-01).
-            (contentTitles.length && surviving.files.filter((f) => !ARCHIVE_RE.test(f.name)).length > 1
+            // Not said when narrowing was deliberately skipped: on a single
+            // work no title match was attempted, so reporting one as having
+            // failed is simply untrue.
+            (!singleWork && contentTitles.length && surviving.files.filter((f) => !ARCHIVE_RE.test(f.name)).length > 1
               ? `; none of them names "${contentTitles[0]}".`
               : ".")
         );
