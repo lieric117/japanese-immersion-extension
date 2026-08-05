@@ -1310,6 +1310,17 @@ function entrySeasonNumber(name) {
 // number-based path already gets right, so those are handed back to it.
 function matchEntryBySeasonName(entries, seasonName, query) {
   if (!seasonName) return null;
+  // A trailing "(English Dub)" is Crunchyroll labelling the audio track, not
+  // part of the season's name, and Jimaku's entry never carries it — so the
+  // whole season-name tier missed on every dubbed season. 19 of 90 seasons in
+  // the 2026-08-04 catalogue carry one, covering 577 episodes; Code Geass
+  // failed on all 55 of its own for exactly this (2026-08-04). Tried with the
+  // qualifier and then without, so nothing that matched before stops matching.
+  const stripped = String(seasonName).replace(TRAILING_QUALIFIER_RE, "").trim();
+  if (stripped && stripped !== seasonName) {
+    const withoutQualifier = matchEntryBySeasonName(entries, stripped, query);
+    if (withoutQualifier) return withoutQualifier;
+  }
   const wanted = normalizeTitle(seasonName);
   const series = normalizeTitle(query);
   if (!wanted || wanted === series) return null;

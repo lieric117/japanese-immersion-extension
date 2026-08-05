@@ -226,6 +226,12 @@ const DR_STONE_ENTRIES = [
   { id: 3679, name: "Dr. STONE: NEW WORLD", english_name: "Dr. STONE New World" },
 ];
 
+
+const CODE_GEASS = [
+  { id: 724, name: "Code Geass: Hangyaku no Lelouch", english_name: "Code Geass: Lelouch of the Rebellion" },
+  { id: 2174, name: "Code Geass: Hangyaku no Lelouch R2", english_name: "Code Geass: Lelouch of the Rebellion R2" },
+];
+
 const LAST_ATTACK_ONLY = [
   { id: 11263, name: "Shingeki no Kyojin Movie: Kanketsu-hen - The Last Attack", english_name: "Attack on Titan the Movie: The Last Attack" },
 ];
@@ -1478,6 +1484,25 @@ const cases = [
       throws:
         'This episode has no numbered position in its season, and nothing in "Dr. STONE" names it — use the manual upload fallback instead',
     },
+  },
+
+  {
+    // "(English Dub)" is Crunchyroll labelling the audio track, not part of the
+    // season's name — Jimaku's entry never carries it, so the season-name tier
+    // missed on every dubbed season. 19 of the 90 seasons in the 2026-08-04
+    // catalogue carry one, covering 577 episodes; Code Geass failed on all 55
+    // of its own.
+    why: "an (English Dub) qualifier on the season name doesn't defeat the name match",
+    args: {
+      query: "Code Geass",
+      episode: 1,
+      seasonNumber: 1,
+      seasonName: "Code Geass: Lelouch of the Rebellion (English Dub)",
+      episodeTitle: "Code Geass: Lelouch of the Rebellion (English Dub) | E1 - The Day a Demon Was Born",
+    },
+    search: { "Code Geass": CODE_GEASS },
+    files: { 724: { 1: ["[Uploader] Code Geass - 01.ass"] } },
+    expect: { entryId: 724, confident: true, fileCount: 1 },
   },
 
   // ── regression guards for the ordinary paths the fix must not disturb ─────
