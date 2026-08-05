@@ -370,6 +370,14 @@ function filePositionNumbers(name) {
 // which. Jimaku's own index is the only thing that has already resolved that
 // ambiguity — it files Haruhana's "- 13" under episode 1 — so it is asked
 // rather than second-guessed.
+// Does this filename say which episode it is? Any of the three forms the
+// listings actually use. Used to tell a SINGLE-WORK entry (a film: nothing
+// distinguishes its files) from a SEASON entry (files that name episodes).
+function fileStatesAnEpisode(name) {
+  const p = parseFileEpisode(name);
+  return p.absolute !== null || p.seasonEpisode !== null || filePositionNumbers(name).length > 0;
+}
+
 function episodeOffsetFromFirst(files) {
   const positions = files.flatMap((f) => filePositionNumbers(f.name));
   if (!positions.length) return 0;
@@ -1857,6 +1865,21 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
             `Jimaku has files for "${label}" but every one of them belongs to a different episode` +
               (contentTitles.length ? `, not "${contentTitles[0]}"` : "") +
               ` — use the manual upload fallback instead`
+          );
+        }
+        // Listing an entry's whole contents is only justified when we know
+        // WHICH WORK this is. Every positive tier means that: the season name
+        // matched, the title matched, the format class matched, or Jimaku's
+        // index returned exactly one thing. Falling back to the franchise title
+        // does NOT — it means we found the show, not this season — and handing
+        // over that entry's whole catalogue is the wrong-content failure in a
+        // different coat. Demon Slayer's "TV Specials" season reached the main
+        // series entry that way and served the same 131 files, spanning 26
+        // episodes, for every one of its five episodes (2026-08-04).
+        if (!nameMatch && !contentMatch && !classMatch && !soloHit && all.some((f) => fileStatesAnEpisode(f.name))) {
+          throw new Error(
+            `"${label}" was matched on the series title alone, and its ${all.length} files span several ` +
+              `episodes — nothing identifies which is this one. Use the manual upload fallback instead`
           );
         }
         console.log(

@@ -1505,6 +1505,37 @@ const cases = [
     expect: { entryId: 724, confident: true, fileCount: 1 },
   },
 
+  {
+    // Demon Slayer's "TV Specials" season reaches the MAIN SERIES entry via the
+    // series title alone, then hands over its whole catalogue — 131 files
+    // spanning 26 episodes, identically for all five of its episodes
+    // (2026-08-04). Listing an entry's contents is only justified when we know
+    // which work it is; the series title says we found the show, not this
+    // season.
+    why: "a side-format season matched on the series title alone must not dump the whole entry",
+    args: {
+      query: "Demon Slayer: Kimetsu no Yaiba",
+      episode: 1,
+      seasonNumber: 3,
+      seasonName: "Demon Slayer: Kimetsu no Yaiba TV Specials",
+      episodeTitle: "Demon Slayer: Kimetsu no Yaiba TV Specials | E1 - Sibling\u2019s Bond",
+    },
+    search: { "Demon Slayer: Kimetsu no Yaiba": DEMON_SLAYER },
+    files: {
+      846: {
+        all: [
+          "[Crunchyroll Retime] Kimetsu no Yaiba - S01E01.ja.srt",
+          "[Crunchyroll Retime] Kimetsu no Yaiba - S01E02.ja.srt",
+          "[Crunchyroll Retime] Kimetsu no Yaiba - S01E03.ja.srt",
+        ],
+      },
+    },
+    expect: {
+      throws:
+        '"Demon Slayer: Kimetsu no Yaiba" was matched on the series title alone, and its 3 files span several episodes — nothing identifies which is this one. Use the manual upload fallback instead',
+    },
+  },
+
   // ── regression guards for the ordinary paths the fix must not disturb ─────
   {
     // The trap the format classifier could plausibly fall into: a TV season

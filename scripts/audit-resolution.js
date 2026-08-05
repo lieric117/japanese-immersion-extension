@@ -6,6 +6,7 @@
 //   node scripts/audit-resolution.js <capture.json> [options]
 //     --series "substring"     only shows whose title contains this
 //     --exclude "a,b,c"        skip shows whose title contains any of these
+//     --only "a,b,c"           run ONLY shows matching these (batching)
 //     --background <path>      resolve using a DIFFERENT background.js (used to
 //                              prove the audit catches bugs it is supposed to)
 //     --max-per-season N       cap episodes per season (default: all)
@@ -86,6 +87,10 @@ const seriesFilter = opt("--series") ? opt("--series").toLowerCase() : null;
 // capture — so excluding them turns the fix-and-recheck loop from an hour into
 // minutes, with those shows run as their own pass.
 const excludes = (opt("--exclude") ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+// The inverse: run exactly these shows. Lets a large capture be walked in
+// batches small enough to finish inside a single invocation, with the reports
+// merged afterwards — a long single run is easily lost to an interruption.
+const onlys = (opt("--only") ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 const backgroundPath = opt("--background", path.join(__dirname, "..", "background.js"));
 const maxPerSeason = Number(opt("--max-per-season")) || Infinity;
 const outPath = opt("--out");
@@ -202,6 +207,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
     (s) => {
       const t = String(s.seriesTitle ?? "").toLowerCase();
       if (seriesFilter && !t.includes(seriesFilter)) return false;
+      if (onlys.length && !onlys.some((x) => t.includes(x))) return false;
       return !excludes.some((x) => t.includes(x));
     }
   );
