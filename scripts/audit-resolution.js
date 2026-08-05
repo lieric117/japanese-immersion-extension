@@ -5,6 +5,7 @@
 // Usage:
 //   node scripts/audit-resolution.js <capture.json> [options]
 //     --series "substring"     only shows whose title contains this
+//     --exclude "a,b,c"        skip shows whose title contains any of these
 //     --background <path>      resolve using a DIFFERENT background.js (used to
 //                              prove the audit catches bugs it is supposed to)
 //     --max-per-season N       cap episodes per season (default: all)
@@ -80,6 +81,11 @@ if (!capturePath) {
 }
 const opt = (name, fallback = null) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const seriesFilter = opt("--series") ? opt("--series").toLowerCase() : null;
+// Comma-separated substrings to skip. A handful of long-running shows dominate
+// the runtime — five of them are 1,555 of the 2,526 episodes in the 2026-08-04
+// capture — so excluding them turns the fix-and-recheck loop from an hour into
+// minutes, with those shows run as their own pass.
+const excludes = (opt("--exclude") ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 const backgroundPath = opt("--background", path.join(__dirname, "..", "background.js"));
 const maxPerSeason = Number(opt("--max-per-season")) || Infinity;
 const outPath = opt("--out");
@@ -193,7 +199,11 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
 
 (async () => {
   const seriesList = Object.values(capture.series ?? {}).filter(
-    (s) => !seriesFilter || String(s.seriesTitle ?? "").toLowerCase().includes(seriesFilter)
+    (s) => {
+      const t = String(s.seriesTitle ?? "").toLowerCase();
+      if (seriesFilter && !t.includes(seriesFilter)) return false;
+      return !excludes.some((x) => t.includes(x));
+    }
   );
   let episodesTested = 0;
 
