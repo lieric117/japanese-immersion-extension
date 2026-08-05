@@ -30,10 +30,11 @@
 //   4. EMPTY — nothing loaded and it was not a deliberate refusal.
 //
 // FLAGGED for a human (a flag here MAY be correct behaviour):
-//   5. NARROWED — the result is a strict subset of the entry's usable files,
-//      and at least one excluded file states no identity that would place it in
-//      another episode. Possible over-narrowing (the Mugen Train shape) — but a
-//      legitimately narrowed OVA collection looks the same from here.
+//   5. NARROWED — on an entry whose files state NO episode identities at all
+//      (so every file is plausibly the same work), the result dropped some of
+//      them. Possible over-narrowing, the Mugen Train shape. Restricted to such
+//      entries deliberately: where files DO state episodes, narrowing is doing
+//      its job and the excluded files are other episodes and specials.
 //   6. DECLINED — the resolver deliberately refused: no entry it could
 //      identify, or an episode with no position that nothing names. The picker
 //      or the manual-upload message is shown. Correct for content Jimaku has
@@ -98,6 +99,7 @@ let lastRequest = 0;
 // is enough. Roughly a 3x reduction in wall time on a full capture.
 const responseCache = new Map();
 let cacheHits = 0;
+let failedRequests = 0;
 async function throttledFetch(url, init) {
   const key = String(url);
   if (responseCache.has(key)) {
@@ -107,7 +109,13 @@ async function throttledFetch(url, init) {
   }
   const res = await uncachedFetch(url, init);
   const body = await res.text();
-  responseCache.set(key, { status: res.status, body });
+  // ONLY successes are cached. Caching a failure turns one transient 429 or
+  // dropped connection into a permanent one for that URL, which is what
+  // inflated the 2026-08-04 run's EMPTY count to 84 (59 of them `fetch
+  // failed`). A retried failure costs one request; a cached failure costs the
+  // truth of the whole run.
+  if (res.ok) responseCache.set(key, { status: res.status, body });
+  else failedRequests++;
   return { ok: res.ok, status: res.status, json: async () => JSON.parse(body), text: async () => body };
 }
 
@@ -265,7 +273,16 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
         // 5. NARROWED — a strict subset, with an excluded file that states
         //    nothing placing it elsewhere.
         const all = (await entryFiles(result.entryId)).filter((f) => !ARCHIVE_RE.test(f.name));
-        if (all.length > names.length) {
+        // Only meaningful on an entry whose files DON'T distinguish episodes.
+        // Where they do — Frieren's entry states episode numbers across 277
+        // files — a narrowed result is narrowing correctly and the excluded
+        // silent files are specials and TV spots, not lost alternatives. That
+        // untightened check fired 661 times and buried the real shape. The
+        // Mugen Train case is the opposite: nothing in its entry states any
+        // episode, so every file is the same work and dropping one can only
+        // lose a provider.
+        const entryDistinguishesEpisodes = all.some((f) => statedIdentity(f.name).length);
+        if (!entryDistinguishesEpisodes && all.length > names.length) {
           const kept = new Set(names);
           const excludedSilent = all.filter((f) => !kept.has(f.name) && !statedIdentity(f.name).length);
           if (excludedSilent.length) {
@@ -330,7 +347,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
 
   console.log(`\n${"═".repeat(78)}`);
   console.log(`Audited ${episodesTested} episodes across ${seriesList.length} show(s), resolver: ${path.basename(backgroundPath)}`);
-  console.log(`(${responseCache.size} distinct Jimaku requests, ${cacheHits} served from cache)`);
+  console.log(`(${responseCache.size} distinct Jimaku requests cached, ${cacheHits} served from cache, ${failedRequests} request failure(s))`);
   console.log(`\nPROVEN DEFECTS (${proven.length}):  MIXED ${count("MIXED")}   DUPLICATE ${count("DUPLICATE")}   COLLISION ${count("COLLISION")}   EMPTY ${count("EMPTY")}`);
   for (const f of proven.slice(0, 40)) {
     console.log(`  [${f.kind}] ${f.series}${f.season ? ` / ${f.season}` : ""}${f.episode != null ? ` ep${f.episode}` : ""}`);
