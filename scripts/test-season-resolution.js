@@ -57,6 +57,7 @@ const {
     grab(/^function parseSeasonMarker\([\s\S]*?\n\}/m, "parseSeasonMarker"),
     grab(/^function stripSeasonSuffix\([\s\S]*?\n\}/m, "stripSeasonSuffix"),
     grab(/^function entrySeasonNumber\([\s\S]*?\n\}/m, "entrySeasonNumber"),
+    grab(/^const TRAILING_QUALIFIER_RE = .*$/m, "TRAILING_QUALIFIER_RE"),
     grab(/^function matchEntryBySeasonName\([\s\S]*?\n\}/m, "matchEntryBySeasonName"),
     grab(/^function seasonNumberFromName\([\s\S]*?\n\}/m, "seasonNumberFromName"),
     grab(/^function courSiblingEntries\([\s\S]*?\n\}/m, "courSiblingEntries"),
