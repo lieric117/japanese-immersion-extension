@@ -20,11 +20,11 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete.** Entry resolution has been through six rounds of live reports and is now covered by a real audit; the edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block. Next, in priority order:
-1. **Finish the resolution audit** — ~272 episodes of the fast pass, then four open findings, then the 1,609-episode long tail. Exact commands and batch lists are in that follow-up plan.
-2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
-3. **Re-test the 2026-07-31 fixes live** (checklist groups B–D) plus the 20–30 minute continuous-session check. Largest block of unverified work in the project.
-4. Sentence-only capture is still deliberately unscheduled — it needs real usage data first (see Build Order).
+**Phase 5 — Anki export. Every build item is complete.** The audit's fast pass is finished (all 32 shows, 2026-08-11) and reduced the outstanding resolution defects to **five root causes**; one is fixed. The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block listing all five. Next, in priority order:
+1. **RC1 — seasons that silently load the wrong subtitles** (Dr. STONE, Fruits Basket). Decided: decline to the picker; the decline condition still needs defining. Then RC5, then the audit-scoring fix (RC4). **RC3 is blocked** on an input `resolveTextFiles` doesn't get — read its entry before attempting it.
+2. **Run the 1,609-episode long-tail pass** — the least-tested category, in ~150-episode batches.
+3. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
+4. **Re-test the 2026-07-31 fixes live** (checklist groups B–D) plus the 20–30 minute continuous-session check. Largest block of unverified work in the project.
 
 **Testing resolution correctness needs `scripts/audit-resolution.js`, NOT `analyze-crunchyroll-fixtures.js`** — the latter only checks season-title classification and metadata shapes, never calls `resolveTextFiles`, and its "zero misses" results were twice mistaken for evidence that shows resolve correctly. The audit checks actual per-episode file lists against live Jimaku; its header states exactly what it can and cannot prove, and `--background <path>` runs it against an older `background.js` to confirm it still catches known bugs before it's trusted on new ones. Run it in **foreground batches** via `--only` (long background runs keep being killed, losing everything since the report writes only at the end), and never alongside `test-render-pipeline.js` or `test-merged-audio-span.js --live` — it saturates Jimaku's rate limit and their failures then look like regressions.
 

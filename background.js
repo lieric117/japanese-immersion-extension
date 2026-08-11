@@ -386,6 +386,21 @@ function episodeOffsetFromFirst(files) {
   return Math.max(...positions) - 1;
 }
 
+// Every episode position a listing's filenames state, in any of the three forms
+// the listings use. Used to compare two entries' COVERAGE — which episodes each
+// one holds — rather than to identify a single file, so all three forms are
+// pooled and duplicates don't matter.
+function statedEpisodeNumbers(files) {
+  const out = [];
+  for (const f of files) {
+    const { absolute, seasonEpisode } = parseFileEpisode(f.name);
+    if (absolute !== null) out.push(absolute);
+    if (seasonEpisode !== null) out.push(seasonEpisode);
+    out.push(...filePositionNumbers(f.name));
+  }
+  return out;
+}
+
 // Whether Jimaku's answer for one episode actually describes one episode.
 //
 // Keyed on 第N話 ONLY, deliberately. The obvious signal — "the results disagree
@@ -1375,6 +1390,47 @@ function courSiblingEntries(entries, chosen) {
   });
 }
 
+// The other way Jimaku splits one Crunchyroll season, which courSiblingEntries
+// cannot see (2026-08-11). It requires both entries to parse to the SAME season
+// number, which holds for "…2nd Season" / "…2nd Season Part 2" but not when the
+// back half is named by appending a bare number to an ARC title: Haikyu!!'s
+// second cour is "Haikyuu!! TO THE TOP 2", which the bare-number rule in
+// SEASON_PATTERNS reads as season 2 while "Haikyuu!! TO THE TOP" reads as
+// season 1. Same season on Crunchyroll, different parsed seasons here, so the
+// sibling was rejected and episodes 14–25 failed outright — 12 of the 25.
+//
+// Matched by shape, and the shape is deliberately narrow: the sibling's name is
+// the chosen entry's name followed by a BARE trailing number, nothing else.
+//
+// `parseSeasonMarker`'s base is NOT usable here, which cost a real regression
+// before this was written that way (2026-08-11). It strips a Part suffix AND a
+// season marker, so "Mushoku Tensei: Jobless Reincarnation Season 2 Part 2"
+// reduces to the bare franchise name and looked like a continuation of SEASON
+// ONE's entry — which then served season 2's episodes under season 1's
+// numbers, on a show that was previously clean. Only a bare number is
+// ambiguous between "cour" and "season"; an explicit "Season 2" / "2nd Season"
+// / "Part 2" says which it is, and the first two mean this is NOT our season
+// while the third is already handled by courSiblingEntries.
+//
+// Even the bare-number shape stays ambiguous — KonoSuba's "… 2" and "… 3" are
+// genuine SEASONS written exactly like Haikyu's cour. Name alone cannot settle
+// it, so the caller checks the numbering actually continues; see the call site.
+const BARE_TRAILING_NUMBER_RE = /\s+(\d{1,2})\s*$/;
+function continuationCourEntries(entries, chosen) {
+  const chosenNames = [normalizeTitle(chosen.name), normalizeTitle(chosen.english_name)].filter(Boolean);
+  if (!chosenNames.length) return [];
+  const isContinuationOf = (raw) => {
+    const name = String(raw ?? "");
+    const m = name.match(BARE_TRAILING_NUMBER_RE);
+    if (!m) return false;
+    const withoutNumber = normalizeTitle(name.slice(0, m.index));
+    return withoutNumber !== "" && chosenNames.includes(withoutNumber);
+  };
+  return entries.filter(
+    (e) => e.id !== chosen.id && (isContinuationOf(e.name) || isContinuationOf(e.english_name))
+  );
+}
+
 // Second chance when the season name doesn't match a Jimaku entry outright:
 // read the real season number out of the NAME (".. Season 2" -> 2) using the
 // same marker patterns Jimaku entry names are parsed with. Crunchyroll's
@@ -1764,6 +1820,50 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       console.log(
         `[jp-immersion] "${entry.english_name ?? entry.name}" has no files for episode ${episode} — ` +
           `using "${sibling.english_name ?? sibling.name}", which does (Jimaku splits this season across cours).`
+      );
+      usedEntry = sibling;
+      files = siblingFiles;
+      break;
+    }
+  }
+  // The arc-titled cour split — see continuationCourEntries. Kept separate from
+  // the loop above because it needs a guard that one does not: those siblings
+  // are already known to be the same season, while these are only known to be
+  // "the chosen entry's name plus a bare number", which is equally how some
+  // shows name an ordinary next SEASON. So the numbering has to be shown to
+  // CONTINUE rather than restart before the sibling is believed.
+  //
+  // Both full listings are read for that: a continuation states episodes strictly
+  // above everything the chosen entry holds (Haikyu!! TO THE TOP covers 1–13, TO
+  // THE TOP 2 covers 14–25), while a separate season restarts and overlaps it
+  // (KonoSuba's entry covers 1–10, and so does its "… 2"). Overlap is the
+  // reject. Costs two extra listings, only on an episode that has already
+  // failed everything above it.
+  if (isEpisodic && !files.length) {
+    const candidates = continuationCourEntries(entries, entry);
+    const chosenNumbers = candidates.length ? statedEpisodeNumbers(await listFiles(entry, { allEpisodes: true })) : [];
+    for (const sibling of candidates) {
+      if (!chosenNumbers.length) break; // nothing to compare against; don't guess
+      const siblingAll = await listFiles(sibling, { allEpisodes: true });
+      const siblingNumbers = statedEpisodeNumbers(siblingAll);
+      if (!siblingNumbers.length) continue;
+      const chosenMax = Math.max(...chosenNumbers);
+      const siblingMin = Math.min(...siblingNumbers);
+      if (siblingMin <= chosenMax) {
+        console.log(
+          `[jp-immersion] "${sibling.english_name ?? sibling.name}" is named like a second cour of ` +
+            `"${entry.english_name ?? entry.name}" but its episodes restart at ${siblingMin}, which ` +
+            `"${entry.english_name ?? entry.name}" already covers (up to ${chosenMax}) — treating it as a ` +
+            `separate season, not this one's back half.`
+        );
+        continue;
+      }
+      const siblingFiles = await listFiles(sibling);
+      if (!siblingFiles.length) continue;
+      console.log(
+        `[jp-immersion] "${entry.english_name ?? entry.name}" has no files for episode ${episode} and covers ` +
+          `only up to ${chosenMax} — using "${sibling.english_name ?? sibling.name}", which continues from ` +
+          `${siblingMin} (Jimaku splits this season across cours under an arc title).`
       );
       usedEntry = sibling;
       files = siblingFiles;

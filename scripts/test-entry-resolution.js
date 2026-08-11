@@ -150,6 +150,23 @@ const AOT = [
 
 const NARUTO = [{ id: 2142, name: "Naruto: Shippuuden", english_name: "Naruto: Shippuden" }];
 
+// Real entries, verbatim (2026-08-11). Note 2886 is the arc-titled cour split
+// TWICE over: its `name` appends a bare "2", and its `english_name` says
+// "Part 2" but spells the franchise with ‼ (U+203C) where 2885 uses "!!", so
+// the existing courSiblingEntries misses it on BOTH fields for two different
+// reasons — the parsed season differs on one, the base title on the other.
+const HAIKYU = [
+  { id: 1142, name: "Haikyuu!!", english_name: "HAIKYU!!" },
+  { id: 1554, name: "Haikyuu!! 2nd Season", english_name: "HAIKYU!! 2nd Season" },
+  { id: 2885, name: "Haikyuu!! TO THE TOP", english_name: "HAIKYU!! TO THE TOP" },
+  { id: 2886, name: "Haikyuu!! TO THE TOP 2", english_name: "HAIKYU‼ TO THE TOP Part 2" },
+];
+
+const JUJUTSU = [
+  { id: 712, name: "Jujutsu Kaisen", english_name: "JUJUTSU KAISEN" },
+  { id: 1893, name: "Jujutsu Kaisen 2nd Season", english_name: "JUJUTSU KAISEN Season 2" },
+];
+
 
 // The real 13-entry result for "Sword Art Online" (live API, 2026-08-01). The
 // EXTRA EDITION entry sits twelfth — a truncated copy of this list produced a
@@ -461,6 +478,70 @@ const FILES = {
       "Naruto Shippuuden [035-500] [TV].zip",
     ],
   },
+  // The arc-titled cour split (2026-08-11). Crunchyroll presents "HAIKYU!! TO
+  // THE TOP" as ONE 25-episode season; Jimaku splits it, and names the back
+  // half by appending a bare number to the arc title. Real listings, truncated
+  // to the boundary episodes — 2885 genuinely returns ZERO for `?episode=14`
+  // while holding 78 files, and 2886 answers it with six.
+  2885: {
+    14: [],
+    all: [
+      "[Judas] Haikyu!! S04E01.ja.ass",
+      "[shincaps] Haikyuu!! TO THE TOP - 01 (GAORA 1440x1080 MPEG2 AAC).ass",
+      "ハイキュー!!.S04E13.第13話.「２日目」.WEBRip.Amazon.ja-jp[sdh].srt",
+    ],
+  },
+  2886: {
+    14: [
+      "[Judas] Haikyu!! (2014) S04E14.ja.ass",
+      "[kamigami] Haikyuu!! S4 - 14 [1080p x265 Ma10p AAC][JPN]v2.ass",
+      "[shincaps] Haikyuu!! TO THE TOP - 14 (GAORA 1440x1080 MPEG2 AAC).ass",
+    ],
+    all: [
+      "[Judas] Haikyu!! (2014) S04E14.ja.ass",
+      "[shincaps] Haikyuu!! TO THE TOP - 14 (GAORA 1440x1080 MPEG2 AAC).ass",
+      "ハイキュー!!.S04E25.約束の地.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
+  // Rejected on NAME SHAPE: "2nd Season" / "Season 2" says which it is, so it
+  // never reaches the numbering guard. The empty `?episode=24` is the one
+  // CONSTRUCTED value in this file — entry 712 really does answer episode 24 —
+  // forced empty because a gap is the only way to reach the sibling retry.
+  712: {
+    24: [],
+    all: [
+      "[Judas] Jujutsu Kaisen S01E01.ja.ass",
+      "呪術廻戦.S01E24.東京都立呪術高等専門学校.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
+  1893: {
+    24: ["[Judas] Jujutsu Kaisen S02E24.ja.ass"],
+    all: [
+      "[Judas] Jujutsu Kaisen S02E01.ja.ass",
+      "呪術廻戦.S02E23.愚者.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
+  // The trap the numbering guard exists for, and it is REAL rather than
+  // constructed: KonoSuba's later seasons are named "… 2" and "… 3", the exact
+  // bare-number shape as Haikyu's second cour, but they are separate seasons
+  // that restart at episode 1. Crunchyroll's dubbed season 1 lists an eleventh
+  // episode (the OVA, which Jimaku holds under its own entry 2836), so entry
+  // 1627 genuinely answers nothing for episode 11 — a real gap, reaching the
+  // retry without anything being invented. Both entries really do cover 1–10.
+  1627: {
+    11: [],
+    all: [
+      "Kono Subarashii Sekai ni Shukufuku wo! - 01 [retimed].srt",
+      "この素晴らしい世界に祝福を！.S01E10.この理不尽な要塞に終焔を!.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
+  2833: {
+    11: [],
+    all: [
+      "Kono Subarashii Sekai ni Shukufuku wo! 2 - 01 [retimed].srt",
+      "この素晴らしい世界に祝福を！.S02E10.この素晴らしい仲間たちに祝福を!.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -506,6 +587,60 @@ const cases = [
         `[jp-immersion] Jimaku entry "KONOSUBA -God's blessing on this wonderful world! 3" (id 2835) for "KONOSUBA -God's blessing on this wonderful world!" episode 1 — matched by season 3.`,
       ],
       warn: [],
+    },
+  },
+
+  // ── 1b. the arc-titled cour split, and the trap next to it ────────────────
+  // Both cases exist because these two shapes are IDENTICAL by name and must
+  // come out opposite ways. Deleting either one leaves the other passing while
+  // the guard between them is free to break.
+  {
+    why: "Haikyu!! TO THE TOP ep14 — the back half is a separate Jimaku entry, reached because its numbering continues",
+    args: { query: "Haikyu!!", episode: 14, seasonNumber: 4, seasonName: "HAIKYU!! TO THE TOP" },
+    search: { "Haikyu!!": HAIKYU },
+    files: FILES,
+    expect: {
+      entryId: 2886,
+      confident: true,
+      fileCount: 3,
+      log: [
+        `[jp-immersion] Jimaku entry "HAIKYU!! TO THE TOP" (id 2885) for "Haikyu!!" episode 14 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] "HAIKYU!! TO THE TOP" has no files for episode 14 and covers only up to 13 — using "HAIKYU‼ TO THE TOP Part 2", which continues from 14 (Jimaku splits this season across cours under an arc title).`,
+      ],
+      warn: [],
+    },
+  },
+  {
+    why: "JUJUTSU KAISEN — an explicitly named second SEASON is rejected on name shape, before the numbering is consulted",
+    args: { query: "Jujutsu Kaisen", episode: 24, seasonNumber: 1, seasonName: "JUJUTSU KAISEN" },
+    search: { "Jujutsu Kaisen": JUJUTSU },
+    files: FILES,
+    expect: {
+      // Failing outright is the RIGHT outcome here: the only other entry on
+      // offer is a different season, so there is nothing correct left to load.
+      // The regression this guards against would "succeed" instead, silently
+      // serving season 2's episode 24. Note the ABSENCE of any cour line —
+      // "2nd Season" is not a bare number, so it never becomes a candidate.
+      throws: "No subtitle file found for episode 24",
+      log: [
+        `[jp-immersion] Jimaku entry "JUJUTSU KAISEN" (id 712) for "Jujutsu Kaisen" episode 24 — matched by season 1.`,
+      ],
+    },
+  },
+  {
+    why: "KonoSuba — a bare-number sibling that is a separate SEASON, caught by the numbering guard rather than by its name",
+    args: { query: "KONOSUBA -God's blessing on this wonderful world!", episode: 11, seasonNumber: 1, seasonName: null },
+    search: { "KONOSUBA -God's blessing on this wonderful world!": KONOSUBA },
+    files: FILES,
+    expect: {
+      // "… 2" and "… 3" are written exactly like Haikyu's second cour, so the
+      // name test CANNOT reject them and the episode numbers have to. Both
+      // restart at 1, which season 1's entry already covers.
+      throws: "No subtitle file found for episode 11",
+      log: [
+        `[jp-immersion] Jimaku entry "KONOSUBA -God's blessing on this wonderful world!" (id 1627) for "KONOSUBA -God's blessing on this wonderful world!" episode 11 — matched by season 1.`,
+        `[jp-immersion] "KONOSUBA -God's blessing on this wonderful world! 2" is named like a second cour of "KONOSUBA -God's blessing on this wonderful world!" but its episodes restart at 1, which "KONOSUBA -God's blessing on this wonderful world!" already covers (up to 10) — treating it as a separate season, not this one's back half.`,
+      ],
     },
   },
 
