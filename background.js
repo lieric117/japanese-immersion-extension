@@ -435,6 +435,56 @@ function partNumberedSelection(files, episode) {
   return byPosition.get(episode) ?? null;
 }
 
+// The offset hiding a file inside an entry that carries TWO numberings.
+//
+// MHA: Vigilantes' second season is the measured case (2026-08-12). Entry
+// 11309 holds one uploader's files numbered 01–08 for the season and another's
+// numbered S02E14–S02E26 for the same episodes, continuing the count from
+// season 1. Six of the thirteen episodes exist ONLY in the second set, and
+// nothing above finds them: Jimaku's `?episode=6` matches neither, and
+// episodeOffsetFromFirst asks what sits under episode 1 and gets the
+// season-relative uploader, so it reports an offset of 0.
+//
+// Read from the entry's own stated numbers instead, which separate the three
+// arrangements this has to tell apart — all three measured on the live API:
+//
+//   Vigilantes (11309)        1–8 AND 14–26     two populations -> offset 13
+//   Haikyu TO THE TOP 2       14–25             one population, never states 1
+//   My Dress-Up Darling S2    1–15 contiguous   one population, no gap
+//
+// Anchoring on "states 1" is what makes it safe. A cour entry holding only the
+// back half of a season looks superficially identical — its lowest number is
+// also 14 — but it never states 1, so no offset is derivable and this returns
+// null rather than sending Haikyu's episode 14 off to 27. And an entry with a
+// single contiguous run has no second population to find, which keeps My
+// Dress-Up Darling with the Jimaku-index method chosen for it on 2026-08-02.
+//
+// The answer is still not trusted on its own: the caller has to fetch the
+// derived episode and get something back before it is believed.
+function secondNumberingOffset(files, episode) {
+  const nums = [...new Set(statedEpisodeNumbers(files))].sort((a, b) => a - b);
+  if (nums.length < 4 || !nums.includes(1)) return null;
+  // Split at the widest gap. A season's own numbering runs consecutively, so
+  // the one place it jumps is where the other uploader's count begins.
+  let splitAt = -1;
+  let widest = 1;
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] - nums[i - 1] > widest) {
+      widest = nums[i] - nums[i - 1];
+      splitAt = i;
+    }
+  }
+  if (splitAt < 0) return null; // one continuous run: no second numbering
+  const low = nums.slice(0, splitAt);
+  const high = nums.slice(splitAt);
+  // A stray special or a batch archive can sit far above the season and is not
+  // a numbering; a real second population covers the season and runs unbroken.
+  if (high.length < 3 || high[high.length - 1] - high[0] !== high.length - 1) return null;
+  if (low.includes(episode)) return null; // this episode is in the season's own numbering
+  const offset = high[0] - 1;
+  return offset > 0 && high.includes(episode + offset) ? offset : null;
+}
+
 // Whether Jimaku's answer for one episode actually describes one episode.
 //
 // Keyed on 第N話 ONLY, deliberately. The obvious signal — "the results disagree
@@ -2035,6 +2085,25 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
           `[jp-immersion] "${entry.english_name ?? entry.name}" has nothing under episode ${episode}, but it ` +
             `numbers this season from 1 — its episode 1 is Crunchyroll's ${offset + 1}, so episode ${episode} ` +
             `is its ${localEpisode}. Found ${retry.length} file(s) there.`
+        );
+        files = retry;
+      }
+    }
+  }
+  // Still nothing, and the entry carries a SECOND numbering that Jimaku's index
+  // and the offset-from-episode-1 probe both miss — see secondNumberingOffset.
+  // Last of the retries deliberately: it reads the whole listing, and every
+  // cheaper route has already failed by the time it runs.
+  if (isEpisodic && !files.length && episode > 1) {
+    const all = await listFiles(entry, { allEpisodes: true });
+    const offset = secondNumberingOffset(all, episode);
+    if (offset !== null) {
+      const retry = await listFiles(entry, { episode: episode + offset });
+      if (retry.length) {
+        console.log(
+          `[jp-immersion] "${entry.english_name ?? entry.name}" has nothing under episode ${episode}, but it ` +
+            `carries a second numbering running ${offset} ahead — episode ${episode} is its ` +
+            `${episode + offset}. Found ${retry.length} file(s) there.`
         );
         files = retry;
       }

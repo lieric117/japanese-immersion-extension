@@ -407,6 +407,8 @@ This closes out every currently-known Phase 4.5 build-order item, and the oval-a
 
 - **RC1 fixed — later seasons no longer play season 1 (2026-08-12).** Dr. STONE seasons 2 and 3 and Fruits Basket's season 2 and Final Season were silently serving season 1's subtitles. The season's own name now settles it, gated on the franchise genuinely having several works so Naruto: Shippuuden — one entry, 500 episodes, five films — keeps working. Fruits Basket season 2 additionally needed the query ladder to look past its first hit, and now resolves correctly rather than merely declining. Measured over 1,267 episodes: both COLLISIONs gone, no new proven defects. See Decisions Log.
 
+- **RC3 fixed — an entry carrying two numberings (2026-08-12).** MHA: Vigilantes season 2 was losing 6 of its 13 episodes; all six now load, and the offset is confirmed against Crunchyroll's own episode titles rather than only against itself. Derived from the entry's own stated numbers, so the season episode range it was thought to need never came into it. Haikyu's cour entry and My Dress-Up Darling both verified unaffected. **Did NOT fix Dr. STONE's episode 37**, which turned out to be a different defect — see remaining. See Decisions Log.
+
 *Remaining, in priority order:*
 
 ### Follow-up plan — start here next session
@@ -425,15 +427,9 @@ This closes out every currently-known Phase 4.5 build-order item, and the oval-a
 **The five root causes, in severity order.**
 
 1. **RC1 — DONE (2026-08-12).** Two corrections to how this was written up: **JUJUTSU KAISEN Season 3 was never part of it** — it already declined correctly through the existing guard, which is the intended behaviour, not a defect. And Fruits Basket turned out to be a *search* problem rather than a matching one. See Decisions Log.
-2. **RC3 — two numbering conventions inside ONE Jimaku entry. NOT blocked after all (re-examined 2026-08-12).** MHA: Vigilantes Season 2 loses 6 of 13 episodes: entry 11309 holds shincaps files numbered `- 01`…`- 08` (season-relative) *and* Netflix files numbered `S02E14`…`S02E26` (absolute), and episode 6 exists only as Netflix's `S02E19.雨と雲`. Dr. STONE's ep13/ep37 DUPLICATE is the same shape. This was recorded as needing Crunchyroll's season episode range, which `resolveTextFiles` never receives. **It does not** — the entry's own contents separate the cases, measured:
+2. **The cour-sibling retry can serve another cour's episode under the same number — silent wrong content, and the last known one.** Found while verifying RC3 (2026-08-12). Dr. STONE's SCIENCE FUTURE is one 37-episode Crunchyroll season that Jimaku splits into three cour entries (8473, 9916, 11779). Crunchyroll's episode 13 finds nothing in Cour 1, so `courSiblingEntries` retries Cour 3 with `?episode=13` and gets **its** thirteenth file — `S04E37`, absolute episode 37. Episodes 13 and 37 both load episode 37, which is the DUPLICATE the audit has reported since 2026-08-04.
 
-   | Entry | Stated numbers | States 1? |
-   |---|---|---|
-   | Vigilantes S2 (11309) | 1–8 **and** 14–26 | yes |
-   | Haikyu TO THE TOP 2 (2886) | 14–25 | no |
-   | My Dress-Up Darling S2 (9834) | 1–15 contiguous | yes |
-
-   A second numbering population exists only when the entry states 1 **and** there is a gap to a higher contiguous run. Vigilantes has one, so offset = 14 − 1 = 13 and episode 6 → 19 → `S02E19.雨と雲`, which matches Crunchyroll's own title for episode 6 ("Rain and Clouds") — an independent confirmation, not just self-consistency. Haikyu's cour entry never states 1, so no offset is derivable and the rule cannot fire on it. Dress-Up is one contiguous run, so the 2026-08-02 Jimaku-index method stays in charge and that decision is preserved. Guards to build in: the higher run contiguous and ≥3 files, the requested episode absent from the lower run, and `episode + offset` actually present before the answer is believed.
+   The older retry has no equivalent of the guard written for `continuationCourEntries` on 2026-08-11: it asks a sibling for the requested number without checking the sibling covers that episode. **Proposed fix**: require the sibling's own listing to state the requested episode before accepting it. Safe for the cases the path exists for — Re:Zero's "2nd Season Part 2" states 14–25 and Attack on Titan's "3 Part 2" states 13+ — and it should resolve episode 13 *correctly* to Cour 2 rather than merely refusing, since that entry does state it. `statedEpisodeNumbers` already exists for this.
 3. **RC5 — DONE (2026-08-12).** Note the description here was half wrong: only The Stage resolved to the anime entry; The Compilation always reached its own entry (10139) and simply never picked a part. See Decisions Log.
 4. **RC4 — DONE (2026-08-11).** Content Jimaku genuinely lacks is now scored `MISSING` rather than as a proven EMPTY defect, alongside the two other over-reporting shapes. See Decisions Log for what was built and the `--background` proof that validates it.
 
@@ -1035,6 +1031,18 @@ Rejected loosening the season comparison inside `courSiblingEntries`, which cann
 **Fruits Basket needed a second, different fix**, found only by probing it: Jimaku's season-1 entry carries the same "(2019)" as Crunchyroll's series title, so the search returned exactly one entry and the franchise looked like a single work — the resolver never knew seasons 2 and Final existed. The query ladder now looks past its first hit in exactly that case, and season 2 **resolves correctly** to its own entry rather than merely declining. The Final Season still declines, since Jimaku calls it "The Final" and nothing bridges that lexically.
 
 Verified over 1,267 episodes across every affected show plus the known-bug six: both COLLISIONs gone, no new proven defects, and the only new refusals are the intended 46 episodes (Dr. STONE 33, Fruits Basket Final 13). **Also corrects the record**: JUJUTSU KAISEN Season 3 was listed under RC1 and never belonged there — it already declined correctly through the existing guard.
+
+**2026-08-12 — An entry's own numbers reveal a second numbering; the season range was never needed.** MHA: Vigilantes' season 2 lost 6 of its 13 episodes because entry 11309 holds one uploader's files numbered 01–08 and another's numbered S02E14–S02E26 for the same episodes, and six exist only in the second set. This was recorded as blocked on Crunchyroll's season episode range, which `resolveTextFiles` never receives. **That was wrong**, and the three arrangements it has to separate are all measurable from the entry alone:
+
+| Entry | Stated numbers | States 1? | Outcome |
+|---|---|---|---|
+| Vigilantes S2 (11309) | 1–8 **and** 14–26 | yes | offset 13 |
+| Haikyu TO THE TOP 2 (2886) | 14–25 | no | no offset derivable |
+| My Dress-Up Darling S2 (9834) | 1–15 contiguous | yes | no second numbering |
+
+**Anchoring on "does the entry state episode 1" is what makes it safe.** A cour entry holding only the back half of a season looks identical by its lowest number — Haikyu's is also 14 — but it never states 1, so nothing is derivable and its episode 14 cannot be sent to 27. That collision was the stated reason for calling this unfixable. My Dress-Up Darling has one contiguous run and no second population, so the Jimaku-index method chosen for it on 2026-08-02 stays in charge.
+
+Further guards, because a derived offset is a guess until something confirms it: the higher run must be contiguous and at least 3 files (a stray special or batch archive is not a numbering), the requested episode must be absent from the lower run, and the derived episode must actually return files. It runs last among the retries, only on an episode that has already failed everything cheaper, so nothing that works today can reach it. Confirmed externally rather than internally: episode 6 resolves to `S02E19.雨と雲` and Crunchyroll titles episode 6 "Rain and Clouds".
 
 **2026-08-12 — A stage play is not animation, so it gets the picker, not the anime.** Crunchyroll lists "Chainsaw Man The Stage" as season 3 of Chainsaw Man; with no Jimaku entry to match it fell through to the bare-franchise entry and rendered the TV series' episode 1 over a stage play, silently. The existing guard against that fallback (`franchiseIsSplit`) only counts entries carrying a season number above 1, and Jimaku splits this franchise by named work instead — Reze-hen, Soushuu-hen. **Rejected broadening that guard to "any entry extending the franchise name"**: One Piece's search results are full of such entries, and its 24 arc seasons resolving to the single "ONE PIECE" entry is correct (2026-08-02), so the broader rule would decline all 24. Added a `stage` content class instead, refused unless something names it specifically — a stage play is a different medium and an anime subtitle index will never hold one, so this is classification rather than heuristic. Narrow by design: one season across all three captures matches it, and a false positive costs the picker, which is the safe direction.
 

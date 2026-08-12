@@ -210,6 +210,14 @@ const CHAINSAW = [
   { id: 10139, name: "Chainsaw Man: Soushuu-hen", english_name: "Chainsaw Man: The Compilation" },
 ];
 
+// Real entries and listing (2026-08-12). Entry 11309 carries TWO numberings for
+// the same thirteen episodes: one uploader counting within the season, another
+// continuing season 1's count. Six episodes exist only in the second set.
+const VIGILANTES = [
+  { id: 9419, name: "Vigilante: Boku no Hero Academia ILLEGALS", english_name: "My Hero Academia: Vigilantes" },
+  { id: 11309, name: "Vigilante: Boku no Hero Academia ILLEGALS 2nd Season", english_name: "My Hero Academia: Vigilantes Season 2" },
+];
+
 const JUJUTSU = [
   { id: 712, name: "Jujutsu Kaisen", english_name: "JUJUTSU KAISEN" },
   { id: 1893, name: "Jujutsu Kaisen 2nd Season", english_name: "JUJUTSU KAISEN Season 2" },
@@ -612,6 +620,34 @@ const FILES = {
       "[Beatrice-Raws] Fruits Basket 2nd Season 01 [BDRip 1920x1080 HEVC TrueHD].sup.7z",
     ],
   },
+  // The season-relative uploader is MISSING episode 6, and Jimaku indexes the
+  // other one at 19 — so `?episode=6` is genuinely empty and `?episode=1`
+  // answers with the season-relative set, reporting an offset of 0. Only the
+  // full listing shows the two runs (1–8 and 14–20 here) that give up the 13.
+  11309: {
+    6: [],
+    1: ["[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 01 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass"],
+    19: [
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E19.雨と雲.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ.-僕のヒーローアカデミア.ILLEGALS-.S01E19.雨と雲.WEBRip.Amazon.ja-jp[sdh].srt",
+    ],
+    all: [
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 01 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 02 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 03 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 04 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 05 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 07 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Vigilante ~Boku no Hero Academia ILLEGALS~ 2nd Season - 08 (BS-ANIMAX 1440x1080 MPEG2 AAC).ass",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E14.浪花の街に出張やで!.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E15.カニカニ大暴走や!.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E16.公と私と.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E17.合理的な男.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E18.帰ってきた男.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E19.雨と雲.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E20.ガラスの空.WEBRip.Netflix.ja[cc].srt",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -805,6 +841,30 @@ const cases = [
       warn: [],
     },
     mustNotResolveTo: [3852],
+  },
+
+  {
+    why: "MHA: Vigilantes S2 ep6 — the file exists only under the entry's OTHER numbering",
+    args: { query: "My Hero Academia: Vigilantes", episode: 6, seasonNumber: 2, seasonName: "Season 2" },
+    search: { "My Hero Academia: Vigilantes": VIGILANTES },
+    files: FILES,
+    expect: {
+      entryId: 11309,
+      confident: true,
+      fileCount: 2,
+      log: [
+        `[jp-immersion] Jimaku entry "My Hero Academia: Vigilantes Season 2" (id 11309) for "My Hero Academia: Vigilantes" episode 6 — matched by Crunchyroll's season name.`,
+        `[jp-immersion] "My Hero Academia: Vigilantes Season 2" has nothing under episode 6, but it carries a second numbering running 13 ahead — episode 6 is its 19. Found 2 file(s) there.`,
+      ],
+      warn: [],
+    },
+    // 雨と雲 is Crunchyroll's own title for episode 6 ("Rain and Clouds"), which
+    // is what makes this a verified offset rather than an internally consistent
+    // guess. Six of the season's thirteen episodes failed outright before.
+    expectFileNames: [
+      "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E19.雨と雲.WEBRip.Netflix.ja[cc].srt",
+      "ヴィジランテ.-僕のヒーローアカデミア.ILLEGALS-.S01E19.雨と雲.WEBRip.Amazon.ja-jp[sdh].srt",
+    ],
   },
 
   // ── 2. a film with a clean exact match ────────────────────────────────────
