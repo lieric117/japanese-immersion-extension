@@ -162,6 +162,16 @@ const HAIKYU = [
   { id: 2886, name: "Haikyuu!! TO THE TOP 2", english_name: "HAIKYU‼ TO THE TOP Part 2" },
 ];
 
+// Real entries, verbatim (2026-08-11). Jimaku splits this franchise by NAMED
+// WORK rather than by season number, which is why the bare-franchise fallback
+// guard (`franchiseIsSplit`) does not fire here — no entry carries a season
+// marker above 1.
+const CHAINSAW = [
+  { id: 1933, name: "Chainsaw Man", english_name: "Chainsaw Man" },
+  { id: 11249, name: "Chainsaw Man: Reze-hen", english_name: "Chainsaw Man: Reze Arc" },
+  { id: 10139, name: "Chainsaw Man: Soushuu-hen", english_name: "Chainsaw Man: The Compilation" },
+];
+
 const JUJUTSU = [
   { id: 712, name: "Jujutsu Kaisen", english_name: "JUJUTSU KAISEN" },
   { id: 1893, name: "Jujutsu Kaisen 2nd Season", english_name: "JUJUTSU KAISEN Season 2" },
@@ -542,6 +552,22 @@ const FILES = {
       "この素晴らしい世界に祝福を！.S02E10.この素晴らしい仲間たちに祝福を!.WEBRip.Netflix.ja[cc].srt",
     ],
   },
+  // Two recap episodes inside ONE entry, real listing (2026-08-11). Title
+  // narrowing keeps the four English-named files (the other four spell the
+  // work 総集篇 and match nothing Crunchyroll says), which still spans BOTH
+  // episodes — the numbered-part selection is what separates them.
+  10139: {
+    all: [
+      "[shincaps] Chainsaw Man The Compilation - 01 (AT-X 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Chainsaw Man The Compilation - 01 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "[shincaps] Chainsaw Man The Compilation - 02 (AT-X 1440x1080 MPEG2 AAC).ass",
+      "[shincaps] Chainsaw Man The Compilation - 02 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "チェンソーマン.総集篇.S01E01.チェンソーマン.総集篇_.前篇.WEBRip.Netflix.ja[cc].srt",
+      "チェンソーマン.総集篇.S01E01.前篇.WEBRip.Amazon.ja-jp[sdh].srt",
+      "チェンソーマン.総集篇.S01E02.チェンソーマン.総集篇_.後篇.WEBRip.Netflix.ja[cc].srt",
+      "チェンソーマン.総集篇.S01E02.後篇.WEBRip.Amazon.ja-jp[sdh].srt",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -641,6 +667,44 @@ const cases = [
         `[jp-immersion] Jimaku entry "KONOSUBA -God's blessing on this wonderful world!" (id 1627) for "KONOSUBA -God's blessing on this wonderful world!" episode 11 — matched by season 1.`,
         `[jp-immersion] "KONOSUBA -God's blessing on this wonderful world! 2" is named like a second cour of "KONOSUBA -God's blessing on this wonderful world!" but its episodes restart at 1, which "KONOSUBA -God's blessing on this wonderful world!" already covers (up to 10) — treating it as a separate season, not this one's back half.`,
       ],
+    },
+  },
+
+  {
+    why: "Chainsaw Man The Stage — a stage play must load nothing, not the TV anime's episode 1",
+    args: { query: "Chainsaw Man", episode: 1, seasonNumber: 3, seasonName: "Chainsaw Man The Stage" },
+    search: { "Chainsaw Man": CHAINSAW },
+    files: FILES,
+    expect: {
+      unresolved: true,
+      confident: false,
+      noFileFetch: true,
+      minCandidates: 2,
+      log: [
+        `[jp-immersion] no Jimaku entry identified for "Chainsaw Man" episode 1 — 3 search results, none of them a match.`,
+      ],
+      warnCount: 1,
+    },
+    // The shipped behaviour until 2026-08-11: entry 1933, six files, no warning
+    // of any kind — the TV series' first episode rendered over a stage play.
+    mustNotResolveTo: [1933],
+  },
+
+  {
+    why: "Chainsaw Man's Compilation — one entry holding two recap episodes must give each its own part",
+    args: { query: "Chainsaw Man", episode: 2, seasonNumber: 2, seasonName: "Chainsaw Man - The Compilation" },
+    search: { "Chainsaw Man": CHAINSAW },
+    files: FILES,
+    expect: {
+      entryId: 10139,
+      confident: true,
+      fileCount: 2, // part 2 only — it used to be all 4, spanning both episodes
+      log: [
+        `[jp-immersion] Jimaku entry "Chainsaw Man: The Compilation" (id 10139) for "Chainsaw Man" episode 2 — matched by this title's own name "Chainsaw Man - The Compilation".`,
+        `[jp-immersion] not asking Jimaku for episode 2 of "Chainsaw Man: The Compilation" — its per-file numbering is the uploader's own, not Crunchyroll's. Matching by title instead.`,
+        `[jp-immersion] "Chainsaw Man: The Compilation" — narrowed its 8 files to 4 matching this title's own name "Chainsaw Man - The Compilation", then to the 2 numbered part 2 of it.`,
+      ],
+      warn: [],
     },
   },
 

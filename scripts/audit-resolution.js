@@ -60,6 +60,10 @@
 //   9. SHARED-ENTRY — several seasons resolve to one entry, but Jimaku holds
 //      only one TV entry for the show, so there is nothing else for them to
 //      resolve to. Correct by construction (Black Clover, One Piece).
+//  10. REQUEST-FAILED — the request never completed, so the run learned nothing
+//      about this episode. Says nothing about resolution and is never a defect;
+//      a non-zero count means the run is incomplete, not that the resolver is
+//      broken. Re-run those shows before reading anything into the result.
 //
 // NOT CHECKED, because there is no automatic ground truth for it:
 //   - Whether the resolved entry is the RIGHT entry. Nothing available offline
@@ -157,7 +161,18 @@ async function uncachedFetch(url, init) {
     const wait = Math.max(0, lastRequest + SPACING_MS - Date.now());
     if (wait) await new Promise((r) => setTimeout(r, wait));
     lastRequest = Date.now();
-    const res = await globalThis.fetch(url, init);
+    // A dropped connection THROWS rather than returning a status, and used to
+    // escape this loop entirely: it surfaced as the resolver failing, and the
+    // episode was scored a proven EMPTY defect. Retried on the same backoff as
+    // a 429, since it is the same kind of transient (2026-08-12).
+    let res;
+    try {
+      res = await globalThis.fetch(url, init);
+    } catch (e) {
+      if (attempt >= 4) throw e;
+      await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
+      continue;
+    }
     if (res.status !== 429 || attempt >= 4) return res;
     await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
   }
@@ -347,6 +362,18 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
           // kind of noise that made the earlier sweeps useless.
           const declined = Boolean(result?.unresolved) || /manual upload fallback|no numbered position/.test(error ?? "");
           const detail = error ?? (result?.unresolved ? "no entry identified — picker shown" : "no files");
+          // A request that never completed says nothing about resolution. It
+          // reached here as a proven EMPTY defect until 2026-08-12, when a
+          // single dropped connection put a phantom Haikyu!! failure into a
+          // regression run and briefly looked like a real regression. The
+          // run-integrity counter did not catch it either: that tracks the
+          // AUDIT's own requests, not the resolver's.
+          if (/fetch failed|Jimaku (?:search|file lookup) failed|ECONNRESET|socket hang up/i.test(error ?? "")) {
+            failedRequests++;
+            add("REQUEST-FAILED", false, { ...label, detail });
+            perEpisode.push({ episode, files: [], entryId: null });
+            continue;
+          }
           if (declined) add("DECLINED", false, { ...label, detail });
           else pendingEmpty.push({ label, detail, episode });
           perEpisode.push({ episode, files: [], entryId: result?.entryId ?? null });
@@ -536,7 +563,8 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
   }
   console.log(
     `\nFLAGGED FOR REVIEW (${flagged.length}):  DECLINED ${count("DECLINED")}   NARROWED ${count("NARROWED")}   ` +
-      `UNACCOUNTED ${count("UNACCOUNTED")}   MISSING ${count("MISSING")}   SHARED-ENTRY ${count("SHARED-ENTRY")}`
+      `UNACCOUNTED ${count("UNACCOUNTED")}   MISSING ${count("MISSING")}   SHARED-ENTRY ${count("SHARED-ENTRY")}   ` +
+      `REQUEST-FAILED ${count("REQUEST-FAILED")}`
   );
   console.log(`  (these MAY be correct — see the header for why neither can be decided automatically)`);
   for (const f of flagged.slice(0, 25)) {

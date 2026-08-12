@@ -20,8 +20,8 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete.** The whole 2,526-episode capture has now been audited (2026-08-11), reducing the outstanding resolution defects to **five root causes**; one is fixed. The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block listing all five. Next, in priority order:
-1. **RC1 — seasons that silently load the wrong subtitles** (Dr. STONE, Fruits Basket). Decided: decline to the picker; the decline condition still needs defining. Then RC5. RC4 is done. **RC3 is blocked** on an input `resolveTextFiles` doesn't get — read its entry before attempting it.
+**Phase 5 — Anki export. Every build item is complete.** The whole 2,526-episode capture has now been audited (2026-08-11), reducing the outstanding resolution defects to **five root causes**; three are fixed, one is blocked, one is decided but unbuilt. The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block listing all five. Next, in priority order:
+1. **RC1 — seasons that silently load the wrong subtitles** (Dr. STONE, Fruits Basket). Decided: decline to the picker; the decline condition still needs defining. It is the last open resolution defect apart from RC3, which is **blocked** on an input `resolveTextFiles` doesn't get — read its entry before attempting it. RC2, RC4 and RC5 are done.
 2. **Re-test the 2026-07-31 fixes live** (checklist groups B–D) plus the 20–30 minute continuous-session check. Largest block of unverified work in the project.
 3. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
 

@@ -401,6 +401,40 @@ function statedEpisodeNumbers(files) {
   return out;
 }
 
+// Picks one part out of a work whose files are its own numbered parts.
+//
+// Narrowing by title identifies the WORK; it does not identify which part of
+// it. Chainsaw Man's "The Compilation" is two recap episodes in one Jimaku
+// entry, so both of Crunchyroll's episodes narrowed to the same four files and
+// each of them offered episode 2's subtitles as readily as episode 1's
+// (2026-08-11).
+//
+// Trusting per-file numbering is exactly what was withdrawn on 2026-08-01,
+// when Jimaku's `?episode=` filter read release tags like "OAD2" as episode
+// numbers and served five consecutive OADs the wrong file. The conditions here
+// are what make it safe again, and each rules out that failure:
+//   - only among files ALREADY narrowed to this one work by title, so the
+//     numbers are that work's parts rather than a franchise's episodes;
+//   - every file must state exactly one position, so a release tag that parses
+//     to nothing (Attack on Titan's "- OAD3", "- #3.25 OAD2") disqualifies the
+//     whole set rather than being guessed at;
+//   - the positions must run 1..N with no gaps, which a set of arbitrary tags
+//     does not (Re:Zero's OVA entry states 26 and 27, and stops here).
+// Returns null unless all of that holds, leaving the full narrowed list.
+function partNumberedSelection(files, episode) {
+  const byPosition = new Map();
+  for (const f of files) {
+    const ns = filePositionNumbers(f.name);
+    if (ns.length !== 1) return null;
+    if (!byPosition.has(ns[0])) byPosition.set(ns[0], []);
+    byPosition.get(ns[0]).push(f);
+  }
+  const positions = [...byPosition.keys()].sort((a, b) => a - b);
+  if (positions.length < 2) return null; // one part: nothing to choose between
+  if (positions.some((n, i) => n !== i + 1)) return null; // must be a clean 1..N run
+  return byPosition.get(episode) ?? null;
+}
+
 // Whether Jimaku's answer for one episode actually describes one episode.
 //
 // Keyed on 第N話 ONLY, deliberately. The obvious signal — "the results disagree
@@ -883,6 +917,13 @@ const NON_EPISODIC_CLASSES = [
   ["special", /\b(?:specials?)\b(?!\s+(?:edition|version|cut|feature|screening|broadcast))/i, "a special"],
   ["picture-drama", /\bpicture drama\b/i, "a picture drama"],
   ["recap", /\b(?:recaps?|compilation)\b/i, "a recap"],
+  // A stage play is not animation at all, so Jimaku — an ANIME subtitle index
+  // — will never hold one. Crunchyroll lists them as ordinary seasons of the
+  // franchise ("Chainsaw Man The Stage", season 3 of Chainsaw Man), and with
+  // nothing to match on it fell through to the bare-franchise entry and served
+  // the TV anime's episode 1, silently (2026-08-11). Classed here so it is
+  // refused rather than guessed at; see the unidentified gate below.
+  ["stage", /\bthe stage\b|\bbutai\b|舞台/i, "a stage play"],
 ];
 
 function nonEpisodicClass(name) {
@@ -1653,13 +1694,22 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const franchiseFallbackUnsafe = franchiseIsSplit && seasonNameIsDistinct;
   const safeTitleMatch = franchiseFallbackUnsafe && isBareFranchise(titleMatch) ? null : titleMatch;
   const safePlainMatch = franchiseFallbackUnsafe && isBareFranchise(plainMatch) ? null : plainMatch;
-  const filmUnidentified = sideFormat?.[0] === "movie" && !nameMatch && !contentMatch && !soloHit;
+  // A film we can't name, or a stage play at all, resolves to nothing.
+  //
+  // The two arrive at the same place for different reasons. A film COULD have
+  // a Jimaku entry and the tiers below simply can't tell which, so it is
+  // refused only when nothing named it. A stage play could not have one on any
+  // day — the index holds anime subtitles — so the only thing that could ever
+  // match it is an entry naming it specifically, and every lower tier can
+  // offer nothing but the TV series.
+  const unidentifiableSideFormat =
+    (sideFormat?.[0] === "movie" || sideFormat?.[0] === "stage") && !nameMatch && !contentMatch && !soloHit;
   // soloHit sits BELOW classMatch deliberately: an episode-title search can
   // return one unrelated show (an OAD named "Distress" would), and for a
   // collection the format match is the stronger evidence. It sits ABOVE
   // titleMatch because that tier's exact match on a bare franchise name is the
   // flagship-series fallback The Last Attack hit.
-  const entry = filmUnidentified
+  const entry = unidentifiableSideFormat
     ? null
     : nameMatch ?? contentMatch ?? classMatch ?? soloHit?.entry ?? seasonMatch ?? safeTitleMatch ?? safePlainMatch ?? null;
   // Reported only when it CHANGED the answer — a higher tier resolving this
@@ -1937,10 +1987,12 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       const label = entry.english_name ?? entry.name;
       const narrowed = singleWork ? { files: [], title: null } : filesMatchingTitle(all, contentTitles);
       if (narrowed.files.length && narrowed.files.length < all.length) {
+        const part = partNumberedSelection(narrowed.files, episode);
         console.log(
-          `[jp-immersion] "${label}" — narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}".`
+          `[jp-immersion] "${label}" — narrowed its ${all.length} files to ${narrowed.files.length} matching this title's own name "${narrowed.title}"` +
+            (part ? `, then to the ${part.length} numbered part ${episode} of it.` : `.`)
         );
-        files = narrowed.files;
+        files = part ?? narrowed.files;
       } else {
         // Positive matching found nothing, so fall back to ruling files OUT by
         // the season's other episode titles rather than listing everything
