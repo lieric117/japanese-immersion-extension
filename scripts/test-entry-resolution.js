@@ -150,6 +150,44 @@ const AOT = [
 
 const NARUTO = [{ id: 2142, name: "Naruto: Shippuuden", english_name: "Naruto: Shippuden" }];
 
+// The same franchise as Jimaku really returns it: ONE television entry holding
+// all 500 episodes, and five films. Crunchyroll splits the show into seasons up
+// to "Season 17", so the later-season rule sees a season that is not season 1
+// and would refuse season 1's entry — except this IS the only entry there is.
+// The films are what make that distinguishable, and only via Jimaku's `movie`
+// flag: by name alone they are five perfectly good "alternatives".
+const NARUTO_FRANCHISE = [
+  { id: 2142, name: "NARUTO: Shippuuden", english_name: "Naruto: Shippuden" },
+  { id: 3455, name: "NARUTO: Shippuuden Movie", english_name: "Naruto Shippuden the Movie", flags: { movie: true } },
+  { id: 3448, name: "NARUTO: Shippuuden - Hi no Ishi wo Tsugu Mono", english_name: "Naruto Shippuden the Movie: The Will of Fire", flags: { movie: true } },
+  { id: 3449, name: "NARUTO: Blood Prison", english_name: "Naruto Shippuden the Movie: Blood Prison", flags: { movie: true } },
+  { id: 3453, name: "NARUTO: Shippuuden - Kizuna", english_name: "Naruto Shippuden the Movie: Bonds", flags: { movie: true } },
+  { id: 3454, name: "NARUTO: Shippuuden - The Lost Tower", english_name: "Naruto Shippuden the Movie: The Lost Tower", flags: { movie: true } },
+];
+
+// The opposite arrangement: eight entries, not one of them a film, the seasons
+// living under arc names that share no wording with Crunchyroll's "Season 2".
+const DR_STONE = [
+  { id: 730, name: "Dr. STONE", english_name: "Dr. STONE" },
+  { id: 3678, name: "Dr. STONE: STONE WARS", english_name: "Dr. STONE: STONE WARS" },
+  { id: 3679, name: "Dr. STONE: NEW WORLD", english_name: "Dr. STONE New World" },
+  { id: 3681, name: "Dr. STONE: Ryuusui", english_name: "Dr. STONE Special Episode – RYUSUI" },
+  { id: 8473, name: "Dr. STONE: SCIENCE FUTURE", english_name: "Dr. STONE SCIENCE FUTURE" },
+];
+
+// Jimaku's season-1 entry carries the SAME "(2019)" as Crunchyroll's series
+// title, so searching that title returns exactly one entry and the franchise
+// looks like a single work. The siblings only appear once the year is dropped.
+const FRUITS_BASKET_YEAR = [
+  { id: 3852, name: "Fruits Basket: 1st Season", english_name: "Fruits Basket (2019)" },
+];
+const FRUITS_BASKET_BROAD = [
+  { id: 1218, name: "Fruits Basket", english_name: "Fruits Basket" },
+  { id: 3852, name: "Fruits Basket: 1st Season", english_name: "Fruits Basket (2019)" },
+  { id: 3850, name: "Fruits Basket: 2nd Season", english_name: "Fruits Basket Season 2" },
+  { id: 3851, name: "Fruits Basket: The Final", english_name: "Fruits Basket The Final Season" },
+];
+
 // Real entries, verbatim (2026-08-11). Note 2886 is the arc-titled cour split
 // TWICE over: its `name` appends a bare "2", and its `english_name` says
 // "Part 2" but spells the franchise with ‼ (U+203C) where 2885 uses "!!", so
@@ -568,6 +606,12 @@ const FILES = {
       "チェンソーマン.総集篇.S01E02.後篇.WEBRip.Amazon.ja-jp[sdh].srt",
     ],
   },
+  3850: {
+    1: [
+      "Fruits Basket.S02E01.WEBRip.ja[cc].srt",
+      "[Beatrice-Raws] Fruits Basket 2nd Season 01 [BDRip 1920x1080 HEVC TrueHD].sup.7z",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -706,6 +750,61 @@ const cases = [
       ],
       warn: [],
     },
+  },
+
+  // ── 1c. a later season must never fall back to season 1's entry ───────────
+  // Three cases that have to come out three different ways, and the middle one
+  // is the reason the rule needs a second condition at all.
+  {
+    why: "Dr. STONE Season 2 — Jimaku names its seasons after arcs, so season 1's entry must be refused",
+    args: { query: "Dr. STONE", episode: 1, seasonNumber: 2, seasonName: "Dr. STONE Season 2" },
+    search: { "Dr. STONE": DR_STONE },
+    files: FILES,
+    expect: {
+      unresolved: true,
+      confident: false,
+      noFileFetch: true,
+      minCandidates: 2,
+      log: [
+        `[jp-immersion] "Dr. STONE Season 2" matched no entry, and its own name says it is not season 1 — declining to fall back to "Dr. STONE", which is season 1's entry, not this season's.`,
+        `[jp-immersion] no Jimaku entry identified for "Dr. STONE" episode 1 — 5 search results, none of them a match.`,
+      ],
+      warnCount: 1,
+    },
+    // What shipped until 2026-08-12: entry 730, season 1 episode 1, silently.
+    mustNotResolveTo: [730],
+  },
+  {
+    why: "Naruto: Shippuuden Season 17 — one entry holds the whole show, so the fallback must STAND",
+    args: { query: "Naruto: Shippuden", episode: 5, seasonNumber: 17, seasonName: "Naruto Shippuden: Season 17" },
+    search: { "Naruto: Shippuden": NARUTO_FRANCHISE },
+    files: FILES,
+    // Five of the six search results are films. Counting entries rather than
+    // reading the movie flag would make this look like a split franchise and
+    // blank out a 500-episode show — the regression this case exists to catch.
+    // The FILE is season 1's episode 5, and that is right: Crunchyroll numbers
+    // this show absolutely, so episode 5 is episode 5 whichever season slot it
+    // is listed under. What this case pins is the ENTRY — that a later-season
+    // name did not blank it out.
+    expect: { entryId: 2142, confident: true, fileCount: 1 },
+    expectFileNames: ["NARUTO－ナルト－.疾風伝.S01E05.第005話.風影として….WEB-DL.Hulu.ja.srt"],
+  },
+  {
+    why: "Fruits Basket Season 2 — the siblings are only visible once the year is dropped from the query",
+    args: { query: "Fruits Basket (2019)", episode: 1, seasonNumber: 2, seasonName: "Fruits Basket Season 2" },
+    search: { "Fruits Basket (2019)": FRUITS_BASKET_YEAR, "Fruits Basket": FRUITS_BASKET_BROAD },
+    files: FILES,
+    expect: {
+      entryId: 3850,
+      confident: true,
+      fileCount: 1, // the .7z is filtered out
+      log: [
+        `[jp-immersion] "Fruits Basket Season 2" is not season 1, and "Fruits Basket (2019)" matched only one work — also searched "Fruits Basket", which adds 3 entries.`,
+        `[jp-immersion] Jimaku entry "Fruits Basket Season 2" (id 3850) for "Fruits Basket (2019)" episode 1 — matched by Crunchyroll's season name.`,
+      ],
+      warn: [],
+    },
+    mustNotResolveTo: [3852],
   },
 
   // ── 2. a film with a clean exact match ────────────────────────────────────

@@ -1492,6 +1492,59 @@ function seasonNumberFromName(seasonName) {
   return season;
 }
 
+// Does Crunchyroll's season NAME positively say this is not season 1?
+//
+// The bare-franchise entry IS season 1 (2026-08-02). So whenever the season
+// name states a later season, falling back to that entry is provably wrong
+// without having to work out which entry the season SHOULD be — the question
+// that has no reliable answer when Jimaku names its seasons after story arcs
+// ("Dr. STONE: STONE WARS" for Crunchyroll's "Dr. STONE Season 2").
+//
+// Read from the NAME, never from `seasonNumber`: that field is a positional
+// index into Crunchyroll's own season list (see below), so One Piece's 24 arcs
+// are all numbered 2 and up, and using it would decline every one of them. The
+// name is the show's own account of itself — "East Blue (1-61)" carries no
+// season marker and is correctly left alone, and Black Clover's "Season 1
+// Part 1" parses to 1 rather than to its part number.
+//
+// "Final Season" is included because it says the same thing without a digit:
+// Fruits Basket and Attack on Titan both use it, and both were falling back to
+// season 1's entry.
+const FINAL_SEASON_RE = /\bfinal season\b/i;
+function seasonNameIsNotFirst(seasonName) {
+  if (!seasonName) return false;
+  if (FINAL_SEASON_RE.test(seasonName)) return true;
+  const stated = seasonNumberFromName(seasonName);
+  return stated !== null && stated >= 2;
+}
+
+// Does this franchise have more than one TV work Jimaku could mean?
+//
+// The companion to seasonNameIsNotFirst, and the reason it is safe. Knowing a
+// season is "not season 1" only justifies refusing season 1's entry when some
+// OTHER entry could plausibly be the right one. Where Jimaku keeps the whole
+// show in a single entry, that entry is the only possible answer and refusing
+// it helps nobody — it would turn a working show into a blank subtitle track.
+//
+// Naruto: Shippuuden is the measured case (2026-08-12). Crunchyroll splits it
+// into seasons up to "Season 17"; Jimaku holds all 500 episodes in ONE entry
+// and the other five search results are films. Counting entries alone would
+// have read those films as alternatives and declined the whole show — which
+// the live checklist exercises on three separate episodes. Films are excluded
+// by Jimaku's own `movie` flag, leaving a count of 1, so the fallback stands.
+// Dr. STONE is the opposite: eight entries, none of them a film, its seasons
+// genuinely living under STONE WARS / NEW WORLD / SCIENCE FUTURE.
+function franchiseHasSeveralWorks(entries, query) {
+  const words = looseTitle(query).split(" ").filter((w) => w.length > 2);
+  if (!words.length) return false;
+  const related = entries.filter((e) => {
+    if (e.flags?.movie) return false;
+    const name = `${looseTitle(e.name ?? "")} ${looseTitle(e.english_name ?? "")}`;
+    return words.some((w) => name.includes(w));
+  });
+  return related.length > 1;
+}
+
 // Resolves a show/episode query down to the candidate text-file list — the
 // part `fetchSubtitles` (auto-load) and the switcher panel's file listing
 // both need, factored out so a switcher-panel refresh doesn't duplicate this
@@ -1525,6 +1578,34 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
       `No Jimaku entry found for "${query}"` +
         (ladder.length > 1 ? ` (also tried ${ladder.length - 1} broader searches)` : "")
     );
+  }
+  // Stopping at the first rung that returns ANYTHING hides a later season
+  // whose entry is only reachable under a broader spelling. Crunchyroll's
+  // "Fruits Basket (2019)" matches exactly one Jimaku entry — season 1's,
+  // whose english_name carries the same year — so seasons 2 and Final saw a
+  // one-work franchise, took that entry, and played season 1 (2026-08-12).
+  // Dropping the year finds "Fruits Basket: 2nd Season" and ": The Final".
+  //
+  // Deliberately narrow: only when the season's own name says it is NOT season
+  // 1, and only when what we have looks like a single work — the exact
+  // conditions under which the fallback about to be used is season 1's entry.
+  // Results are merged rather than replaced, so nothing the first rung found
+  // is lost, and `usedQuery` is left alone so the tiers keyed on "was this the
+  // full query" keep their existing meaning.
+  if (seasonNameIsNotFirst(seasonName) && !franchiseHasSeveralWorks(entries, query)) {
+    for (const candidate of ladder) {
+      if (candidate === usedQuery) continue;
+      const broader = await searchJimakuEntries(candidate, headers);
+      const added = broader.filter((b) => !entries.some((e) => e.id === b.id));
+      if (added.length) {
+        console.log(
+          `[jp-immersion] "${seasonName}" is not season 1, and "${usedQuery}" matched only one work — ` +
+            `also searched "${candidate}", which adds ${added.length} entr${added.length === 1 ? "y" : "ies"}.`
+        );
+        entries = entries.concat(added);
+      }
+      if (franchiseHasSeveralWorks(entries, query)) break;
+    }
   }
   if (usedQuery !== ladder[0]) {
     console.log(
@@ -1691,7 +1772,15 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   const isBareFranchise = (e) =>
     Boolean(e) &&
     [looseTitle(e.name), looseTitle(e.english_name)].filter(Boolean).some((f) => f === looseTitle(query));
-  const franchiseFallbackUnsafe = franchiseIsSplit && seasonNameIsDistinct;
+  // Two independent reasons the bare-franchise fallback is unsafe, and the
+  // second was missing until 2026-08-12. `franchiseIsSplit` can only see a
+  // split Jimaku spells with a NUMBER, so a franchise it splits by arc name
+  // went undetected and Dr. STONE seasons 2 and 3 and Fruits Basket's season 2
+  // and Final Season all silently played season 1's subtitles. Where the
+  // season's own name says it is a later season, no evidence from Jimaku's
+  // side is needed at all: season 1's entry is the wrong answer by definition.
+  const seasonSaysLater = seasonNameIsNotFirst(seasonName) && franchiseHasSeveralWorks(entries, query);
+  const franchiseFallbackUnsafe = (franchiseIsSplit || seasonSaysLater) && seasonNameIsDistinct;
   const safeTitleMatch = franchiseFallbackUnsafe && isBareFranchise(titleMatch) ? null : titleMatch;
   const safePlainMatch = franchiseFallbackUnsafe && isBareFranchise(plainMatch) ? null : plainMatch;
   // A film we can't name, or a stage play at all, resolves to nothing.
@@ -1716,8 +1805,11 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // correctly anyway is the normal case and saying so every time is noise.
   if (!entry && franchiseFallbackUnsafe && (titleMatch || plainMatch)) {
     console.log(
-      `[jp-immersion] "${seasonName}" matched no entry, and Jimaku splits this franchise into separate ` +
-        `seasons — declining to fall back to "${query}", which is season 1's entry, not this season's.`
+      `[jp-immersion] "${seasonName}" matched no entry, and ` +
+        (franchiseIsSplit
+          ? `Jimaku splits this franchise into separate seasons`
+          : `its own name says it is not season 1`) +
+        ` — declining to fall back to "${query}", which is season 1's entry, not this season's.`
     );
   }
   const candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
