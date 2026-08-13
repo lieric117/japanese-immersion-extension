@@ -343,9 +343,22 @@ function parseFileEpisode(name) {
 // can't be read as a separator, and on a following delimiter so a year in
 // parentheses or a resolution can't be read as a position.
 const FILE_POSITION_RE = /\s[-–—]\s(\d{1,4})(?:v\d+)?(?=[\s[(「【]|$)/gu;
+// The other form the same uploaders use: the position in its own brackets,
+// "[Nekomoe kissaten] SPYxFAMILY [13][BDRip][JPN]". Kept to 1–3 digits and
+// digits ONLY, so the release tags sharing that syntax can't be read as
+// positions — "[1080p]" and "[BDRip]" carry letters, a CRC like "[E395C71D]"
+// carries letters, and a year like "[2022]" is four digits. Without this, two
+// files stating episode 25 read as stating nothing and survived a filter meant
+// to drop them (2026-08-12).
+const FILE_BRACKET_POSITION_RE = /\[(\d{1,3})\]/g;
 function filePositionNumbers(name) {
   const out = [];
-  for (const m of String(name ?? "").matchAll(FILE_POSITION_RE)) {
+  const text = String(name ?? "");
+  for (const m of text.matchAll(FILE_POSITION_RE)) {
+    const n = Number(m[1]);
+    if (n >= 1 && n <= 2000) out.push(n);
+  }
+  for (const m of text.matchAll(FILE_BRACKET_POSITION_RE)) {
     const n = Number(m[1]);
     if (n >= 1 && n <= 2000) out.push(n);
   }
@@ -2007,6 +2020,27 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // entry genuinely has nothing, so it never costs a request on a normal load.
   if (isEpisodic && !files.length) {
     for (const sibling of courSiblingEntries(entries, entry)) {
+      // The sibling has to actually COVER this episode, not merely answer to
+      // the number (2026-08-12). Where a season is split into three cours, each
+      // entry numbers its own files from its own start, and Jimaku will happily
+      // return a cour's Nth file for `?episode=N`: Dr. STONE's SCIENCE FUTURE
+      // is one 37-episode Crunchyroll season, and asking Cour 3 (which holds
+      // 25–37) for episode 13 returned S04E37 — so episodes 13 and 37 both
+      // played episode 37. Checking the sibling's own stated numbers first
+      // skips that cour and reaches Cour 2, which really does hold episode 13.
+      //
+      // Only enforced when the sibling states episode numbers at all. An entry
+      // of unnumbered release names can't be checked this way, and refusing it
+      // would withdraw the cour retry from the collections it was built for.
+      const siblingAll = await listFiles(sibling, { allEpisodes: true });
+      const stated = statedEpisodeNumbers(siblingAll);
+      if (stated.length && !stated.includes(episode)) {
+        console.log(
+          `[jp-immersion] "${sibling.english_name ?? sibling.name}" is a cour of the same season but covers ` +
+            `episodes ${Math.min(...stated)}–${Math.max(...stated)}, not ${episode} — looking further.`
+        );
+        continue;
+      }
       const siblingFiles = await listFiles(sibling);
       if (!siblingFiles.length) continue;
       console.log(
@@ -2014,7 +2048,36 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
           `using "${sibling.english_name ?? sibling.name}", which does (Jimaku splits this season across cours).`
       );
       usedEntry = sibling;
-      files = siblingFiles;
+      // Jimaku's answer for a COUR entry mixes two episodes, because it counts
+      // that entry's files from 1 as well as reading the numbers in them
+      // (2026-08-12). Asking SPY x FAMILY's "Cour 2" for episode 13 returns the
+      // file named S01E13 AND the cour's thirteenth, S01E25 — one of which is
+      // an hour of the wrong show. Mushoku Tensei's Cour 2 does the same with
+      // 12 and 23.
+      //
+      // Files that positively state a DIFFERENT episode are dropped; files
+      // that state nothing are kept, since nothing places them elsewhere. Only
+      // applied here, on the cour retry, and only when something states the
+      // episode asked for. A blanket version would break the rule that
+      // narrowing must not discard valid alternates (2026-08-02): Frieren's
+      // season 2 legitimately answers episode 9 with files numbered both 09 and
+      // 37 — the same episode under two conventions — and it never comes
+      // through this path.
+      const conflicting = siblingFiles.filter((f) => {
+        const stated = statedEpisodeNumbers([f]);
+        return stated.length && !stated.includes(episode);
+      });
+      const keep = siblingFiles.filter((f) => !conflicting.includes(f));
+      if (conflicting.length && keep.some((f) => statedEpisodeNumbers([f]).includes(episode))) {
+        console.log(
+          `[jp-immersion] dropped ${conflicting.length} of its ${siblingFiles.length} file(s) that state a ` +
+            `different episode — a cour entry is numbered from its own start, so Jimaku returns this ` +
+            `cour's ${episode}th alongside episode ${episode} itself.`
+        );
+        files = keep;
+      } else {
+        files = siblingFiles;
+      }
       break;
     }
   }
@@ -2107,6 +2170,28 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
         );
         files = retry;
       }
+    }
+  }
+  // A TV special that Crunchyroll lists as an ordinary numbered episode, whose
+  // Jimaku entry holds exactly one unnumbered file (2026-08-12). My Hero
+  // Academia's "I am a Hero too" is the measured case: the season name matched
+  // entry 12479 outright, that entry holds a single file named
+  // "…SP.I.am.a.hero.too…", and because the page looked episodic the resolver
+  // asked for episode 1, got nothing, and failed — on a special Jimaku
+  // actually has.
+  //
+  // Gated three ways so it cannot serve one file for a whole season: the entry
+  // must have been POSITIVELY identified (not reached by the series-title
+  // fallback), it must hold exactly one usable file, and that file must state
+  // no episode of its own. An ordinary season's entry fails all three.
+  if (isEpisodic && !files.length && (nameMatch || contentMatch || classMatch || soloHit)) {
+    const usable = (await listFiles(entry, { allEpisodes: true })).filter((f) => !ARCHIVE_RE.test(f.name));
+    if (usable.length === 1 && !fileStatesAnEpisode(usable[0].name)) {
+      console.log(
+        `[jp-immersion] "${entry.english_name ?? entry.name}" holds one file and it names no episode — ` +
+          `treating this as a single work rather than episode ${episode} of a season.`
+      );
+      files = usable;
     }
   }
   // Non-episodic content doesn't reliably carry an episode number on Jimaku's

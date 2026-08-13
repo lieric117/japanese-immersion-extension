@@ -20,10 +20,10 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete.** The whole 2,526-episode capture has now been audited (2026-08-11), reducing the outstanding resolution defects to **five root causes**, all now fixed. One further defect was found while verifying the last of them and is still open. The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block listing all five. Next, in priority order:
+**Phase 5 — Anki export. Every build item is complete.** The whole 2,526-episode capture has now been audited (2026-08-11), Resolution is offline-clean as of 2026-08-12: eight defects fixed, and a full 2,526-episode audit reports 0 COLLISION / 0 DUPLICATE / 0 EMPTY with the `--background` proof still separating old code (9 bugs) from current (0). The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested**. Details in `project-plan.md` Section 6 Phase 5, which opens with a **"Follow-up plan — start here next session"** block listing all five. Next, in priority order:
 1. **Re-test the 2026-07-31 fixes live** (checklist groups B–D) plus the 20–30 minute continuous-session check. Largest block of unverified work in the project, and it needs a browser rather than more offline work.
-2. **The cour-sibling retry serving another cour's episode** — Dr. STONE's SCIENCE FUTURE loads episode 37 for episode 13. Silent wrong content, diagnosed with a proposed fix in `project-plan.md`'s follow-up plan.
-3. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
+2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
+3. Resolution needs a **fresh live pass** — checklist Section A was rewritten 2026-08-12 for the eight fixes; offline cleanliness cannot show that subtitles appear on screen.
 
 Re-run the six known-bug shows (`--only "tokyo ghoul,slimes,mushoku,shangri,dress-up,kimetsu no yaiba"`) after **any** resolver change — that run is what caught a fix regressing a clean show on 2026-08-11.
 

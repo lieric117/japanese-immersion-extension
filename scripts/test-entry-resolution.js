@@ -218,6 +218,14 @@ const VIGILANTES = [
   { id: 11309, name: "Vigilante: Boku no Hero Academia ILLEGALS 2nd Season", english_name: "My Hero Academia: Vigilantes Season 2" },
 ];
 
+// Real entries and listing (2026-08-12). Crunchyroll presents season 1 as 25
+// episodes; Jimaku splits it, and its Cour 2 entry answers `?episode=13` with
+// BOTH the file named S01E13 and the cour's own thirteenth, S01E25.
+const SPY_FAMILY = [
+  { id: 1251, name: "SPY×FAMILY", english_name: "SPY x FAMILY" },
+  { id: 282, name: "SPY×FAMILY Part 2", english_name: "SPY x FAMILY Cour 2" },
+];
+
 const JUJUTSU = [
   { id: 712, name: "Jujutsu Kaisen", english_name: "JUJUTSU KAISEN" },
   { id: 1893, name: "Jujutsu Kaisen 2nd Season", english_name: "JUJUTSU KAISEN Season 2" },
@@ -648,6 +656,24 @@ const FILES = {
       "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E20.ガラスの空.WEBRip.Netflix.ja[cc].srt",
     ],
   },
+  1251: { 13: [] },
+  282: {
+    13: [
+      "SPY x FAMILY (2022) - S01E13 - PROJECT APPLE [HDTV-720p Proper][8bit][x264][AAC 2.0][JA]-SubsPlease.jpn.srt",
+      "SPY x FAMILY (2022) - S01E25 - FIRST CONTACT [HDTV-720p][8bit][x264][AAC 2.0][JA]-SubsPlease.jpn.srt",
+      "SPY x FAMILY - 13 (TVQ).srt",
+      "SPY x FAMILY - 25  (TVQ).srt",
+      "SPY×FAMILY.S01E13.【MISSION：13】.プロジェクト〈アップル〉.WEBRip.Amazon.ja-jp[sdh].srt",
+      "SPY×FAMILY.S01E13.プロジェクト〈アップル〉.WEBRip.Netflix.ja[cc].srt",
+      "SPY×FAMILY.S01E25.【MISSION：25】.接敵作戦(ファーストコンタクト).WEBRip.Amazon.ja-jp[sdh].srt",
+      "SPY×FAMILY.S01E25.接敵作戦(ファーストコンタクト).WEBRip.Netflix.ja[cc].srt",
+      "[NanakoRaws] Spy x Family - 25 END (WEB-DL 1920x1080 x264 AAC).ass",
+      "[Nekomoe kissaten] SPYxFAMILY [13][BDRip][CHS, JPN].ass",
+      "[Nekomoe kissaten] SPYxFAMILY [13][BDRip][JPN].ass",
+      "[Nekomoe kissaten] SPYxFAMILY [25][BDRip][CHS, JPN].ass",
+      "[Nekomoe kissaten] SPYxFAMILY [25][BDRip][JPN].ass",
+    ],
+  },
   3335: { 1: ["[Judas] Kimetsu no Yaiba - Mugen Train Arc - 01 [1080p][HEVC x265 10bit].srt"] },
   1435: { 1: ["[Ohys-Raws] Shingeki no Kyojin - 01 (MX 1280x720 x264 AAC).srt"] },
   3458: { 1: ["[Ohys-Raws] Shingeki no Kyojin S2 - 01 (MX 1280x720 x264 AAC).srt"] },
@@ -864,6 +890,34 @@ const cases = [
     expectFileNames: [
       "ヴィジランテ-僕のヒーローアカデミア.ILLEGALS-.S02E19.雨と雲.WEBRip.Netflix.ja[cc].srt",
       "ヴィジランテ.-僕のヒーローアカデミア.ILLEGALS-.S01E19.雨と雲.WEBRip.Amazon.ja-jp[sdh].srt",
+    ],
+  },
+
+  {
+    why: "SPY x FAMILY ep13 — a cour entry answers with its OWN 13th as well as episode 13",
+    args: { query: "SPY x FAMILY", episode: 13, seasonNumber: 1, seasonName: "Season 1" },
+    search: { "SPY x FAMILY": SPY_FAMILY },
+    files: FILES,
+    expect: {
+      entryId: 282,
+      confident: true,
+      // Seven of the thirteen state episode 25 — a different episode of the
+      // same show, and half of them would have played over episode 13.
+      fileCount: 6,
+      log: [
+        `[jp-immersion] Jimaku entry "SPY x FAMILY" (id 1251) for "SPY x FAMILY" episode 13 — matched by season 1.`,
+        `[jp-immersion] "SPY x FAMILY" has no files for episode 13 — using "SPY x FAMILY Cour 2", which does (Jimaku splits this season across cours).`,
+        `[jp-immersion] dropped 7 of its 13 file(s) that state a different episode — a cour entry is numbered from its own start, so Jimaku returns this cour's 13th alongside episode 13 itself.`,
+      ],
+      warn: [],
+    },
+    expectFileNames: [
+      "SPY x FAMILY (2022) - S01E13 - PROJECT APPLE [HDTV-720p Proper][8bit][x264][AAC 2.0][JA]-SubsPlease.jpn.srt",
+      "SPY x FAMILY - 13 (TVQ).srt",
+      "SPY×FAMILY.S01E13.【MISSION：13】.プロジェクト〈アップル〉.WEBRip.Amazon.ja-jp[sdh].srt",
+      "SPY×FAMILY.S01E13.プロジェクト〈アップル〉.WEBRip.Netflix.ja[cc].srt",
+      "[Nekomoe kissaten] SPYxFAMILY [13][BDRip][CHS, JPN].ass",
+      "[Nekomoe kissaten] SPYxFAMILY [13][BDRip][JPN].ass",
     ],
   },
 

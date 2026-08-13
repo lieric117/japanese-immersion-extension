@@ -60,6 +60,9 @@
 //   9. SHARED-ENTRY — several seasons resolve to one entry, but Jimaku holds
 //      only one TV entry for the show, so there is nothing else for them to
 //      resolve to. Correct by construction (Black Clover, One Piece).
+//  11. NO-POSITION — Crunchyroll lists this inside a season with no episode
+//      code and no episode number (a trailer, typically). There is no episode
+//      to resolve, so it is listed and not scored.
 //  10. REQUEST-FAILED — the request never completed, so the run learned nothing
 //      about this episode. Says nothing about resolution and is never a defect;
 //      a non-zero count means the run is incomplete, not that the resolver is
@@ -328,6 +331,16 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
         // `episode_number` only as a fallback.
         const code = ep.episode;
         const numericCode = /^\d+$/.test(String(code)) ? Number(code) : null;
+        // Crunchyroll lists trailers inside a season with no episode code AND no
+        // episode number — Fairy Tail and Haikyu!! both carry a "PV" at
+        // sequence 0. Falling back to 1 for those invents a question nobody
+        // asked and then scores the answer: the PV "resolved" to episode 1's
+        // files, which read as a DUPLICATE of the real episode 1, and Fairy
+        // Tail's read as MIXED because its season is numbered from 176. Two of
+        // the three findings left in the 2026-08-12 full run were this, and
+        // they would have recurred on every future run. Same principle the
+        // resolver settled on 2026-08-02: no position means no position.
+        const hasNoPosition = numericCode === null && !Number.isInteger(ep.episode_number);
         const episode = numericCode ?? (Number.isInteger(ep.episode_number) ? ep.episode_number : 1);
         const compound = `${season.title} | E${code ?? episode} - ${ep.title ?? ""}`;
 
@@ -352,6 +365,13 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
           process.stdout.write(`   … ${episodesTested} episodes, ${findings.filter((f) => f.proven).length} proven defects so far\n`);
         }
         const label = { series: seriesTitle, season: season.title, episode, episodeTitle: ep.title };
+        if (hasNoPosition) {
+          add("NO-POSITION", false, {
+            ...label,
+            detail: `"${ep.title}" has no episode code and no episode number — not scored`,
+          });
+          continue;
+        }
 
         if (error || !result || result.unresolved || !result.textFiles?.length) {
           // DECLINED vs EMPTY. Declining is sometimes the correct answer — an
@@ -564,7 +584,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
   console.log(
     `\nFLAGGED FOR REVIEW (${flagged.length}):  DECLINED ${count("DECLINED")}   NARROWED ${count("NARROWED")}   ` +
       `UNACCOUNTED ${count("UNACCOUNTED")}   MISSING ${count("MISSING")}   SHARED-ENTRY ${count("SHARED-ENTRY")}   ` +
-      `REQUEST-FAILED ${count("REQUEST-FAILED")}`
+      `REQUEST-FAILED ${count("REQUEST-FAILED")}   NO-POSITION ${count("NO-POSITION")}`
   );
   console.log(`  (these MAY be correct — see the header for why neither can be decided automatically)`);
   for (const f of flagged.slice(0, 25)) {
