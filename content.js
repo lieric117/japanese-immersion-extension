@@ -1444,7 +1444,17 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   // exception (2026-08-01) is the unresolved state: no entry matched, so
   // nothing was loaded on purpose, and the entry picker below is the only way
   // out short of manual upload — hiding it would make the dead end permanent.
-  const hasEntryPicker = Boolean(entryInfo && !entryInfo.confident && entryInfo.candidates?.length > 1);
+  // One candidate is enough WHEN NOTHING LOADED (2026-08-13). The ">1" test
+  // below reads as "there is a choice to make", which is right when subtitles
+  // are already playing and the picker is an offer to correct them. In the
+  // unresolved state it is the opposite: nothing loaded, and the picker is the
+  // only way forward short of manual upload. Attack on Titan's Chronicle is
+  // the measured case — Crunchyroll files it under a separate "Attack on Titan
+  // Movies" series entity whose Jimaku search returns exactly ONE entry, so
+  // the panel hid itself and left manual upload as the only visible option.
+  const pickerWorthShowing = (info) =>
+    Boolean(info && !info.confident && (info.candidates?.length ?? 0) >= (info.unresolved ? 1 : 2));
+  const hasEntryPicker = pickerWorthShowing(entryInfo);
   if ((!files || !files.length) && !hasEntryPicker) {
     panel.style.display = "none";
     return;
@@ -1457,7 +1467,7 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   // matchEntryByFullTitle. Rather than guess silently, which is what shipped
   // the "movie plays with season 1's subtitles" bug, an unidentified entry says
   // so here and offers every candidate the search returned.
-  if (entryInfo && !entryInfo.confident && entryInfo.candidates?.length > 1) {
+  if (hasEntryPicker) {
     const warning = document.createElement("div");
     warning.className = "jp-immersion-switcher-warning";
     // Two different situations, and conflating them is how the wrong-subtitles

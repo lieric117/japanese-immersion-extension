@@ -457,7 +457,7 @@ Reload the extension first (`chrome://extensions` → reload). **Read the SERVIC
 *A1 — must load, and load the RIGHT episode. These are the 2026-08-12 fixes; each was serving wrong content.*
 1. **Dr. STONE SCIENCE FUTURE episode 13** — expect `…Cour 3 … covers episodes 25–37, not 13 — looking further`, then Cour 2. The subtitle must match 同じ月を見て, **not** 未来を唆るもの (episode 37, the old bug).
 2. **SPY x FAMILY season 1 episode 13** — expect `dropped 7 of its 13 file(s) that state a different episode`. Subtitles must be PROJECT APPLE, not FIRST CONTACT (episode 25).
-3. **Mushoku Tensei season 1 episode 12** — same shape, expect `dropped 4 of its 14`.
+3. **Mushoku Tensei season 1 episode 12** — same shape, expect `dropped 6 of its 14`. (The figure was written as 4 before `[23]`-style bracket numbering was recognised; six is correct.)
 4. **MHA: Vigilantes season 2 episode 6** — expect `carries a second numbering running 13 ahead — episode 6 is its 19`. Previously loaded nothing. Also try episodes 9–13.
 5. **Haikyu!! TO THE TOP episode 14** — expect `continues from 14 (Jimaku splits this season across cours under an arc title)`. Previously failed outright; 12 of 25 episodes were dead.
 6. **My Hero Academia "I am a Hero too"** — expect `holds one file and it names no episode`. Previously loaded nothing.
