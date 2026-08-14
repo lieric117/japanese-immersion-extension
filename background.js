@@ -2352,8 +2352,73 @@ async function fetchAndParseFile(file, headers) {
 // Takes the FETCH_SUBTITLES message itself rather than six positional
 // arguments (2026-07-27) — the list had grown past the point where a call site
 // was readable, and adding `seasonName` to it would have made a seventh.
-async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null, episodeTitle = null, siblingTitles = [] }) {
+// The season's REMEMBERED entry, used instead of resolving (2026-08-13).
+//
+// Only reachable once the user has picked an entry for this season, which only
+// happens where resolution declined — so this never overrides a working
+// automatic answer, it replaces a manual pick the user would otherwise repeat
+// every episode.
+//
+// Falls back to null on any failure rather than throwing, so a remembered
+// entry that has been deleted, renamed, or simply has nothing for this episode
+// puts the show back on the ordinary path instead of breaking it permanently.
+// A memory the user cannot escape is worse than no memory.
+async function filesFromRememberedEntry(entryId, episode, headers, query) {
+  try {
+    const list = async (url) => {
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`Jimaku file lookup failed (${res.status})`);
+      return res.json();
+    };
+    let files = Number.isInteger(episode)
+      ? await list(`${JIMAKU_API_BASE}/entries/${entryId}/files?episode=${episode}`)
+      : [];
+    if (!files.length) files = await list(`${JIMAKU_API_BASE}/entries/${entryId}/files`);
+    const textFiles = files.filter((f) => !ARCHIVE_RE.test(f.name));
+    if (!textFiles.length) return null;
+    // The picker's own list, so the choice stays changeable. A failed search
+    // costs only the dropdown, not the subtitles, so it is not fatal.
+    let candidates = [];
+    let entryName = null;
+    try {
+      const entries = await searchJimakuEntries(query, headers);
+      candidates = entries.map((e) => ({ id: e.id, name: e.english_name ?? e.name }));
+      const self = entries.find((e) => e.id === entryId);
+      entryName = self ? self.english_name ?? self.name : null;
+    } catch {
+      /* dropdown only */
+    }
+    console.log(
+      `[jp-immersion] using Jimaku entry ${entryId}${entryName ? ` ("${entryName}")` : ""} for "${query}" ` +
+        `episode ${episode} — remembered from an earlier pick for this season, not resolved.`
+    );
+    return { textFiles, entryName, candidates };
+  } catch (e) {
+    console.warn(`[jp-immersion] remembered entry ${entryId} could not be used (${e.message}) — resolving normally.`);
+    return null;
+  }
+}
+
+async function fetchSubtitles({ query, episode, fileHint = null, preferredUploader = null, seasonNumber = null, seasonName = null, episodeTitle = null, siblingTitles = [], preferredEntryId = null }) {
   const headers = await getJimakuHeaders();
+  if (Number.isInteger(preferredEntryId)) {
+    const remembered = await filesFromRememberedEntry(preferredEntryId, episode, headers, query);
+    if (remembered) {
+      const rankedFiles = rankFiles(remembered.textFiles, preferredUploader);
+      const picked = (fileHint && rankedFiles.find((f) => f.name.includes(fileHint))) || rankedFiles[0];
+      return {
+        cues: await fetchAndParseFile(picked, headers),
+        files: rankedFiles.map((f) => ({ name: f.name, url: f.url, size: f.size })),
+        selectedUrl: picked.url,
+        entryName: remembered.entryName,
+        entryId: preferredEntryId,
+        entryConfident: true,
+        entryCandidates: remembered.candidates,
+        entryUnresolved: false,
+        entryRemembered: true,
+      };
+    }
+  }
   const { textFiles, entryName, confident, entryId, candidates, unresolved } = await resolveTextFiles(
     query,
     episode,

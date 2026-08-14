@@ -885,6 +885,20 @@ function uploaderPrefKey(seriesTitle, seasonNumber) {
   return `uploaderPref:${seriesTitle}:${seasonNumber ?? "?"}`;
 }
 
+// The Jimaku entry the user picked for this season, remembered so the pick is
+// made once rather than every episode (2026-08-13).
+//
+// This matters because of what the resolver now REFUSES to guess. Where
+// Crunchyroll names a season generically ("Dr. STONE Season 2") and Jimaku
+// names it after an arc ("Dr. STONE: STONE WARS"), nothing can bridge the two
+// and the entry picker is the honest answer — but without memory that is a
+// pick per episode, which is worse than the silent wrong-subtitles bug it
+// replaced was annoying. Keyed exactly like the uploader preference beside it,
+// so the two behave the same way and expire together with the season slot.
+function entryPrefKey(seriesTitle, seasonNumber) {
+  return `entryPref:${seriesTitle}:${seasonNumber ?? "?"}`;
+}
+
 // Extracts a release group's bracket tag from the START of a Jimaku
 // filename (e.g. "[Haruhana] Tongari Boushi..." → "Haruhana") — the only
 // place uploader identity exists at all, confirmed 2026-07-15 (no
@@ -961,8 +975,10 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
   // fallback" requirement) — nothing to handle on this side.
   const prefKey = uploaderPrefKey(detected.seriesTitle, detected.seasonNumber);
   const sibKey = siblingCacheKey(detected.seriesTitle, detected.seasonName);
-  chrome.storage.local.get([prefKey, sibKey], (stored) => {
+  const entryKey = entryPrefKey(detected.seriesTitle, detected.seasonNumber);
+  chrome.storage.local.get([prefKey, sibKey, entryKey], (stored) => {
     const preferredUploader = stored[prefKey] ?? null;
+    const preferredEntryId = Number.isInteger(stored[entryKey]) ? stored[entryKey] : null;
     // Whatever previous visits learned, plus anything sniffed already on this
     // load. Merged rather than either-or: on a first visit the cache is empty
     // and only the live sniff has anything, and on a later visit a sniff may
@@ -980,6 +996,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
         siblingTitles: seasonEpisodeTitles,
         fileHint: FILE_HINT,
         preferredUploader,
+        preferredEntryId,
       },
       (response) => {
         subtitleLoadPending = false;
@@ -1004,6 +1021,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           entryId: response.entryId ?? null,
           candidates: response.entryCandidates ?? [],
           unresolved: Boolean(response.entryUnresolved),
+          remembered: Boolean(response.entryRemembered),
         });
         // Forces an immediate re-render via the shared timeupdate listener
         // (see init()) instead of waiting for the video's own next natural
@@ -1452,8 +1470,16 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   // the measured case — Crunchyroll files it under a separate "Attack on Titan
   // Movies" series entity whose Jimaku search returns exactly ONE entry, so
   // the panel hid itself and left manual upload as the only visible option.
+  // A remembered entry is confident BUT still needs the picker on screen: it is
+  // the only way to correct a pick that turns out wrong, and hiding it would
+  // make the memory a one-way door.
   const pickerWorthShowing = (info) =>
-    Boolean(info && !info.confident && (info.candidates?.length ?? 0) >= (info.unresolved ? 1 : 2));
+    Boolean(
+      info &&
+        (info.remembered
+          ? (info.candidates?.length ?? 0) > 1
+          : !info.confident && (info.candidates?.length ?? 0) >= (info.unresolved ? 1 : 2))
+    );
   const hasEntryPicker = pickerWorthShowing(entryInfo);
   if ((!files || !files.length) && !hasEntryPicker) {
     panel.style.display = "none";
@@ -1480,7 +1506,9 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
     // as though it were the answer, which is the wrong-subtitles bug the
     // refusal exists to prevent, moved one click away.
     const loneCandidate = entryInfo.unresolved && entryInfo.candidates.length === 1;
-    warning.textContent = loneCandidate
+    warning.textContent = entryInfo.remembered
+      ? "Using the Jimaku entry you picked for this season — change it if it's wrong:"
+      : loneCandidate
       ? "No Jimaku entry matches this title, so no subtitles were loaded. The only search result is " +
         'a different work — use "Upload subtitle file" unless you know it belongs here:'
       : entryInfo.unresolved
@@ -1501,6 +1529,14 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
     entrySelect.addEventListener("change", () => {
       const chosenId = Number(entrySelect.value);
       entrySelect.disabled = true;
+      // Saved before the fetch, not after: the point is to remember what the
+      // user chose, and a chosen entry that happens to have nothing for THIS
+      // episode is still the right entry for the season.
+      if (detected) {
+        chrome.storage.local.set({
+          [entryPrefKey(detected.seriesTitle, detected.seasonNumber)]: chosenId,
+        });
+      }
       chrome.runtime.sendMessage(
         { type: "FETCH_ENTRY_FILES", entryId: chosenId, episode: detected?.episodeNumber ?? null },
         (response) => {
