@@ -1473,9 +1473,19 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
     // Two different situations, and conflating them is how the wrong-subtitles
     // case reads as reassuring. Either something IS loaded and needs checking,
     // or nothing was loaded at all and the user has to choose (2026-08-01).
-    warning.textContent = entryInfo.unresolved
-      ? "Couldn't tell which Jimaku entry this is, so no subtitles were loaded — pick one:"
-      : "Couldn't tell which Jimaku entry this is — check these are the right subtitles:";
+    // Three situations, not two (2026-08-13). Conflating the last two is how a
+    // dead end reads as a menu: Attack on Titan's Chronicle has NO Jimaku entry
+    // — a search on its own series entity returns only The Last Attack, a
+    // different film — so "pick one" offered a single already-rejected option
+    // as though it were the answer, which is the wrong-subtitles bug the
+    // refusal exists to prevent, moved one click away.
+    const loneCandidate = entryInfo.unresolved && entryInfo.candidates.length === 1;
+    warning.textContent = loneCandidate
+      ? "No Jimaku entry matches this title, so no subtitles were loaded. The only search result is " +
+        'a different work — use "Upload subtitle file" unless you know it belongs here:'
+      : entryInfo.unresolved
+        ? "Couldn't tell which Jimaku entry this is, so no subtitles were loaded — pick one:"
+        : "Couldn't tell which Jimaku entry this is — check these are the right subtitles:";
     panel.appendChild(warning);
 
     const entryLabel = document.createElement("label");
