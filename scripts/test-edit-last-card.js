@@ -167,6 +167,9 @@ function makeEditAnkiNote(handler) {
         // Stood in for by the harness: forgetAddedNote also releases the
         // retained PCM buffer, which is audio-capture.js's concern.
         "let audioBufferNoteId = null;",
+        // Likewise for the capture still in flight (2026-08-15) — undoing a
+        // note has to drop its pending clip so nothing lands on a dead id.
+        "let pendingAudioCapture = null;",
         "let clearedBuffer = false;",
         "function clearRetainedClip() { clearedBuffer = true; }",
         grabFrom(content, /^function buildEditLastCardControl\([\s\S]*?\n\}/m, "buildEditLastCardControl"),

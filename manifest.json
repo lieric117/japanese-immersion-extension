@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Japanese Immersion Extension",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Learner-friendly Japanese subtitles for Crunchyroll (dev skeleton).",
   "permissions": ["storage"],
   "host_permissions": [

@@ -35,8 +35,12 @@ function makeHarness(jpCues, enCues) {
     grab(/^const SPEAKER_PREFIX_RE =[\s\S]*?;$/m, "SPEAKER_PREFIX_RE"),
     grab(/^const INLINE_FURIGANA_RE =[\s\S]*?;$/m, "INLINE_FURIGANA_RE"),
     grab(/^const FANSUB_MARKUP_RE =[\s\S]*?;$/m, "FANSUB_MARKUP_RE"),
+    grab(/^const ASS_OVERRIDE_RE =[\s\S]*?;$/m, "ASS_OVERRIDE_RE"),
+    grab(/^const SENTENCE_PERIOD_RE =[\s\S]*?;$/m, "SENTENCE_PERIOD_RE"),
     grab(/^function cueDisplayText\(cue\) \{[\s\S]*?\n\}/m, "cueDisplayText"),
     grab(/^function pairEnglishCues\([\s\S]*?\n\}/m, "pairEnglishCues"),
+    grab(/^const TOP_ALIGNMENTS = .*$/m, "TOP_ALIGNMENTS"),
+    grab(/^function dropBackgroundEnglishCues\([\s\S]*?\n\}/m, "dropBackgroundEnglishCues"),
     grab(/^function pairedEnglishText\([\s\S]*?\n\}/m, "pairedEnglishText"),
     grab(/^const JP_GAP_BRIDGE_SECONDS = .*$/m, "JP_GAP_BRIDGE_SECONDS"),
     grab(/^function bridgedEnglishText\([\s\S]*?\n\}/m, "bridgedEnglishText"),
@@ -247,6 +251,51 @@ const EN_ONE = [{ start: 10, end: 15, text: "But that is not how it went." }];
     "No English cues — nothing is ever shown or bridged",
     frames.every((f) => f.en === ""),
     "produced English text with an empty English track"
+  );
+}
+
+// ── Background lines placed at the top of the frame (2026-08-15) ────────────
+// The live report: one Japanese line's Translation field carried both its own
+// English sentence and an unrelated background line from elsewhere in the
+// scene. Crunchyroll moves the secondary line to the top of the frame when two
+// are on screen at once, and that position is what tells them apart.
+{
+  const jp = [{ start: 10, end: 13, text: "パートナーが居ない事をからかわれたショックよりも" }];
+  const en = [
+    { start: 10, end: 13, text: "Getting mocked for my lack of a partner would be one thing.", align: null },
+    { start: 10.5, end: 12, text: "Move your feet.", align: 8 },
+  ];
+  const h = makeHarness(jp, en);
+  const shown = h.pairedEnglishText({ start: 10, end: 13 });
+  check(
+    "a top-positioned background line is dropped when a bottom line competes with it",
+    shown === "Getting mocked for my lack of a partner would be one thing.",
+    `got ${JSON.stringify(shown)}`
+  );
+}
+{
+  // The line at the top is the ONLY line — normal for dialogue placed away from
+  // a speaker at the bottom of frame. It must survive.
+  const jp = [{ start: 10, end: 13, text: "なんだこれ" }];
+  const en = [{ start: 10, end: 13, text: "What is this?", align: 8 }];
+  const h = makeHarness(jp, en);
+  const shown = h.pairedEnglishText({ start: 10, end: 13 });
+  check("a lone top-positioned line is kept — position alone is never enough", shown === "What is this?", `got ${JSON.stringify(shown)}`);
+}
+{
+  // Two ordinary bottom-positioned cues: one Japanese line translated as two
+  // English sentences. Both are its translation and both must stay.
+  const jp = [{ start: 10, end: 14, text: "だから僕は行く" }];
+  const en = [
+    { start: 10, end: 12, text: "So I'm going.", align: null },
+    { start: 12, end: 14, text: "There's nothing else for it.", align: null },
+  ];
+  const h = makeHarness(jp, en);
+  const shown = h.pairedEnglishText({ start: 10, end: 14 });
+  check(
+    "one Japanese line translated as two English sentences is unaffected",
+    shown === "So I'm going.\nThere's nothing else for it.",
+    `got ${JSON.stringify(shown)}`
   );
 }
 

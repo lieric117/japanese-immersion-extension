@@ -687,11 +687,12 @@
 
 .jp-immersion-edit-wave {
   position: relative;
-  height: 64px;
+  height: 96px; /* set inline from WAVE_HEIGHT — kept here for the no-JS case */
   background: rgba(255, 255, 255, 0.06);
   border-radius: 4px;
   overflow: hidden;
   touch-action: none;
+  cursor: text; /* an I-beam over a timeline reads as "click to put the playhead here" */
 }
 
 .jp-immersion-edit-wave canvas {
@@ -703,8 +704,10 @@
 .jp-immersion-edit-wave-selection {
   position: absolute;
   top: 0;
-  bottom: 0;
-  background: rgba(47, 111, 237, 0.28);
+  bottom: 15px; /* clears the ruler strip the canvas draws along the bottom */
+  background: rgba(47, 111, 237, 0.22);
+  border-top: 1px solid rgba(47, 111, 237, 0.7);
+  border-bottom: 1px solid rgba(47, 111, 237, 0.7);
   pointer-events: none;
 }
 
@@ -712,10 +715,71 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 10px;
-  margin-left: -5px;
+  width: 14px; /* a generous grab target; the visible bar is the 2px in the middle */
+  margin-left: -7px;
   cursor: ew-resize;
-  background: linear-gradient(to right, transparent 3px, #2f6fed 3px, #2f6fed 7px, transparent 7px);
+  background: linear-gradient(to right, transparent 6px, #2f6fed 6px, #2f6fed 8px, transparent 8px);
+}
+
+.jp-immersion-edit-wave-handle:hover {
+  background: linear-gradient(to right, transparent 5px, #7aa6ff 5px, #7aa6ff 9px, transparent 9px);
+}
+
+/* The playhead. Non-interactive on purpose — it's moved by clicking the
+   waveform anywhere, not by grabbing this 1px line. */
+.jp-immersion-edit-wave-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: #ffd166;
+  box-shadow: 0 0 4px rgba(255, 209, 102, 0.8);
+  pointer-events: none;
+}
+
+.jp-immersion-edit-wave-playhead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -4px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid #ffd166;
+}
+
+.jp-immersion-edit-readout {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #d7dce3;
+  font-variant-numeric: tabular-nums;
+}
+
+.jp-immersion-edit-readout-label {
+  color: #9aa4b2;
+  margin-right: 4px;
+}
+
+/* The transport row wraps rather than overflowing — the panel is narrow and
+   this row carries six controls. */
+.jp-immersion-edit-transport {
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.jp-immersion-edit-transport button {
+  font-variant-numeric: tabular-nums;
+}
+
+.jp-immersion-edit-toggle-on {
+  background: #2f6fed !important;
+}
+
+.jp-immersion-edit-transport button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .jp-immersion-edit-actions {
@@ -723,4 +787,45 @@
   align-items: center;
   gap: 8px;
   margin-top: 10px;
+}
+
+/* Shown when this content script's extension context has been invalidated —
+   the extension was reloaded or updated while the tab was open, so everything
+   it mounted is now inert. See content.js's handleOrphanedExtension. Anchored
+   top-centre rather than in the usual left-hand control stack: it replaces
+   every one of those controls, and it needs to be seen rather than found. */
+#jp-immersion-orphaned {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(20, 22, 28, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: sans-serif;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+#jp-immersion-orphaned button {
+  font-family: inherit;
+  font-size: 12px;
+  color: #fff;
+  background: #2f6fed;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+#jp-immersion-orphaned .jp-immersion-orphaned-dismiss {
+  background: transparent;
+  color: #9aa4b2;
+  padding: 2px 4px;
 }

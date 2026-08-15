@@ -348,6 +348,12 @@ function resetEnglishCaptions() {
 // SPA-navigation reload below can also reset it — see loadSubtitles/
 // jp-immersion-locationchange.
 let lastText = null;
+// Set when the line on screen has to be drawn again even though its TEXT hasn't
+// changed — today only when the tokenizer finishes loading (2026-08-15), which
+// turns an already-displayed plain-text line into a clickable one. Deliberately
+// separate from `lastText`: clearing that would re-open the line's audio cue as
+// well as redrawing it.
+let needsRerender = false;
 // The audio-capture cue-timeline entry for whatever `lastText` currently
 // refers to (Phase 5, 2026-07-22, see audio-capture.js) — updated in lockstep
 // with `lastText` itself so a word click can capture a direct reference to
@@ -519,6 +525,10 @@ function forgetAddedNote(noteId) {
     audioBufferNoteId = null;
     clearRetainedClip();
   }
+  // A capture still in flight for a note that has just been undone has nothing
+  // left to attach itself to (2026-08-15). Dropped here so the trim editor
+  // can't sit waiting on it, and so its clip doesn't land on a dead note id.
+  if (pendingAudioCapture?.noteId === noteId) pendingAudioCapture = null;
   if (lastAddedNote?.id !== noteId) return;
   lastAddedNote = null;
   refreshEditLastCardControl();
@@ -637,6 +647,28 @@ const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んー]+)[）)]/g;
 // stripped — and breaks nothing that previously rendered correctly.
 const FANSUB_MARKUP_RE =
   /[《》⸨⸩]|(?![\u{203C}\u{2049}])(?:\p{Extended_Pictographic}|[\u{2600}-\u{27BF}])[〜～]?|[\u{FE0F}\u{200D}\u{1F3FB}-\u{1F3FF}]/gu;
+
+// ASS override tags that reached the display anyway (2026-08-15). Both parsers
+// strip these at parse time, so this is a genuine safety net rather than the
+// primary defence — it covers the paths that don't go through a parser at all
+// (a pasted line, a future caption source) and any tag shape a parser's own
+// stripping misses. Same backslash-anchored shape parseSrt uses, for the same
+// reason: `{` is not markup on its own.
+const ASS_OVERRIDE_RE = /\{\\[^}]*\}/g;
+
+// The Japanese full stop, dropped from displayed subtitles (2026-08-15, live
+// request). Japanese subtitling convention is to use a space where prose would
+// use 。 — most releases already do, and the ones that don't look inconsistent
+// beside them. Replaced with a space rather than deleted so a line carrying two
+// sentences doesn't run them together, then collapsed and trimmed, which
+// removes it outright at the end of a line (the common case).
+//
+// Deliberately ONLY 。 — not 、, not ？／！. The comma is mid-sentence phrasing
+// the user did not ask about, and the question/exclamation marks carry tone
+// that the sentence would lose. Applied inside cueDisplayText, so the Anki
+// Sentence field matches what was on screen by construction; the clicked word's
+// character offset is measured against the post-filter text either way.
+const SENTENCE_PERIOD_RE = /。/g;
 
 // Short, learner-facing POS chip labels — cuts kokugo-grammar-school jargon
 // ((futsuumeishi), (keiyoushi), etc.) that's redundant with the plain-language
@@ -872,6 +904,61 @@ function getContainer() {
 let OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
 let offset = 0;
 
+// ── Offset memory, per provider as well as per episode (2026-08-15) ──────────
+//
+// Per-episode memory alone meant re-dialling the same correction on every
+// single episode of a show, which is what the live pass reported: "offset
+// doesn't save between episodes". Timing drift is a property of the RELEASE,
+// not of the episode — a release group muxes its subtitles against one source
+// with one set of ad breaks, so a file that runs 0.4s late in episode 3 runs
+// 0.4s late in episode 4 as well.
+//
+// So an adjustment now writes TWO keys: this episode's, and this provider's.
+// Reads prefer the episode's own value and fall back to the provider's, which
+// means a one-off correction stays a one-off (an episode with a genuinely
+// different sync keeps its own number) while a systematic one carries forward
+// on its own.
+//
+// Keyed on the release-group tag the file name carries, scoped to series and
+// season, exactly like the uploader preference beside it — the same tag can
+// belong to unrelated releases across shows, and a group's sync for one season
+// says nothing about another. Files with no bracket tag (direct-source rips)
+// have no provider identity at all, so they simply get no provider key and
+// behave exactly as before, per-episode only.
+let activeProviderOffsetKey = null;
+// Whether the user has adjusted the offset since this episode's subtitles
+// loaded. A provider fallback must never overwrite a correction the user has
+// just made by hand — the file list can arrive well after the controls do.
+let offsetTouchedThisEpisode = false;
+
+function providerOffsetKey(filename, detected) {
+  const tag = filename ? extractUploaderTag(filename) : null;
+  if (!tag || !detected) return null;
+  return `offsetProvider:${detected.seriesTitle}:${detected.seasonNumber ?? "?"}:${tag}`;
+}
+
+// Points the offset memory at whichever subtitle file is now loaded, and
+// re-applies stored values for it. Called from every path that changes the
+// loaded file: the automatic pick, the switcher dropdown, and manual upload.
+function setActiveSubtitleFile(filename, detected) {
+  activeProviderOffsetKey = providerOffsetKey(filename, detected ?? currentShowEpisode);
+  applyStoredOffset();
+}
+
+function applyStoredOffset() {
+  // A hand-made adjustment outranks anything stored — see
+  // offsetTouchedThisEpisode.
+  if (offsetTouchedThisEpisode) return;
+  const keys = activeProviderOffsetKey ? [OFFSET_STORAGE_KEY, activeProviderOffsetKey] : [OFFSET_STORAGE_KEY];
+  chrome.storage.local.get(keys, (stored) => {
+    if (offsetTouchedThisEpisode) return; // adjusted while this read was in flight
+    const own = stored[OFFSET_STORAGE_KEY];
+    const fromProvider = activeProviderOffsetKey ? stored[activeProviderOffsetKey] : undefined;
+    offset = typeof own === "number" ? own : typeof fromProvider === "number" ? fromProvider : 0;
+    updateOffsetDisplay();
+  });
+}
+
 // Per-show-per-season uploader preference memory (Phase 4.5, 2026-07-16).
 // Keyed on the SAME (seriesTitle, seasonNumber) pair detectShowEpisode()
 // already resolves — deliberately NOT per-episode (that's what `fileHint`
@@ -1009,6 +1096,10 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           return;
         }
         cues = response.cues;
+        setActiveSubtitleFile(
+          response.files?.find((f) => f.url === response.selectedUrl)?.name ?? null,
+          detected
+        );
         // Nothing matched, so nothing loaded (2026-08-01) — deliberately not an
         // error state: the video keeps playing, and the switcher panel below
         // still renders its entry picker so there's a way forward.
@@ -1052,12 +1143,88 @@ function isWatchPage() {
   return location.pathname.includes("/watch/");
 }
 
+// Every element this extension mounts into the page, as one selector. Used to
+// clear the UI out wholesale — see handleOrphanedExtension.
+const JP_IMMERSION_ROOTS =
+  "#jp-immersion-subtitle-stack, #jp-immersion-offset, #jp-immersion-switcher, #jp-immersion-upload, " +
+  "#jp-immersion-edit-last, #jp-immersion-edit-panel, #jp-immersion-popup, #jp-immersion-capture-chip, " +
+  "#jp-immersion-orphaned";
+
+// True while this content script's own extension context is still valid.
+// It stops being valid when the extension is reloaded, updated or disabled:
+// the script itself keeps running, with every chrome.* call throwing, which is
+// exactly the state the live pass described — the offset, upload and switcher
+// panels still on screen (they are plain DOM) with no subtitles, no offset
+// value, and nothing responding.
+function extensionContextAlive() {
+  try {
+    return Boolean(chrome.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
+// This script is now a ghost: its DOM is still on the page but nothing behind
+// it works, and it can't repair itself — a fresh copy of the extension is only
+// injected into pages loaded AFTER the reload.
+//
+// Deliberately a prompt rather than an automatic recovery (2026-08-15). Chrome
+// can re-inject content scripts into an open tab, and everything except the
+// audio capture would come back that way; the audio capture would not, because
+// createMediaElementSource can only ever be called once per <video> element for
+// the life of the page, and the graph belonging to this dead script is still
+// holding it (see audio-capture.js's header for why that graph can never be
+// disconnected). A silently audio-less extension that looks fully working is a
+// worse outcome than one honest click, so this asks for the reload instead of
+// half-performing it.
+let orphaned = false;
+function handleOrphanedExtension() {
+  if (orphaned) return;
+  orphaned = true;
+  clearInterval(orphanCheckTimer);
+  if (video && handleTimeUpdateRef) {
+    video.removeEventListener("timeupdate", handleTimeUpdateRef);
+    video.removeEventListener("seeking", noteSeek);
+  }
+  for (const el of document.querySelectorAll(JP_IMMERSION_ROOTS)) el.remove();
+  if (!isWatchPage()) return; // nothing to prompt about on a browse page
+
+  const banner = document.createElement("div");
+  banner.id = "jp-immersion-orphaned";
+  const text = document.createElement("span");
+  text.textContent = "Japanese Immersion was updated — reload the page to start using the new version.";
+  const reload = document.createElement("button");
+  reload.textContent = "Reload page";
+  reload.addEventListener("click", () => location.reload());
+  const dismiss = document.createElement("button");
+  dismiss.className = "jp-immersion-orphaned-dismiss";
+  dismiss.textContent = "✕";
+  dismiss.title = "Dismiss — subtitles stay off until the page is reloaded";
+  dismiss.addEventListener("click", () => banner.remove());
+  banner.append(text, reload, dismiss);
+  document.body.appendChild(banner);
+}
+
+// The <video>'s timeupdate handler, kept at module scope purely so
+// handleOrphanedExtension can detach it — init() owns the real definition.
+let handleTimeUpdateRef = null;
+let orphanCheckTimer = null;
+
 function init() {
   video = document.querySelector("video");
   if (!video || !isWatchPage()) {
     setTimeout(init, 1000);
     return;
   }
+  // A previous copy of this script may still have its UI on the page (an
+  // extension reload while the tab was open). Anything found here belongs to a
+  // context that no longer works, so it goes before this one mounts its own.
+  for (const el of document.querySelectorAll(JP_IMMERSION_ROOTS)) el.remove();
+  // Checked on a timer as well as on every timeupdate below, so a paused video
+  // still notices within a couple of seconds.
+  orphanCheckTimer = setInterval(() => {
+    if (!extensionContextAlive()) handleOrphanedExtension();
+  }, 2000);
 
   initAudioCapture(video);
 
@@ -1130,10 +1297,7 @@ function init() {
     console.error("[Japanese Immersion] tokenizer failed to start:", err);
   }
 
-  chrome.storage.local.get(OFFSET_STORAGE_KEY, (stored) => {
-    offset = stored[OFFSET_STORAGE_KEY] ?? 0;
-    updateOffsetDisplay();
-  });
+  applyStoredOffset();
 
   // Named (not inline) so it can be detached from an old <video> node and
   // reattached to a new one — see the rebinding logic in the
@@ -1146,9 +1310,17 @@ function init() {
   // needing its own listener. `lastText` is module-scope (not declared here)
   // so an episode change (loadSubtitles, below) can reset it too.
   function handleTimeUpdate() {
+    // The cheapest possible check, on the page's own ~4Hz tick: everything
+    // below this line calls into chrome.* eventually, and after an extension
+    // reload every one of those throws. See handleOrphanedExtension.
+    if (!extensionContextAlive()) {
+      handleOrphanedExtension();
+      return;
+    }
     updateJapaneseCue();
     updateEnglishCue();
   }
+  handleTimeUpdateRef = handleTimeUpdate;
 
   // Split out of handleTimeUpdate (2026-07-26) — see updateEnglishCue below
   // for the desync bug this split fixes.
@@ -1187,9 +1359,13 @@ function init() {
     // cue just before a gap and the one just after it.
     const { window, text } = japaneseDisplayAt(adjustedTime);
     activeJpWindow = window;
-    if (text === lastText) return;
+    if (text === lastText && !needsRerender) return;
+    // A redraw of the SAME line is a display concern only — the cue is already
+    // open on the audio timeline and must stay that way. See `needsRerender`.
+    const redrawOnly = text === lastText;
+    needsRerender = false;
     lastText = text;
-    lastCueEntry = markCueBoundary(text, activeJpWindow);
+    if (!redrawOnly) lastCueEntry = markCueBoundary(text, activeJpWindow);
     // The English box is updated from renderCue's completion callback, not
     // from here — see `renderedJpWindow` for the first-line stagger that
     // fixes. Captured into a local first: `activeJpWindow` is module-scope and
@@ -1319,10 +1495,11 @@ function init() {
     // has been added, which refreshEditLastCardControl owns.
     refreshEditLastCardControl();
     OFFSET_STORAGE_KEY = `offset:${location.pathname}`;
-    chrome.storage.local.get(OFFSET_STORAGE_KEY, (stored) => {
-      offset = stored[OFFSET_STORAGE_KEY] ?? 0;
-      updateOffsetDisplay();
-    });
+    // A new episode starts with no hand adjustment and no known provider; both
+    // are re-established below once its subtitle file has actually loaded.
+    offsetTouchedThisEpisode = false;
+    activeProviderOffsetKey = null;
+    applyStoredOffset();
     rebindVideoIfSwapped();
     loadSubtitles(subtitleBox, switcherPanel, 2, true);
   });
@@ -1605,6 +1782,7 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
         }
         cues = response.cues;
         lastText = null;
+        setActiveSubtitleFile(chosen.name, detected);
         // A manual pick becomes this show+season's remembered uploader
         // preference going forward (2026-07-16) — only when the chosen
         // file actually has an extractable uploader tag; an unbracketed
@@ -1672,6 +1850,7 @@ function buildUploadControl() {
           return;
         }
         cues = parsedCues;
+        setActiveSubtitleFile(file.name, currentShowEpisode);
         status.textContent = `Loaded "${file.name}" (${parsedCues.length} cues).`;
         // Forces an immediate re-render using the existing timeupdate
         // listener (see init()) rather than waiting for the video to fire
@@ -1695,7 +1874,12 @@ function buildUploadControl() {
 
 function setOffset(newOffset) {
   offset = Math.round(newOffset * 10) / 10; // avoid float drift like 0.30000000000000004
-  chrome.storage.local.set({ [OFFSET_STORAGE_KEY]: offset });
+  offsetTouchedThisEpisode = true;
+  const write = { [OFFSET_STORAGE_KEY]: offset };
+  // The provider key is what makes the next episode of the same release start
+  // where this one left off (2026-08-15).
+  if (activeProviderOffsetKey) write[activeProviderOffsetKey] = offset;
+  chrome.storage.local.set(write);
   updateOffsetDisplay();
 }
 
@@ -1713,6 +1897,18 @@ function buildTokenizer() {
         return;
       }
       tokenizer = builtTokenizer;
+      // Re-render whatever is on screen (2026-08-15). Loading the dictionary
+      // takes a moment, and renderCue's own `if (!tokenizer)` branch draws the
+      // line as plain, unclickable text in the meantime — correct, except that
+      // nothing ever drew it again: updateJapaneseCue returns early while the
+      // text is unchanged, so the FIRST subtitle after a page refresh stayed
+      // unclickable for its whole time on screen. That is the live report.
+      // Flagged rather than done by clearing `lastText`: that would also make
+      // markCueBoundary open a SECOND cue entry for a line already on screen,
+      // splitting its recorded audio extent in two and shortening the clip for
+      // anything captured from it.
+      needsRerender = true;
+      if (video) video.dispatchEvent(new Event("timeupdate"));
     });
 }
 
@@ -1926,13 +2122,51 @@ function pairEnglishCues(window) {
   const winStart = window.start + offset;
   const winEnd = window.end + offset;
   const winMidpoint = (winStart + winEnd) / 2;
-  return englishCues.filter((c) => {
+  const matched = englishCues.filter((c) => {
     const cueMidpoint = (c.start + c.end) / 2;
     return (
       (cueMidpoint >= winStart && cueMidpoint <= winEnd) ||
       (winMidpoint >= c.start && winMidpoint <= c.end)
     );
   });
+  return dropBackgroundEnglishCues(matched);
+}
+
+// Numpad-style ASS alignments that put a line at the TOP of the frame.
+const TOP_ALIGNMENTS = new Set([7, 8, 9]);
+
+// Drops background/incidental English lines when they overlap the main one
+// (2026-08-15).
+//
+// The report: capturing パートナーが居ない事をからかわれたショックよりも… put
+// "Getting mocked for my lack of a partner would be one thing." in the
+// Translation field AND, on its own line, "Move your feet." — a background line
+// from elsewhere in the scene, with no relationship to the Japanese sentence at
+// all. Two unrelated sentences in one field makes the card's answer side read as
+// nonsense, and there was nothing in the text to tell them apart.
+//
+// Position is what tells them apart, and it is in the file. When two lines are
+// on screen at once, a subtitler moves one out of the way: Crunchyroll's own
+// caption files place the secondary line at the top of the frame with an \an8
+// override while the line being spoken by the person on camera stays at the
+// bottom. parseAss now records that alignment (see assAlignment).
+//
+// Deliberately RELATIVE, not absolute: a top-positioned cue is only dropped
+// when a bottom-positioned one is competing with it for the same moment. A line
+// placed at the top because the speaker's mouth is at the bottom of the frame is
+// the ONLY line there, so it survives untouched — which is the case an absolute
+// "never trust \an8" rule would silently delete.
+//
+// Applied inside pairEnglishCues, so the on-screen English line and the Anki
+// Translation field make the same decision by construction — the same reason
+// cueDisplayText is one function rather than two. It also un-blocks the sentence
+// merge as a side effect: buildMergedAnkiSentence refuses to merge when a window
+// pairs with several English cues, and a stray background line was enough to
+// count as "several".
+function dropBackgroundEnglishCues(paired) {
+  if (paired.length < 2) return paired;
+  const main = paired.filter((c) => !TOP_ALIGNMENTS.has(c.align));
+  return main.length ? main : paired;
 }
 
 // The rendered English text for a Japanese cue window — `pairEnglishCues`'
@@ -2062,10 +2296,16 @@ function japaneseDisplayAt(fileTime) {
 // never touches.
 function cueDisplayText(cue) {
   let t = cue.text.trim();
+  // Before FANSUB_MARKUP_RE, which would otherwise eat the tag's contents and
+  // leave the braces behind as stray punctuation.
+  t = t.replace(ASS_OVERRIDE_RE, "").trim();
   t = t.replace(FANSUB_MARKUP_RE, "").trim();
   if (!t || STAGE_RE.test(t)) return "";
   t = t.replace(SPEAKER_PREFIX_RE, "").trim();
   t = t.replace(INLINE_FURIGANA_RE, "$1").trim();
+  // Last, so the stage-direction and speaker-prefix tests above still see the
+  // punctuation their patterns were measured against.
+  t = t.replace(SENTENCE_PERIOD_RE, " ").replace(/[ \t]{2,}/g, " ").trim();
   if (!t) return "";
   return normalizeHalfwidthKatakana(t);
 }
@@ -2528,11 +2768,16 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
       // The video keeps playing throughout either way — nothing is paused or
       // interrupted, matching the "keep watching" positioning that ruled out
       // rewind-and-recapture in the first place.
+      // A token, not the note id: the note doesn't exist yet, and the retained
+      // edit buffer has to be attributable to THIS capture from the moment the
+      // click happens (2026-08-15). See audio-capture.js's retainedClipToken.
+      const captureToken = ++audioCaptureSeq;
       const audioPending = sliceClipWavWhenReady(
         audioRequest.entry,
         undefined,
         audioRequest.mergeStart,
-        audioRequest.mergeEnd
+        audioRequest.mergeEnd,
+        captureToken
       );
       chrome.runtime.sendMessage(
         {
@@ -2590,7 +2835,22 @@ function renderEntries(container, word, results, sentenceHtml, showPos, showFreq
           // is made. Recording which note it matches is what lets the edit
           // panel offer audio trimming for that note and degrade cleanly for
           // any older one, instead of silently editing the wrong clip.
-          audioBufferNoteId = noteId;
+          //
+          // **Only once the clip has actually landed** (2026-08-15). Pointing
+          // it here, at the moment the note is created, was a lie for as long
+          // as the capture was still waiting for the line to finish: the buffer
+          // still held the PREVIOUS card's audio, so opening the trim editor in
+          // that window drew the previous clip's waveform and played it back —
+          // reported live as "the audio editor preview will play the audio that
+          // was captured previously". The panel now knows the difference
+          // between "not this note's" and "not ready yet" (see buildAudioEditor)
+          // and waits instead of showing the wrong thing.
+          audioBufferNoteId = null;
+          pendingAudioCapture = { noteId, token: captureToken, promise: audioPending };
+          audioPending.then(() => {
+            if (retainedClipTokenIs(captureToken)) audioBufferNoteId = noteId;
+            if (pendingAudioCapture?.token === captureToken) pendingAudioCapture = null;
+          });
           // Second phase: the clip lands on the card whenever it's ready
           // (2026-07-31). Deliberately fire-and-forget — the card already
           // exists and is already correct in every other field, so a failure
@@ -2967,6 +3227,13 @@ let editState = null;
 // always holds the most recent capture, so editing any older note must degrade
 // to "audio unavailable" rather than silently trimming a different clip.
 let audioBufferNoteId = null;
+// The capture still in flight, if any: { noteId, token, promise }. The trim
+// editor waits on this rather than declaring the audio unavailable, which is
+// what it would otherwise do for the several seconds between a card being
+// written and its clip being cut (2026-08-15).
+let pendingAudioCapture = null;
+// Hands each capture an identity at click time — see the "+ Anki" handler.
+let audioCaptureSeq = 0;
 
 function ankiHtmlToPlain(html) {
   if (!html) return "";
@@ -3378,98 +3645,459 @@ function showSensesFor(group, container, onPicked, start = -1) {
   );
 }
 
-// Waveform with draggable start/end handles over the retained PCM buffer. The
-// clip can be pulled WIDER than what was originally exported, not just
-// tightened — that's the whole reason the buffer is kept instead of re-decoding
-// the exported file, and why it carries padding on both sides.
-function buildAudioEditor(section, noteId, onChange) {
-  const unavailable = (why) => {
+// ── The audio trim editor (rebuilt 2026-08-15) ──────────────────────────────
+//
+// Was a waveform strip with two drag handles and a "Play selection" button.
+// That is enough to make a trim, and not enough to make a trim CONFIDENTLY:
+// there was no way to hear where you were, no way to stop a preview once it
+// started, no indication of where in the clip playback had reached, and no
+// scale of any kind — so finding the exact moment a line begins meant dragging
+// a handle, playing the whole selection, and inferring. The live request was
+// for this to work "like a video editing program", which in practice means
+// three things this now has: a playhead you can put anywhere, transport
+// controls that behave (play, pause, resume, loop), and a time scale to read
+// against.
+//
+// The model is deliberately the one an NLE uses rather than a DAW's: you scrub
+// a playhead over the waveform, listen, and then set the in or out point AT the
+// playhead. Dragging the handles directly still works — it is the fastest way
+// to make a coarse adjustment — but it is no longer the only way to be precise.
+//
+// Everything is measured in seconds from the start of the RETAINED BUFFER,
+// which is the exported clip plus up to AUDIO_EDIT_PAD_SECONDS of padding on
+// each side. The ruler, however, is labelled relative to the start of the
+// CAPTURED CLIP, so 0.0 is where the card's audio currently begins and the
+// pre-roll reads as negative — the question being asked here is always "how far
+// before/after the line do I need to be", never "how far into this buffer".
+const WAVE_PEAK_COUNT = 640; // ~15ms per bucket over a typical 10s buffer
+const WAVE_HEIGHT = 96;
+const WAVE_RULER_HEIGHT = 15;
+const NUDGE_SECONDS = 0.05;
+const NUDGE_COARSE_SECONDS = 0.5;
+const MIN_SELECTION_SECONDS = 0.1;
+// A bucket at or above this share of the loudest point in the buffer counts as
+// speech for "Snap to speech". Low enough to catch a quiet sentence-final
+// particle, high enough to ignore room tone.
+const SPEECH_THRESHOLD = 0.12;
+
+function buildAudioEditor(section, noteId, onChange, restore = null) {
+  const hint = (why) => {
     const msg = document.createElement("div");
     msg.className = "jp-immersion-edit-hint";
     msg.textContent = why;
     section.appendChild(msg);
   };
+
+  // Still being captured (2026-08-15). The card exists, the clip doesn't yet —
+  // it is cut once the line finishes, which for a sentence split across two
+  // subtitle cues can be several seconds after the "+ Anki" click. Saying
+  // "unavailable" here would be wrong twice over: it isn't unavailable, and the
+  // buffer that IS loaded at this moment belongs to the previous card.
+  if (pendingAudioCapture && pendingAudioCapture.noteId === noteId) {
+    hint("Capturing this card's audio — the line is still playing. The editor opens as soon as it's cut.");
+    pendingAudioCapture.promise.then(() => {
+      // The panel may have been closed, or moved to a different card, while the
+      // capture was finishing.
+      if (!editState || editState.noteId !== noteId || !section.isConnected) return;
+      section.textContent = "";
+      buildAudioEditor(section, noteId, onChange);
+    });
+    return;
+  }
   // Scoped to this section only: the rest of the panel stays fully usable when
   // audio can't be edited, since the text fields don't depend on it.
   if (noteId !== audioBufferNoteId) {
-    unavailable("Audio editing is only available for the most recent capture.");
+    hint("Audio editing is only available for the most recent capture.");
     return;
   }
-  const info = retainedClipInfo();
+  const info = retainedClipInfo(WAVE_PEAK_COUNT);
   if (!info) {
-    unavailable("Audio for this card is no longer available to edit.");
+    hint("Audio for this card is no longer available to edit.");
     return;
   }
 
-  let start = info.clipStart;
-  let end = info.clipEnd;
+  // `restore` carries the current edit across an in-place rebuild — see the
+  // padding watcher at the bottom of this function. Buffer-relative seconds
+  // stay valid across one because a re-cut only ever ADDS audio to the right;
+  // the left edge, which everything is measured from, does not move.
+  let start = restore?.start ?? info.clipStart;
+  let end = restore?.end ?? info.clipEnd;
+  let playhead = restore?.playhead ?? info.clipStart;
+  let loop = restore?.loop ?? false;
 
+  // ── waveform surface ──────────────────────────────────────────────────────
   const wave = document.createElement("div");
   wave.className = "jp-immersion-edit-wave";
+  wave.style.height = `${WAVE_HEIGHT}px`;
   const canvas = document.createElement("canvas");
-  canvas.width = 480;
-  canvas.height = 64;
   wave.appendChild(canvas);
   const selection = document.createElement("div");
   selection.className = "jp-immersion-edit-wave-selection";
+  const playhead$ = document.createElement("div");
+  playhead$.className = "jp-immersion-edit-wave-playhead";
   const handleStart = document.createElement("div");
   handleStart.className = "jp-immersion-edit-wave-handle";
   const handleEnd = document.createElement("div");
   handleEnd.className = "jp-immersion-edit-wave-handle";
-  wave.append(selection, handleStart, handleEnd);
+  wave.append(selection, playhead$, handleStart, handleEnd);
   section.appendChild(wave);
 
   const readout = document.createElement("div");
-  readout.className = "jp-immersion-edit-hint";
+  readout.className = "jp-immersion-edit-readout";
   section.appendChild(readout);
 
+  // ── transport ─────────────────────────────────────────────────────────────
   const controls = document.createElement("div");
-  controls.className = "jp-immersion-edit-actions";
-  const play = document.createElement("button");
-  play.textContent = "Play selection";
-  play.addEventListener("click", () => previewRange(start, end, play));
-  const reset = document.createElement("button");
-  reset.textContent = "Reset";
-  reset.addEventListener("click", () => {
+  controls.className = "jp-immersion-edit-actions jp-immersion-edit-transport";
+  const play = button("▶ Play", () => togglePlay());
+  const loopBtn = button("↻ Loop", () => {
+    loop = !loop;
+    loopBtn.classList.toggle("jp-immersion-edit-toggle-on", loop);
+    draw();
+  });
+  loopBtn.title = "Repeat the selection until you stop it (L)";
+  const setStart = button("[ Set start", () => {
+    start = Math.min(playhead, end - MIN_SELECTION_SECONDS);
+    commit();
+  });
+  setStart.title = "Move the clip's start to the playhead (I)";
+  const setEnd = button("Set end ]", () => {
+    end = Math.max(playhead, start + MIN_SELECTION_SECONDS);
+    commit();
+  });
+  setEnd.title = "Move the clip's end to the playhead (O)";
+  const snap = button("Snap to speech", () => {
+    const snapped = snapToSpeech();
+    if (!snapped) {
+      status("Couldn't find a clear speech edge — the clip is either silent or has no quiet part to trim to.");
+      return;
+    }
+    start = snapped.start;
+    end = snapped.end;
+    commit();
+  });
+  snap.title = "Trim or extend to where the audio actually starts and stops";
+  const reset = button("Reset", () => {
     start = info.clipStart;
     end = info.clipEnd;
     editState.audio = null;
+    playhead = start;
     draw();
     onChange();
   });
-  controls.append(play, reset);
+  reset.title = "Back to the clip as captured";
+  controls.append(play, loopBtn, setStart, setEnd, snap, reset);
   section.appendChild(controls);
 
-  const ctx = canvas.getContext("2d");
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    const barWidth = canvas.width / info.peaks.length;
-    for (let i = 0; i < info.peaks.length; i++) {
-      const h = Math.max(1, info.peaks[i] * (canvas.height - 4));
-      ctx.fillRect(i * barWidth, (canvas.height - h) / 2, Math.max(1, barWidth - 0.5), h);
+  const statusLine = document.createElement("div");
+  statusLine.className = "jp-immersion-edit-hint";
+  section.appendChild(statusLine);
+  function status(text) {
+    statusLine.textContent = text;
+  }
+  status(
+    "Click the waveform to move the playhead · Space play/pause · I/O set start/end · ←/→ nudge (Shift for 0.5s)" +
+      (info.sealed && info.padEnd < AUDIO_EDIT_PAD_SECONDS - 0.05
+        ? ` · only ${info.padEnd.toFixed(1)}s was recorded after this line before the episode changed`
+        : "")
+  );
+
+  function button(text, onClick) {
+    const b = document.createElement("button");
+    b.textContent = text;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  // ── playback ──────────────────────────────────────────────────────────────
+  // The WHOLE retained buffer is encoded once and played through a single
+  // <audio> element, rather than re-encoding the selection on every play as
+  // this used to. That's what makes the playhead possible at all: the element's
+  // own currentTime is a position in the buffer, so it can be read for the
+  // playhead, written to scrub, and paused and resumed without re-cutting
+  // anything. Playing a selection is then just "start here, stop there".
+  //
+  // Its loudness is normalized over the whole buffer, so it is not to the
+  // decibel what the saved card will be (that is normalized over the selection
+  // alone — see encodeRetainedRange). Nothing about choosing an in or out point
+  // depends on the difference.
+  const wholeWav = encodeRetainedRange(0, info.duration);
+  let player = null;
+  if (wholeWav) {
+    const bytes = Uint8Array.from(atob(wholeWav), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+    player = { audio: new Audio(url), url, stopAt: null, videoWasMuted: null };
+    player.audio.addEventListener("ended", () => stopPlayback());
+  } else {
+    play.disabled = true;
+    snap.disabled = true;
+    status("This selection is silent — there's nothing to play back.");
+  }
+
+  let rafId = null;
+  function tick() {
+    if (!player || player.audio.paused) return;
+    playhead = player.audio.currentTime;
+    if (player.stopAt !== null && playhead >= player.stopAt) {
+      if (loop) {
+        player.audio.currentTime = start;
+        playhead = start;
+      } else {
+        stopPlayback();
+        playhead = player.stopAt;
+        draw();
+        return;
+      }
     }
-    const toPct = (t) => `${(t / info.duration) * 100}%`;
+    draw();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startPlayback(from, stopAt) {
+    if (!player) return;
+    // The episode is still playing underneath, and hearing both at once makes
+    // the preview useless. Muted rather than paused: pausing the video to check
+    // a card is precisely the interruption this project exists to avoid.
+    if (video && player.videoWasMuted === null) {
+      player.videoWasMuted = video.muted;
+      video.muted = true;
+    }
+    player.stopAt = stopAt;
+    const seekTo = Math.max(0, Math.min(from, info.duration - 0.01));
+    // Seeking before the element has its metadata is silently ignored, which on
+    // the very first play would start the preview from zero instead of from the
+    // playhead.
+    const begin = () => {
+      player.audio.currentTime = seekTo;
+      play.textContent = "❚❚ Pause";
+      player.audio.play().catch(() => stopPlayback());
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(tick);
+    };
+    if (player.audio.readyState >= 1) begin();
+    else player.audio.addEventListener("loadedmetadata", begin, { once: true });
+  }
+
+  function stopPlayback() {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+    if (!player) return;
+    player.audio.pause();
+    play.textContent = "▶ Play";
+    if (video && player.videoWasMuted !== null) {
+      video.muted = player.videoWasMuted;
+      player.videoWasMuted = null;
+    }
+    draw();
+  }
+
+  function togglePlay() {
+    if (!player) return;
+    if (!player.audio.paused) {
+      stopPlayback();
+      return;
+    }
+    // Playing from the playhead is what makes "listen to just this edge" work.
+    // A playhead sitting outside the selection (or at its very end) means the
+    // user wants to hear the selection itself, so it starts from the top.
+    const from = playhead >= end - 0.01 || playhead < start ? start : playhead;
+    startPlayback(from, end);
+  }
+
+  // Registered so closing the panel — or opening another card — can silence a
+  // preview that's still running. See stopPreview.
+  previewPlayer = {
+    stop: () => {
+      stopPlayback();
+      if (player) URL.revokeObjectURL(player.url);
+      player = null;
+    },
+  };
+
+  // ── snap to speech ────────────────────────────────────────────────────────
+  // Walks outward from the loudest point inside the current selection to the
+  // first quiet stretch on each side, then adds a short margin. Outward, not
+  // inward, so it EXTENDS a clip that starts late as readily as it trims one
+  // that starts early — the whole reason the retained buffer carries padding.
+  function snapToSpeech() {
+    const peaks = info.peaks; // normalized to the buffer's own loudest point
+    const secPerBucket = info.duration / peaks.length;
+    const bucketAt = (t) => Math.max(0, Math.min(peaks.length - 1, Math.floor(t / secPerBucket)));
+    const from = bucketAt(start);
+    const to = bucketAt(end);
+    let loudest = -1;
+    let loudestLevel = 0;
+    for (let i = from; i <= to; i++) {
+      if (peaks[i] > loudestLevel) {
+        loudestLevel = peaks[i];
+        loudest = i;
+      }
+    }
+    if (loudest === -1 || loudestLevel < SPEECH_THRESHOLD) return null;
+    // A gap only counts as the edge of speech once it has lasted this long —
+    // otherwise every pause between two words in the sentence is an edge.
+    const quietBuckets = Math.max(1, Math.round(0.18 / secPerBucket));
+    let a = loudest;
+    let quiet = 0;
+    while (a > 0 && quiet < quietBuckets) {
+      a--;
+      quiet = peaks[a] < SPEECH_THRESHOLD ? quiet + 1 : 0;
+    }
+    let b = loudest;
+    quiet = 0;
+    while (b < peaks.length - 1 && quiet < quietBuckets) {
+      b++;
+      quiet = peaks[b] < SPEECH_THRESHOLD ? quiet + 1 : 0;
+    }
+    const margin = 0.08;
+    const snappedStart = Math.max(0, a * secPerBucket - margin);
+    const snappedEnd = Math.min(info.duration, (b + 1) * secPerBucket + margin);
+    if (snappedEnd - snappedStart < MIN_SELECTION_SECONDS) return null;
+    return { start: snappedStart, end: snappedEnd };
+  }
+
+  // ── drawing ───────────────────────────────────────────────────────────────
+  const ctx = canvas.getContext("2d");
+  const toPct = (t) => `${(t / info.duration) * 100}%`;
+
+  function draw() {
+    // Sized in device pixels against the element's real width so the waveform
+    // is sharp on a HiDPI screen and doesn't stretch when the panel resizes.
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = wave.clientWidth || 480;
+    if (canvas.width !== Math.round(cssWidth * dpr)) {
+      canvas.width = Math.round(cssWidth * dpr);
+      canvas.height = Math.round(WAVE_HEIGHT * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = cssWidth;
+    const waveH = WAVE_HEIGHT - WAVE_RULER_HEIGHT;
+    ctx.clearRect(0, 0, w, WAVE_HEIGHT);
+    const x = (t) => (t / info.duration) * w;
+
+    // Everything outside the selection is dimmed rather than hidden — it is
+    // still audible material the handles can be pulled out into.
+    ctx.fillStyle = "rgba(0,0,0,0.30)";
+    ctx.fillRect(0, 0, x(start), waveH);
+    ctx.fillRect(x(end), 0, w - x(end), waveH);
+
+    const barWidth = w / info.peaks.length;
+    for (let i = 0; i < info.peaks.length; i++) {
+      const t = i * (info.duration / info.peaks.length);
+      ctx.fillStyle = t >= start && t <= end ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.30)";
+      const h = Math.max(1, info.peaks[i] * (waveH - 6));
+      ctx.fillRect(i * barWidth, (waveH - h) / 2, Math.max(1, barWidth - 0.4), h);
+    }
+
+    // Where the clip sat as captured, so a trim always has its own "before" to
+    // read against.
+    ctx.strokeStyle = "rgba(126,224,138,0.55)";
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for (const t of [info.clipStart, info.clipEnd]) {
+      ctx.moveTo(x(t), 0);
+      ctx.lineTo(x(t), waveH);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Ruler, labelled from the captured clip's start.
+    ctx.fillStyle = "rgba(255,255,255,0.06)";
+    ctx.fillRect(0, waveH, w, WAVE_RULER_HEIGHT);
+    ctx.font = "9px system-ui, sans-serif";
+    ctx.textBaseline = "top";
+    const first = Math.ceil((0 - info.clipStart) / 0.5) * 0.5;
+    for (let rel = first; rel <= info.duration - info.clipStart; rel += 0.5) {
+      const px = x(rel + info.clipStart);
+      const major = Math.abs(rel - Math.round(rel)) < 1e-6;
+      ctx.fillStyle = major ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)";
+      ctx.fillRect(px, waveH, 1, major ? 6 : 3);
+      if (major) {
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.fillText(`${rel > 0 ? "+" : ""}${rel.toFixed(0)}s`, px + 2, waveH + 4);
+      }
+    }
+
     selection.style.left = toPct(start);
     selection.style.width = `${((end - start) / info.duration) * 100}%`;
+    selection.style.bottom = `${WAVE_RULER_HEIGHT}px`;
     handleStart.style.left = toPct(start);
     handleEnd.style.left = toPct(end);
+    playhead$.style.left = toPct(playhead);
+
     const delta = end - start - (info.clipEnd - info.clipStart);
-    readout.textContent =
-      `${(end - start).toFixed(2)}s selected` +
-      (editState.audio ? ` (${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s vs. captured)` : " — unchanged");
+    readout.innerHTML = "";
+    readout.append(
+      readoutCell("Length", `${(end - start).toFixed(2)}s`),
+      readoutCell("Change", editState.audio ? `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s` : "unchanged"),
+      readoutCell("Playhead", `${(playhead - info.clipStart >= 0 ? "+" : "") + (playhead - info.clipStart).toFixed(2)}s`)
+    );
   }
+
+  function readoutCell(label, value) {
+    const cell = document.createElement("span");
+    const l = document.createElement("span");
+    l.className = "jp-immersion-edit-readout-label";
+    l.textContent = label;
+    const v = document.createElement("span");
+    v.textContent = value;
+    cell.append(l, v);
+    return cell;
+  }
+
+  // Applies an edit made to the selection: records it, redraws, and tells the
+  // panel its Save button has something to save.
+  function commit() {
+    editState.audio = { start, end };
+    if (playhead < start) playhead = start;
+    if (playhead > end) playhead = end;
+    draw();
+    onChange();
+  }
+
+  // ── pointer input ─────────────────────────────────────────────────────────
+  const timeAt = (clientX) => {
+    const rect = wave.getBoundingClientRect();
+    return Math.max(0, Math.min(info.duration, ((clientX - rect.left) / rect.width) * info.duration));
+  };
+
+  // Scrubbing: pointerdown anywhere on the waveform moves the playhead there,
+  // and dragging keeps moving it — the same gesture a video editor's timeline
+  // uses. Playback follows the scrub if it is running, so you can hunt for an
+  // edge while listening.
+  wave.addEventListener("pointerdown", (event) => {
+    if (event.target === handleStart || event.target === handleEnd) return;
+    event.preventDefault();
+    wave.setPointerCapture(event.pointerId);
+    const scrub = (e) => {
+      playhead = timeAt(e.clientX);
+      if (player && !player.audio.paused) player.audio.currentTime = playhead;
+      draw();
+    };
+    scrub(event);
+    const up = () => {
+      wave.removeEventListener("pointermove", scrub);
+      wave.removeEventListener("pointerup", up);
+      wave.removeEventListener("pointercancel", up);
+    };
+    wave.addEventListener("pointermove", scrub);
+    wave.addEventListener("pointerup", up);
+    wave.addEventListener("pointercancel", up);
+  });
 
   const drag = (handle, isStart) => {
     handle.addEventListener("pointerdown", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       handle.setPointerCapture(event.pointerId);
       const move = (e) => {
-        const rect = wave.getBoundingClientRect();
-        const t = Math.max(0, Math.min(info.duration, ((e.clientX - rect.left) / rect.width) * info.duration));
+        const t = timeAt(e.clientX);
         // Handles can't cross, and a selection below ~100ms isn't a clip.
-        if (isStart) start = Math.min(t, end - 0.1);
-        else end = Math.max(t, start + 0.1);
+        if (isStart) start = Math.min(t, end - MIN_SELECTION_SECONDS);
+        else end = Math.max(t, start + MIN_SELECTION_SECONDS);
+        // The playhead follows the edge being dragged, so releasing and
+        // pressing Play auditions exactly that edge.
+        playhead = isStart ? start : end;
         editState.audio = { start, end };
         draw();
         onChange();
@@ -3477,18 +4105,123 @@ function buildAudioEditor(section, noteId, onChange) {
       const up = () => {
         handle.removeEventListener("pointermove", move);
         handle.removeEventListener("pointerup", up);
+        handle.removeEventListener("pointercancel", up);
       };
       handle.addEventListener("pointermove", move);
       handle.addEventListener("pointerup", up);
+      handle.addEventListener("pointercancel", up);
     });
   };
   drag(handleStart, true);
   drag(handleEnd, false);
+
+  // ── keyboard ──────────────────────────────────────────────────────────────
+  // Bound to the panel, and ignored while a text field has focus — the sentence
+  // and translation boxes are ordinary typing surfaces and must stay that way.
+  // The panel already swallows keys before the page's own player shortcuts see
+  // them (see openEditPanel), so nothing here reaches Crunchyroll.
+  const onKey = (event) => {
+    const tag = event.target?.tagName;
+    if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
+    const nudge = event.shiftKey ? NUDGE_COARSE_SECONDS : NUDGE_SECONDS;
+    switch (event.key) {
+      case " ":
+        togglePlay();
+        break;
+      case "i":
+      case "I":
+        start = Math.min(playhead, end - MIN_SELECTION_SECONDS);
+        commit();
+        break;
+      case "o":
+      case "O":
+        end = Math.max(playhead, start + MIN_SELECTION_SECONDS);
+        commit();
+        break;
+      case "l":
+      case "L":
+        loopBtn.click();
+        return;
+      case "ArrowLeft":
+        playhead = Math.max(0, playhead - nudge);
+        break;
+      case "ArrowRight":
+        playhead = Math.min(info.duration, playhead + nudge);
+        break;
+      case "Home":
+        playhead = start;
+        break;
+      case "End":
+        playhead = end;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    if (player && !player.audio.paused) player.audio.currentTime = playhead;
+    draw();
+  };
+  editPanel.addEventListener("keydown", onKey);
+  // The panel isn't focusable by default, so a click anywhere in it wouldn't
+  // otherwise route keys here.
+  editPanel.tabIndex = -1;
+  editPanel.focus({ preventScroll: true });
+
+  // ── the padding watcher ───────────────────────────────────────────────────
+  // The trailing padding only exists once the episode has PLAYED it, so a panel
+  // opened two seconds after the capture has two seconds of post-roll, not
+  // three. The buffer tops itself up on every read (see topUpRetainedClip), but
+  // the editor only read it once, at build time — so the pad it drew was
+  // whatever existed at that instant and never grew, which is the live report
+  // that "the 3 second padding on the right side is always shortened and
+  // doesn't reach the full 3 seconds, whereas the left side always extends to
+  // 3 seconds precisely". (The left side is complete immediately: that audio
+  // has already played by definition.)
+  //
+  // Rebuilds in place rather than patching, so there is exactly one path that
+  // builds this UI, and carries the in-progress edit across. Never while
+  // playback is running — swapping the buffer out from under it would cut the
+  // preview off mid-word.
+  let padTimer = null;
+  if (!info.sealed && info.padEnd < AUDIO_EDIT_PAD_SECONDS - 0.05) {
+    padTimer = setInterval(() => {
+      if (!section.isConnected || !editState || editState.noteId !== noteId) {
+        clearInterval(padTimer);
+        return;
+      }
+      if (player && !player.audio.paused) return;
+      const fresh = retainedClipInfo(1); // the read itself is what tops the buffer up
+      if (!fresh) {
+        clearInterval(padTimer);
+        return;
+      }
+      if (fresh.duration <= info.duration + 0.01) {
+        // Nothing more is coming: either the buffer is sealed, or the pad is
+        // already as wide as it is ever going to be.
+        if (fresh.sealed || fresh.padEnd >= AUDIO_EDIT_PAD_SECONDS - 0.05) clearInterval(padTimer);
+        return;
+      }
+      stopPreview(); // stops playback, releases the old blob, unbinds the keys
+      section.textContent = "";
+      buildAudioEditor(section, noteId, onChange, { start, end, playhead, loop });
+    }, 700);
+  }
+
+  // Redrawn on resize because the canvas is sized from its own laid-out width.
+  const onResize = () => draw();
+  window.addEventListener("resize", onResize);
+  audioEditorCleanup = () => {
+    clearInterval(padTimer);
+    window.removeEventListener("resize", onResize);
+    editPanel?.removeEventListener("keydown", onKey);
+  };
+
   draw();
 }
 
-// Plays a range straight from the retained buffer, so the preview is the same
-// audio the save would write rather than an approximation of it.
+// Whatever the currently-open editor needs undone when the panel closes.
+let audioEditorCleanup = null;
+
 // The one preview player, so a second play can't start on top of a first
 // (reported live 2026-07-31: adjusting the trim handles repeatedly left
 // several copies of the clip playing over each other, on top of the episode's
@@ -3497,37 +4230,14 @@ function buildAudioEditor(section, noteId, onChange) {
 let previewPlayer = null;
 
 function stopPreview() {
-  if (!previewPlayer) return;
-  const { audio, url, restore } = previewPlayer;
+  const stop = previewPlayer?.stop;
   previewPlayer = null;
-  audio.pause();
-  URL.revokeObjectURL(url);
-  if (restore) restore();
-}
-
-function previewRange(start, end, btn) {
-  // A preview already running is left alone rather than restarted: the request
-  // is almost always an accidental second click during a drag, and cutting the
-  // clip off to start it again is exactly the stutter this is meant to stop.
-  if (previewPlayer) return;
-  const wav = encodeRetainedRange(start, end);
-  if (!wav) {
-    btn.textContent = "Nothing to play";
-    return;
+  if (stop) stop();
+  if (audioEditorCleanup) {
+    const cleanup = audioEditorCleanup;
+    audioEditorCleanup = null;
+    cleanup();
   }
-  const bytes = Uint8Array.from(atob(wav), (c) => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
-  const audio = new Audio(url);
-  const label = btn.textContent;
-  btn.textContent = "Playing…";
-  btn.disabled = true;
-  const restore = () => {
-    btn.textContent = label;
-    btn.disabled = false;
-  };
-  previewPlayer = { audio, url, restore };
-  audio.addEventListener("ended", stopPreview);
-  audio.play().catch(stopPreview);
 }
 
 function saveEditPanel(saveBtn, status, sentenceInput, translationInput) {

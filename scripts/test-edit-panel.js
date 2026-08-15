@@ -361,8 +361,14 @@ function makeAudioHarness() {
       grab(ac, /^const AUDIO_MAX_GAIN = .*$/m, "AUDIO_MAX_GAIN"),
       grab(ac, /^const AUDIO_SILENCE_PEAK = .*$/m, "AUDIO_SILENCE_PEAK"),
       grab(ac, /^const AUDIO_EDIT_PAD_SECONDS = .*$/m, "AUDIO_EDIT_PAD_SECONDS"),
-      "let audioCtx = null, ringBuffer = null, ringWritePos = 0, ringFilled = false, lastProcessAudioTime = 0;",
-      "let retainedClip = null, retainedBounds = null;",
+      grab(ac, /^const AUDIO_MAX_CLIP_SECONDS = .*$/m, "AUDIO_MAX_CLIP_SECONDS"),
+      "let audioCtx = null, ringBuffer = null, ringWritePos = 0, ringFilled = false, samplesWritten = 0;",
+      "let retainedClip = null, retainedBounds = null, retainedClipToken = null;",
+      grab(ac, /^function captureNow\([\s\S]*?\n\}/m, "captureNow"),
+      grab(ac, /^let discontinuities = \[\];$/m, "discontinuities"),
+      grab(ac, /^function continuousBoundsAround\([\s\S]*?\n\}/m, "continuousBoundsAround"),
+      grab(ac, /^function isMoreComplete\([\s\S]*?\n\}/m, "isMoreComplete"),
+      grab(ac, /^function sealRetainedClip\([\s\S]*?\n\}/m, "sealRetainedClip"),
       grab(ac, /^function resetRingBuffer\([\s\S]*?\n\}/m, "resetRingBuffer"),
       grab(ac, /^function normalizeLoudness\([\s\S]*?\n\}/m, "normalizeLoudness"),
       grab(ac, /^function encodeWav\([\s\S]*?\n\}/m, "encodeWav"),
@@ -376,6 +382,8 @@ function makeAudioHarness() {
       `return {
          AUDIO_EDIT_PAD_SECONDS,
          retainClipForEditing, retainedClipInfo, encodeRetainedRange, clearRetainedClip,
+         sealRetainedClip,
+         markDiscontinuity: () => discontinuities.push(captureNow()),
          // Fills the ring buffer with \`seconds\` of signal, advancing the clock.
          fill: (seconds, sampleRate, sampleAt) => {
            audioCtx = { sampleRate, currentTime: 0 };
@@ -386,8 +394,9 @@ function makeAudioHarness() {
              ringWritePos++;
              if (ringWritePos >= ringBuffer.length) { ringWritePos = 0; ringFilled = true; }
            }
+           // The capture clock IS the write count (2026-08-15) — see captureNow.
            audioCtx.currentTime = seconds;
-           lastProcessAudioTime = seconds;
+           samplesWritten = total;
          },
          retained: () => retainedClip,
        };`,
@@ -503,6 +512,94 @@ function makeAudioHarness() {
     "a silent selection exports nothing rather than amplified noise",
     info !== null && h.encodeRetainedRange(info.clipStart, info.clipEnd) === null,
     "silence produced audio"
+  );
+}
+
+// ── 2026-08-15: the retained buffer's own limits ────────────────────────────
+
+{
+  // A cue left open across a discontinuity records an extent far longer than any
+  // subtitle line. The exported clip has always been capped; the EDITOR's view
+  // of it was not, which is where the 44-second waveform in the live report came
+  // from — the card's audio was already trimmed to 20s by the time it was sent.
+  const h = makeAudioHarness();
+  h.fill(45, 8000, (t) => (t > 40 ? 0.4 : 0.001));
+  h.retainClipForEditing(0, 44);
+  const info = h.retainedClipInfo(32);
+  const span = info.clipEnd - info.clipStart;
+  check(
+    "the edit buffer is capped at AUDIO_MAX_CLIP_SECONDS, like the exported clip",
+    span <= 20.01,
+    `clip spans ${span.toFixed(2)}s`
+  );
+}
+
+{
+  // Padding must never reach across a seek. The audio either side of one is
+  // adjacent in the ring buffer but comes from two unrelated moments, and
+  // dragging the trim handles out into it played the spliced result — reported
+  // live as "extending the bars plays a bunch of fragmented audio clips".
+  const h = makeAudioHarness();
+  h.fill(20, 8000, () => 0.2);
+  h.markDiscontinuity(); // stands in for noteSeek, at t=20 on the capture clock
+  h.fill(30, 8000, () => 0.2); // ten more seconds play on the far side of the jump
+  // The captured line sits 2s after the jump, so its 3s of pre-roll padding
+  // would reach 1s back across it.
+  h.retainClipForEditing(22, 24);
+  const info = h.retainedClipInfo(32);
+  check(
+    "padding stops at a discontinuity instead of splicing across it",
+    info !== null && info.clipStart <= 2.01,
+    `pre-roll = ${info && info.clipStart.toFixed(2)}s (should stop at the jump, 2s before the line)`
+  );
+}
+
+{
+  // Sealing is what keeps the trim editor working after the user moves on to
+  // the next episode: the samples are already a private copy, and only the
+  // ability to GROW them is lost. Reported live as the editor saying the audio
+  // was "no longer available to edit" the moment the episode changed.
+  const h = makeAudioHarness();
+  h.fill(15, 8000, (t) => (t >= 10 && t < 12 ? 0.4 : 0.02));
+  h.retainClipForEditing(10, 12);
+  const before = h.retainedClipInfo(32);
+  h.sealRetainedClip();
+  const after = h.retainedClipInfo(32);
+  check(
+    "a sealed clip is still fully readable and editable",
+    after !== null && Math.abs(after.duration - before.duration) < 0.01 && after.sealed === true,
+    JSON.stringify({ before: before && before.duration, after: after && after.duration, sealed: after && after.sealed })
+  );
+  check(
+    "and re-encoding a range out of it still works",
+    h.encodeRetainedRange(after.clipStart, after.clipEnd) !== null,
+    "a sealed clip refused to encode"
+  );
+  // The ring buffer moves on to a completely different episode. A sealed clip
+  // must not be re-cut from it.
+  h.fill(30, 8000, () => 0.001);
+  const later = h.retainedClipInfo(32);
+  check(
+    "a sealed clip is not re-cut from the next episode's buffer",
+    Math.abs(later.duration - before.duration) < 0.01,
+    `duration moved from ${before.duration.toFixed(2)} to ${later.duration.toFixed(2)}`
+  );
+}
+
+{
+  // An unsealed clip whose start has since aged out of the 45-second ring
+  // buffer must not be silently re-cut shorter with its markers moved to fit —
+  // the editor would then show the same card's audio starting somewhere else.
+  const h = makeAudioHarness();
+  h.fill(15, 8000, (t) => (t >= 10 && t < 12 ? 0.4 : 0.02));
+  h.retainClipForEditing(10, 12);
+  const before = h.retainedClipInfo(32);
+  h.fill(70, 8000, () => 0.02); // the original range is long gone
+  const later = h.retainedClipInfo(32);
+  check(
+    "a re-cut that would lose the clip's start is refused",
+    Math.abs(later.clipStart - before.clipStart) < 0.01 && Math.abs(later.duration - before.duration) < 0.01,
+    JSON.stringify({ before: [before.clipStart, before.duration], later: [later.clipStart, later.duration] })
   );
 }
 

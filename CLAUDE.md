@@ -20,9 +20,9 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 
 ## Current phase & priorities
 
-**Phase 5 — Anki export. Every build item is complete, and entry resolution is closed** (verified live 2026-08-13, offline-clean over 2,526 episodes). The edit-panel/chip and audio-capture batches from 2026-07-31 are fixed but **still never re-tested** — that is now the only unverified block in the project. Details in `project-plan.md` Section 6 Phase 5. Next, in priority order:
-1. **Re-test the 2026-07-31 fixes live** — checklist groups B–D, plus the 20–30 minute continuous-session check.
-2. **Fix the rest of the 2026-07-31 report** — the subtitle-text filtering group and the NanakoRaws line-break shape.
+**Phase 5 — Anki export. Every build item is complete, and entry resolution is closed** (verified live 2026-08-13). Checklist group B was run on 2026-08-15 and everything it found is fixed — including a five-part rework of the audio capture path and a rebuilt trim editor — but none of that has been back in a browser. Details in `project-plan.md` Section 6 Phase 5. Next, in priority order:
+1. **Live-test the 2026-08-15 work** — checklist group B again, then the untouched groups C–D and the new group E, plus the 20–30 minute continuous-session check.
+2. **Fix the rest of the 2026-07-31 report** — the remaining subtitle-text filtering cases and the NanakoRaws line-break shape.
 3. Sentence-only capture stays deliberately unscheduled until there's real usage data (see Open Questions).
 
 **Testing resolution correctness needs `scripts/audit-resolution.js`, NOT `analyze-crunchyroll-fixtures.js`** — the latter never calls `resolveTextFiles`, and its "zero misses" results were twice mistaken for evidence that shows resolve correctly. Re-run the six known-bug shows after **any** resolver change; that run is what caught a fix regressing a clean show on 2026-08-11. Full commands, batch sizing and the `--background` proof are in `project-plan.md` Section 5 (Phase 4.5).

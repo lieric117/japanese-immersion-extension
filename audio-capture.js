@@ -35,7 +35,27 @@
 // user actually commits the card, up to the chip's own lifetime later.
 
 const AUDIO_BUFFER_SECONDS = 45; // covers worst-case cue length + chip lifetime (~15s) + padding, with margin
-const AUDIO_PAD_SECONDS = 0.2; // symmetric padding added to each side of a sliced cue window
+
+// Padding around a sliced cue window, ASYMMETRIC as of 2026-08-15. It used to
+// be 0.2s on both sides, and live testing reported the same thing every time:
+// the start was fine and "the very end of the sentence is usually omitted".
+//
+// That asymmetry is in the source data, not in the clock. A subtitle line's END
+// timestamp is routinely authored a little before the speech actually finishes
+// — the line clears as the sentence lands, and the final mora or sentence-final
+// particle trails past it — while its START is authored a little early so the
+// text is readable before the line is spoken. Add to that a merged sentence,
+// whose end is deliberately snapped back to the subtitle's own end (see
+// sliceClipWavWhenReady's audioTimeAt), and 0.2s of tail is simply not enough.
+//
+// Deliberately NOT "compensate for audioCtx.outputLatency": that is a real but
+// separate effect, it shifts BOTH edges the same way, and its sign depends on
+// assumptions about the media element's presentation clock that this project
+// has no way to verify live. Widening the tail is the fix the evidence points
+// at; if a later live pass reports clips starting late as well, that is the
+// point at which latency compensation becomes the right explanation.
+const AUDIO_PAD_START_SECONDS = 0.2;
+const AUDIO_PAD_END_SECONDS = 0.6;
 const AUDIO_PROCESS_BUFFER_SIZE = 4096; // samples per ScriptProcessorNode callback (~85ms at 48kHz)
 
 // Loudness normalization (2026-07-26), applied to each sliced clip just
@@ -75,8 +95,38 @@ let audioCtx = null;
 let ringBuffer = null; // Float32Array, mono
 let ringWritePos = 0; // next write index
 let ringFilled = false; // true once the buffer has wrapped at least once
-let lastProcessAudioTime = 0; // audioCtx.currentTime as of the most recent onaudioprocess call
 let boundVideo = null; // the <video> element the current graph is attached to
+
+// ── The capture clock (2026-08-15) ──────────────────────────────────────────
+//
+// Every timestamp in this module — cue extents, seek marks, clip bounds — is
+// measured in SAMPLES ACTUALLY WRITTEN to the ring buffer, expressed as
+// seconds. It replaces audioCtx.currentTime, which this module used until now.
+//
+// The two agree exactly while audio is flowing, and disagree precisely when it
+// isn't. A paused <video> keeps its graph running and feeds SILENCE through it,
+// so audioCtx.currentTime went on advancing and the ring buffer went on filling
+// with nothing — meaning a cue left open across a pause measured the pause as
+// part of the line. That is the reported bug: pause for a while, resume,
+// capture immediately, and the card gets "44.29 seconds of nothing, then audio
+// at the very end" (live pass, 2026-08-15). The old AUDIO_MAX_CLIP_SECONDS cap
+// bounded the exported clip but not the editor's own view of it, which is where
+// that 44-second waveform came from.
+//
+// Not writing silence while paused (see the processor below) and counting
+// position in written samples together make a pause take zero space on this
+// clock: the audio either side of it is adjacent, exactly as the ring buffer
+// stores it, and no cue can be inflated by however long the user sat paused.
+// It also means the buffer always holds 45 seconds of real audio rather than 45
+// seconds of a pause.
+let samplesWritten = 0;
+
+// Deliberately NOT reset by resetRingBuffer: the buffer's CONTENTS are dropped
+// on a show change, but the clock has to keep moving forward or timings
+// recorded before the swap would compare equal to ones recorded after it.
+function captureNow() {
+  return audioCtx ? samplesWritten / audioCtx.sampleRate : null;
+}
 
 // Which capture graph owns the ring buffer (2026-07-31). Every graph ever built
 // stays CONNECTED — disconnecting createMediaElementSource silences the video
@@ -127,6 +177,11 @@ function initAudioCapture(videoEl) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
+    // A new <video> means a new stream: whatever is retained can no longer be
+    // grown from this buffer, and anything recorded before now describes a
+    // different episode.
+    sealRetainedClip();
+    noteDiscontinuity();
     resetRingBuffer(audioCtx.sampleRate);
     cueTimeline = [];
 
@@ -139,6 +194,13 @@ function initAudioCapture(videoEl) {
       // producing silence anyway; what matters is that it isn't interleaving
       // that silence into the live graph's samples.
       if (generation !== graphGeneration) return;
+      // Silence is not audio. A paused (or mid-seek) media element still feeds
+      // the graph, and recording that would put a hole in the buffer the size
+      // of however long the user sat paused — see captureNow for the clip-
+      // length bug that caused. Skipping the write instead makes the capture
+      // clock stop with the video, so the audio either side of a pause is
+      // adjacent both in the buffer and on the clock.
+      if (boundVideo && (boundVideo.paused || boundVideo.seeking)) return;
       const input = event.inputBuffer;
       const left = input.getChannelData(0);
       const right = input.numberOfChannels > 1 ? input.getChannelData(1) : null;
@@ -151,7 +213,7 @@ function initAudioCapture(videoEl) {
           ringFilled = true;
         }
       }
-      lastProcessAudioTime = audioCtx.currentTime;
+      samplesWritten += len;
     };
 
     // source -> destination is the REAL audible output path, unchanged from
@@ -183,7 +245,7 @@ function initAudioCapture(videoEl) {
 // lets sliceClipWavWhenReady locate a neighbouring line by TIMING rather than
 // by matching its text — see there for the bug that motivated it.
 function markCueBoundary(text, jpWindow = null) {
-  const now = audioCtx ? audioCtx.currentTime : null;
+  const now = captureNow();
   if (cueTimeline.length > 0) {
     const prev = cueTimeline[cueTimeline.length - 1];
     if (prev.audioEnd === null) prev.audioEnd = now;
@@ -222,9 +284,65 @@ function markCueBoundary(text, jpWindow = null) {
 function noteSeek() {
   if (cueTimeline.length > 0) {
     const open = cueTimeline[cueTimeline.length - 1];
-    if (open.audioEnd === null && audioCtx) open.audioEnd = audioCtx.currentTime;
+    if (open.audioEnd === null && audioCtx) open.audioEnd = captureNow();
   }
+  // Anything still waiting on a line to finish is resolved NOW, from the audio
+  // that has actually played, instead of being voided by the epoch bump below
+  // (2026-08-15). See flushPendingCaptures.
+  flushPendingCaptures();
+  noteDiscontinuity();
   cueEpoch++;
+}
+
+// Where the recorded timeline stops being continuous, on the capture clock.
+// Audio either side of one of these positions is adjacent IN THE BUFFER but
+// came from two unrelated moments, so a clip must never be widened across one:
+// that is what made extending the trim handles after skipping around play "a
+// bunch of fragmented audio clips" (live pass, 2026-08-15). Trimmed to what the
+// ring buffer can still hold, since a mark older than that describes samples
+// that have been overwritten anyway.
+let discontinuities = [];
+
+function noteDiscontinuity() {
+  const now = captureNow();
+  if (now === null) return;
+  discontinuities.push(now);
+  const cutoff = now - AUDIO_BUFFER_SECONDS;
+  discontinuities = discontinuities.filter((t) => t >= cutoff);
+}
+
+// The widest range around [start, end] that contains no discontinuity — i.e.
+// how far padding may reach before it would splice in another moment.
+function continuousBoundsAround(start, end) {
+  let low = -Infinity;
+  let high = Infinity;
+  for (const t of discontinuities) {
+    if (t <= start && t > low) low = t;
+    if (t >= end && t < high) high = t;
+  }
+  return { low, high };
+}
+
+// Captures still waiting for their line to finish, as callbacks that resolve
+// them from whatever has played so far (2026-08-15).
+//
+// The reported behaviour: changing episode before the verification chip appears
+// always produced a card with an empty audio field. That was deliberate — the
+// ring buffer would hold the NEXT episode by the time the wait finished, and no
+// audio beats the wrong episode's audio — but it threw away something that was
+// never in doubt. At the moment of the jump the buffer still holds the audio
+// that was really heard, and the line the user clicked has already played most
+// or all of the way through. Slicing THEN gives a correct, merely short clip.
+//
+// Called before the epoch bump in noteSeek, so the pending finish still passes
+// its own epoch check and takes the ordinary path.
+let pendingCaptures = new Set();
+
+function flushPendingCaptures() {
+  if (pendingCaptures.size === 0) return;
+  const flushing = [...pendingCaptures];
+  pendingCaptures.clear();
+  for (const finishNow of flushing) finishNow();
 }
 
 // Everything recorded so far belongs to an episode that is no longer playing
@@ -237,9 +355,19 @@ function noteSeek() {
 // so the worst case is a card with no audio rather than a card with the wrong
 // audio — the same silent-degrade path every other capture failure takes.
 function resetCaptureForNavigation() {
+  // Runs FIRST, and flushes any capture still in flight while the buffer it
+  // needs is still the one it was recorded against (2026-08-15) — see
+  // flushPendingCaptures for the empty-audio-field report this fixes.
   noteSeek();
   cueTimeline = [];
-  clearRetainedClip();
+  // The retained edit buffer is SEALED, not dropped (2026-08-15). It is an
+  // independent copy of PCM, so it survives the ring buffer being cleared
+  // perfectly well; the only thing episode navigation invalidates is the
+  // ability to re-cut it, which is exactly what sealing turns off. Dropping it
+  // is what made the trim editor say "Audio for this card is no longer
+  // available to edit" the moment the user moved on to the next episode, for a
+  // clip that was sitting complete in memory the whole time.
+  sealRetainedClip();
   if (audioCtx) resetRingBuffer(audioCtx.sampleRate);
 }
 
@@ -326,7 +454,7 @@ function encodeWav(samples, sampleRate) {
 function sliceRawRange(startAudioTime, endAudioTime) {
   if (!audioCtx || !ringBuffer) return null;
   const sampleRate = audioCtx.sampleRate;
-  const now = lastProcessAudioTime || audioCtx.currentTime;
+  const now = captureNow();
   const maxAgo = ringFilled ? ringBuffer.length : ringWritePos;
   let startSamplesAgo = Math.round((now - startAudioTime) * sampleRate);
   let endSamplesAgo = Math.round((now - endAudioTime) * sampleRate);
@@ -352,9 +480,9 @@ function sliceRawRange(startAudioTime, endAudioTime) {
 function sliceClipWav(cueEntry) {
   if (!audioCtx || !ringBuffer || !cueEntry || cueEntry.audioStart === null) return null;
   const sampleRate = audioCtx.sampleRate;
-  const end = cueEntry.audioEnd ?? audioCtx.currentTime;
-  let paddedStart = cueEntry.audioStart - AUDIO_PAD_SECONDS;
-  const paddedEnd = end + AUDIO_PAD_SECONDS;
+  const end = cueEntry.audioEnd ?? captureNow();
+  let paddedStart = cueEntry.audioStart - AUDIO_PAD_START_SECONDS;
+  const paddedEnd = end + AUDIO_PAD_END_SECONDS;
   // Trimmed from the FRONT, never the back: when these two clocks have drifted
   // it is always the start that is stale (a cue that was left open across a
   // skip), while the end is the moment the line the user clicked actually
@@ -366,7 +494,7 @@ function sliceClipWav(cueEntry) {
     );
     paddedStart = paddedEnd - AUDIO_MAX_CLIP_SECONDS;
   }
-  const now = lastProcessAudioTime || audioCtx.currentTime;
+  const now = captureNow();
   const startSamplesAgo = Math.round((now - paddedStart) * sampleRate);
   const endSamplesAgo = Math.round((now - paddedEnd) * sampleRate);
   const maxAgo = ringFilled ? ringBuffer.length : ringWritePos;
@@ -424,31 +552,73 @@ const AUDIO_EDIT_PAD_SECONDS = 3; // provisional, see project-plan.md Open Quest
 // inside the padded buffer. Everything content.js passes back in is in these
 // same buffer-relative seconds.
 let retainedClip = null;
-// The clip's own bounds on the audio clock, kept so the buffer can be re-cut
-// from the ring buffer later — see topUpRetainedClip.
+// The clip's own bounds on the capture clock, kept so the buffer can be re-cut
+// from the ring buffer later — see topUpRetainedClip. Null once sealed.
 let retainedBounds = null;
+// Which capture the retained buffer belongs to (2026-08-15). The buffer is only
+// cut when the capture RESOLVES, which is well after the Anki note exists, so
+// "the buffer belongs to the newest note" was wrong for exactly as long as a
+// capture was still in flight — the trim editor opened on the PREVIOUS card's
+// clip and played it back, which is what the live pass reported as the preview
+// playing the audio captured before. content.js hands each capture a token at
+// click time and only points a note at the buffer once the matching token has
+// actually landed here.
+let retainedClipToken = null;
+
+function retainedClipTokenIs(token) {
+  return token !== null && retainedClipToken === token;
+}
 
 // Post-roll can't exist at the moment a clip is finalized: the cue has only
 // just ended, so the ring buffer holds nothing after it yet. This cuts what is
 // available now (pre-roll and the clip itself), and topUpRetainedClip re-cuts
 // it once the post-roll has actually been recorded.
-function retainClipForEditing(audioStart, audioEnd) {
+function retainClipForEditing(audioStart, audioEnd, token = null) {
   if (audioStart === null || audioEnd === null) return;
+  // The same ceiling the exported clip gets (2026-08-15). Without it the editor
+  // could open on a window the export itself refused to cut — a cue left open
+  // across a discontinuity produced the 44-second waveform reported in the live
+  // pass, even though the WAV that went to Anki had already been trimmed to 20.
+  // Trimmed from the FRONT for the same reason sliceClipWav trims from the
+  // front: when the two clocks disagree it is the start that is stale.
+  if (audioEnd - audioStart > AUDIO_MAX_CLIP_SECONDS) audioStart = audioEnd - AUDIO_MAX_CLIP_SECONDS;
   retainedBounds = { audioStart, audioEnd };
+  retainedClipToken = token;
   cutRetainedClip();
 }
 
+// Cuts (or re-cuts) the padded edit buffer. Padding never reaches across a
+// discontinuity (2026-08-15) — see continuousBoundsAround. Before that, pulling
+// the trim handles outward after skipping around the episode played audio
+// spliced together from wherever the user had jumped from, which is not
+// something a user can be expected to make sense of in a waveform.
 function cutRetainedClip() {
   if (!retainedBounds || !audioCtx) return;
   const { audioStart, audioEnd } = retainedBounds;
-  const raw = sliceRawRange(audioStart - AUDIO_EDIT_PAD_SECONDS, audioEnd + AUDIO_EDIT_PAD_SECONDS);
+  const { low, high } = continuousBoundsAround(audioStart, audioEnd);
+  const from = Math.max(audioStart - AUDIO_EDIT_PAD_SECONDS, low);
+  const to = Math.min(audioEnd + AUDIO_EDIT_PAD_SECONDS, high);
+  const raw = sliceRawRange(from, to);
   if (!raw) return;
-  retainedClip = {
+  const candidate = {
     samples: raw.samples,
     sampleRate: audioCtx.sampleRate,
     clipStart: Math.max(0, audioStart - raw.startAudioTime),
     clipEnd: Math.max(0, audioEnd - raw.startAudioTime),
   };
+  // A re-cut is only ever an improvement, never a replacement (2026-08-15). The
+  // ring buffer is 45 seconds long, so re-cutting a clip whose start has since
+  // aged out of it would silently return a SHORTER buffer with its markers
+  // shifted to fit — the editor would show the same card's audio starting
+  // somewhere else. Keeping whichever version has more on each side makes a
+  // late re-cut a no-op instead.
+  if (retainedClip && !isMoreComplete(candidate, retainedClip)) return;
+  retainedClip = candidate;
+}
+
+function isMoreComplete(candidate, current) {
+  const trailing = (c) => c.samples.length / c.sampleRate - c.clipEnd;
+  return candidate.clipStart >= current.clipStart && trailing(candidate) > trailing(current);
 }
 
 // Re-cuts the retained buffer if its trailing padding is still short of
@@ -463,11 +633,32 @@ function cutRetainedClip() {
 // being 3 seconds". Re-cutting on demand has no such window: the 45-second ring
 // buffer holds the audio either way, so this is only ever a question of when it
 // gets copied out of it.
+//
+// It is still possible for the right-hand pad to be genuinely short — that was
+// the 2026-08-15 report, of a pad that "never reaches the full 3 seconds"
+// while the left one always does. Two causes, both real, both now handled: a
+// discontinuity within 3 seconds after the line (the pad is clamped to it on
+// purpose, above), and an episode that has not PLAYED 3 more seconds yet, where
+// there is nothing to top up from until it does. Sealing on navigation is what
+// makes the second case permanent rather than transient — a clip sealed 1s
+// after the line keeps 1s of post-roll for good — so the editor now says which
+// of the two it is rather than showing a short pad with no explanation.
 function topUpRetainedClip() {
   if (!retainedClip || !retainedBounds) return;
   const trailing = retainedClip.samples.length / retainedClip.sampleRate - retainedClip.clipEnd;
   if (trailing >= AUDIO_EDIT_PAD_SECONDS - 0.05) return; // already complete
   cutRetainedClip();
+}
+
+// Stops the retained buffer being re-cut, keeping whatever it currently holds
+// (2026-08-15). Called when the ring buffer is about to stop describing the
+// episode the clip came from — SPA navigation, or a <video> swap. The samples
+// are already a private copy, so the clip stays fully editable; all that is
+// lost is the ability to grow its padding, which is exactly what has become
+// impossible.
+function sealRetainedClip() {
+  topUpRetainedClip();
+  retainedBounds = null;
 }
 
 // What the trim UI needs to draw itself, or null when there's nothing retained
@@ -498,6 +689,13 @@ function retainedClipInfo(peakCount = 240) {
     clipStart,
     clipEnd,
     peaks: peaks.map((p) => p / loudest),
+    // What the editor can tell the user about its own limits (2026-08-15):
+    // whether the padding is still growing, and how much there actually is on
+    // each side. A short right-hand pad is expected in two cases and confusing
+    // in neither once it's stated — see topUpRetainedClip.
+    sealed: retainedBounds === null,
+    padStart: clipStart,
+    padEnd: samples.length / sampleRate - clipEnd,
   };
 }
 
@@ -518,6 +716,7 @@ function encodeRetainedRange(startSec, endSec) {
 function clearRetainedClip() {
   retainedClip = null;
   retainedBounds = null;
+  retainedClipToken = null;
 }
 
 // Waits for a still-in-progress cue to actually finish (audioEnd becomes
@@ -572,12 +771,22 @@ function clearRetainedClip() {
 // field is filled in when it does. A first-half capture that timed out used to
 // mean first-half-only audio on the card — the other half of the same live
 // report — so waiting longer is now strictly better than giving up early.
-function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, mergeEnd = null) {
+function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, mergeEnd = null, token = null) {
   return new Promise((resolve) => {
     if (!cueEntry) {
       resolve(null);
       return;
     }
+    // One resolution per capture, whichever path gets there first — the normal
+    // wait, the timeout, or a forced flush from noteSeek (2026-08-15).
+    let settled = false;
+    let forceFinish = null;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      pendingCaptures.delete(forceFinish);
+      resolve(value);
+    };
     const index = cueTimeline.indexOf(cueEntry);
     const merging = index !== -1 && mergeStart !== null && mergeEnd !== null;
     // Cue boundaries either side of a gap can differ by a few milliseconds
@@ -633,7 +842,7 @@ function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, m
       return null;
     };
 
-    const finish = (endEntry) => {
+    const finish = (endEntry, waitForTail = true) => {
       // A seek or an episode change while this was waiting means the buffer no
       // longer holds what these timings describe. No audio field is the right
       // answer — the same silent degrade a muted player or an aged-out clip
@@ -641,7 +850,7 @@ function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, m
       // positions, which after navigation is the next episode (reported live
       // 2026-07-31).
       if (epoch !== cueEpoch) {
-        resolve(null);
+        settle(null);
         return;
       }
       // On timeout, fall back to the clicked cue's own extent for the END
@@ -671,14 +880,65 @@ function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, m
           audioEnd = end.audioEnd;
         }
       }
-      // Retained for the trim editor (2026-07-30) over the SAME bounds the
-      // exported clip uses, so the editor's "original clip" markers line up
-      // with what actually went onto the card. Done here rather than in
-      // sliceClipWav because these are the merged, widened bounds — slicing
-      // happens on them, but only this function knows them.
-      retainClipForEditing(audioStart, audioEnd);
-      resolve(sliceClipWav({ audioStart, audioEnd }));
+      // A FLUSHED capture (a seek or an episode change interrupted it) gets one
+      // extra guard: the timeline is closed at the moment the jump was NOTICED,
+      // which for SPA navigation is up to a second after it happened — long
+      // enough for the next episode's audio to have started arriving. A
+      // displayed line can never run longer than its own subtitle window, so
+      // that window is the honest ceiling on how much of the buffer belongs to
+      // it. Without this the "keep the audio heard so far" path could reinstate
+      // a smaller version of the wrong-episode bug it replaced.
+      if (!waitForTail && end && end.jpStart !== null && end.jpEnd !== null && end.audioStart !== null) {
+        const ceiling = end.audioStart + (end.jpEnd - end.jpStart) + 0.25;
+        if (audioEnd > ceiling && ceiling > audioStart) audioEnd = ceiling;
+      }
+
+      // The trailing pad has to have been RECORDED before it can be sliced
+      // (2026-08-15). A cue's end is noticed by the next `timeupdate`, so at
+      // this moment the buffer typically holds only a fraction of a second past
+      // the line — sliceClipWav's own clamp then silently shortened the tail to
+      // whatever happened to exist, which is the other half of why the end of
+      // the sentence kept getting cut off. Nothing is blocked on this wait (the
+      // card is already in Anki), so it costs the user nothing.
+      const cut = () => {
+        // Retained for the trim editor (2026-07-30) over the SAME bounds the
+        // exported clip uses, so the editor's "original clip" markers line up
+        // with what actually went onto the card. Done here rather than in
+        // sliceClipWav because these are the merged, widened bounds — slicing
+        // happens on them, but only this function knows them.
+        retainClipForEditing(audioStart, audioEnd, token);
+        settle(sliceClipWav({ audioStart, audioEnd }));
+      };
+      if (!waitForTail || audioEnd === null) {
+        cut();
+        return;
+      }
+      const needed = audioEnd + AUDIO_PAD_END_SECONDS;
+      // Bounded: a video paused right after the line stops the capture clock
+      // outright, and a short tail is a far better outcome than a card that
+      // waits for a pause to end before its audio arrives.
+      const tailDeadline = Date.now() + 2000;
+      const waitForPad = () => {
+        const now = captureNow();
+        if (settled) return;
+        if (now !== null && now < needed && Date.now() < tailDeadline) {
+          setTimeout(waitForPad, 100);
+          return;
+        }
+        cut();
+      };
+      waitForPad();
     };
+
+    // Resolve from whatever has played, ignoring the fact that the line may not
+    // have finished — registered for the whole life of the wait, and called by
+    // flushPendingCaptures when a seek or an episode change is about to make
+    // the timeline uncomparable. See that function for the report this fixes.
+    forceFinish = () => {
+      if (settled) return;
+      finish(endReady(), false);
+    };
+    pendingCaptures.add(forceFinish);
 
     const ready = endReady();
     if (ready) {
@@ -687,6 +947,7 @@ function sliceClipWavWhenReady(cueEntry, maxWaitMs = 20000, mergeStart = null, m
     }
     const deadline = Date.now() + maxWaitMs;
     const poll = () => {
+      if (settled) return; // a flush got there first
       const entry = endReady();
       if (entry) {
         finish(entry);

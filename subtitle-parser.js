@@ -1,6 +1,18 @@
 // Minimal parsers for the two subtitle formats community fansubs commonly use.
 // Both return an array of { start, end, text } with times in seconds.
 
+// ASS override tags in a .srt file (2026-08-15). They have no business being
+// there — .srt has no styling model at all — but Jimaku is full of files that
+// were converted from .ass with the tags left in, and the live pass reported
+// seeing "{\\an8}" on screen "from different providers". parseAss has stripped
+// these since it was written; this is the same strip on the other parser, plus
+// the \N line break, which converters leave behind for exactly the same reason.
+//
+// Restricted to tags that START with a backslash, unlike parseAss's blanket
+// `{...}`: in .ass, braces are unambiguously markup, but in .srt they are
+// ordinary characters that a line of dialogue could legitimately contain.
+const SRT_OVERRIDE_RE = /\{\\[^}]*\}/g;
+
 function parseSrt(raw) {
   const cues = [];
   const blocks = raw.replace(/\r/g, "").trim().split(/\n\n+/);
@@ -9,7 +21,11 @@ function parseSrt(raw) {
     const timeLine = lines.find((line) => line.includes("-->"));
     if (!timeLine) continue;
     const [startStr, endStr] = timeLine.split("-->").map((s) => s.trim());
-    const text = lines.slice(lines.indexOf(timeLine) + 1).join("\n");
+    const text = lines
+      .slice(lines.indexOf(timeLine) + 1)
+      .join("\n")
+      .replace(SRT_OVERRIDE_RE, "")
+      .replace(/\\N/gi, "\n");
     cues.push({
       start: srtTimeToSeconds(startStr),
       end: srtTimeToSeconds(endStr),
@@ -62,14 +78,11 @@ function parseAss(raw) {
     const fields = line.slice(line.indexOf(":") + 1).split(",");
     const start = assTimeToSeconds(fields[1].trim());
     const end = assTimeToSeconds(fields[2].trim());
-    const text = fields
-      .slice(textFieldIndex)
-      .join(",")
-      .replace(/\{[^}]*\}/g, "")
-      .replace(/\\N/gi, "\n");
+    const rawText = fields.slice(textFieldIndex).join(",");
+    const text = rawText.replace(/\{[^}]*\}/g, "").replace(/\\N/gi, "\n");
     const style = styleFieldIndex === -1 ? "" : (fields[styleFieldIndex] ?? "").trim();
 
-    cues.push({ start, end, text, style });
+    cues.push({ start, end, text, style, align: assAlignment(rawText) });
   }
   return cues;
 }
@@ -155,6 +168,24 @@ function stripDualLanguageCuesWithoutStyles(cues) {
   // track produces.
   if (japanese.length === 0 || latinOnly.length / nonEmpty.length < 0.25) return cues;
   return cues.filter((c) => !(LATIN_LETTER_RE.test(c.text) && !KANA_RE.test(c.text)));
+}
+
+// The numpad-style alignment an override tag puts this line at, or null when it
+// doesn't set one (2026-08-15). 1-3 are bottom, 4-6 middle, 7-9 top; \a is the
+// older SSA form, whose numbering is different (5-7 are top there).
+//
+// Read out of the text field before the tags are stripped, and kept on the cue
+// purely so English caption pairing can tell a line placed AT THE TOP of the
+// screen from the main subtitle line at the bottom — see content.js's
+// primaryEnglishCues for the Anki-field bug that needs this. Nothing about
+// display uses it: this project never positions subtitles itself.
+function assAlignment(rawText) {
+  const an = /\\an\s*([1-9])/.exec(rawText);
+  if (an) return Number(an[1]);
+  const a = /\\a\s*(\d{1,2})/.exec(rawText);
+  if (!a) return null;
+  const legacy = { 1: 1, 2: 2, 3: 3, 5: 7, 6: 8, 7: 9, 9: 4, 10: 5, 11: 6 };
+  return legacy[Number(a[1])] ?? null;
 }
 
 function assTimeToSeconds(timeStr) {

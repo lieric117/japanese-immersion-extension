@@ -36,6 +36,8 @@ const cueDisplayText = new Function(
     grab(/^const SPEAKER_PREFIX_RE =[\s\S]*?;$/m, "SPEAKER_PREFIX_RE"),
     grab(/^const INLINE_FURIGANA_RE =[\s\S]*?;$/m, "INLINE_FURIGANA_RE"),
     grab(/^const FANSUB_MARKUP_RE =[\s\S]*?;$/m, "FANSUB_MARKUP_RE"),
+    grab(/^const ASS_OVERRIDE_RE =[\s\S]*?;$/m, "ASS_OVERRIDE_RE"),
+    grab(/^const SENTENCE_PERIOD_RE =[\s\S]*?;$/m, "SENTENCE_PERIOD_RE"),
     grab(/^function cueDisplayText\(cue\) \{[\s\S]*?\n\}/m, "cueDisplayText"),
     "return cueDisplayText;",
   ].join("\n")
@@ -80,7 +82,17 @@ const cases = [
   ["『題名』", "『題名』", "and the title brackets"],
   ["“引用”", "“引用”", "and the curly quotes"],
   ["風の音〜", "風の音〜", "bare wave is vowel elongation, not markup"],
-  ["ヒキニートはやめろ、クソビ○チ。", "ヒキニートはやめろ、クソビ○チ。", "geometric shapes censor a character — real content, not decoration"],
+  ["ヒキニートはやめろ、クソビ○チ。", "ヒキニートはやめろ、クソビ○チ", "geometric shapes censor a character — real content, not decoration (。 now dropped, 2026-08-15)"],
+
+  // — 2026-08-15 live reports
+  ["{\\an8}こっちだ", "こっちだ", "ASS positioning tag left in a converted .srt"],
+  ["{\\i1}行くぞ{\\i0}", "行くぞ", "paired override tags, both stripped"],
+  ["行くぞ。", "行くぞ", "sentence-final 。 dropped"],
+  ["行くぞ。早くしろ。", "行くぞ 早くしろ", "a mid-line 。 becomes a space, not a join"],
+  ["「行くぞ」。", "「行くぞ」", "。 after a closing quote still goes"],
+  ["本当か⁉", "本当か⁉", "⁉ is punctuation, not decoration — unchanged"],
+  ["どうする、これから？", "どうする、これから？", "、 and ？ are deliberately untouched"],
+  ["。", "", "a line that was nothing but a full stop drops out entirely"],
   ["36°C", "36°C", "degree sign is a unit, though Unicode calls it a symbol"],
   ["気温は25℃", "気温は25℃", "and the combined form"],
   ["№5", "№5", "numero sign likewise"],

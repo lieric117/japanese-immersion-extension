@@ -42,6 +42,23 @@ function makeHarness() {
     let cueEpoch = 0;
     let clock = 0;
     let audioCtx = { get currentTime() { return clock; } };
+    // The capture clock (2026-08-15) — samples actually written, driven here by
+    // hand. Equal to video time on a straight playthrough, which is what these
+    // fixtures replay.
+    function captureNow() { return clock; }
+    // Zero in the harness so the tail wait resolves immediately: these fixtures
+    // are about WHICH [start, end] a clip is cut from, and the real 0.6s pad
+    // would otherwise make every case sit out a wall-clock wait for audio that
+    // this harness never produces.
+    const AUDIO_PAD_END_SECONDS = 0;
+    let pendingCaptures = new Set();
+    function flushPendingCaptures() {
+      const flushing = [...pendingCaptures];
+      pendingCaptures.clear();
+      for (const finishNow of flushing) finishNow();
+    }
+    let discontinuities = [];
+    function noteDiscontinuity() { discontinuities.push(clock); }
     let sliceCalls = [];
     let retainCalls = [];
     function sliceClipWav(entry) {
@@ -52,7 +69,7 @@ function makeHarness() {
     // ignored so the tests can assert the editor is handed the SAME bounds that
     // were exported — if those drifted apart, the trim UI's "original clip"
     // markers would point somewhere the card's audio never covered.
-    function retainClipForEditing(start, end) { retainCalls.push({ audioStart: start, audioEnd: end }); }
+    function retainClipForEditing(start, end, token) { retainCalls.push({ audioStart: start, audioEnd: end, token }); }
   `;
   return new Function(
     setup +
@@ -67,6 +84,8 @@ function makeHarness() {
         noteSeek,
         sliceClipWavWhenReady,
         seekAway: () => { cueEpoch++; },
+        flushPendingCaptures,
+        discontinuities: () => discontinuities,
         tick: (t) => { clock = t; },
         timeline: () => cueTimeline,
         sliceCalls: () => sliceCalls,
@@ -261,10 +280,17 @@ async function fixtureSeekAndNavigation() {
   h.noteSeek(); // the user skips somewhere else mid-capture
   replay(h, cues); // whatever plays next fills the buffer
   const clip = await pending;
-  const ok = clip === null;
+  // CHANGED 2026-08-15: this used to assert no audio at all. Voiding the clip
+  // was the right call about the audio AFTER the jump and the wrong call about
+  // the audio before it — at the moment of the seek the buffer still holds the
+  // line the user actually clicked, most or all of the way through. It is now
+  // sliced at that instant instead (see flushPendingCaptures), so the card gets
+  // a short but correct clip rather than an empty audio field. The wrong-side-
+  // of-the-jump audio is still excluded: the end is the seek, not what followed.
+  const ok = clip !== null && Math.abs(h.sliceCalls()[h.sliceCalls().length - 1].audioEnd - 11) < 0.01;
   if (!ok) failed++;
   console.log(
-    `${ok ? "PASS" : "FAIL"}  a capture spanning a seek exports no audio rather than the wrong audio` +
+    `${ok ? "PASS" : "FAIL"}  a capture spanning a seek is cut at the seek, not across it` +
       (ok ? "" : `\n        got ${JSON.stringify(h.sliceCalls().pop())}`)
   );
 
@@ -281,6 +307,38 @@ async function fixtureSeekAndNavigation() {
     `${closed ? "PASS" : "FAIL"}  the open cue is closed at the seek, not left running across it` +
       (closed ? "" : `\n        audioEnd = ${open.audioEnd}`)
   );
+
+  // The plain, unmerged case — a word captured while its line is still on
+  // screen, then the user changes episode before the line ends (2026-08-15).
+  // This is the shape the live pass reported as "the audio is always empty if I
+  // switch to another episode before the sentence finishes capturing".
+  const hNav = makeHarness();
+  hNav.tick(10);
+  const openLine = hNav.markCueBoundary("けれど", { start: 10, end: 12 });
+  const navPending = hNav.sliceClipWavWhenReady(openLine, 5000, null, null);
+  hNav.tick(11.4);
+  hNav.noteSeek(); // what resetCaptureForNavigation does first
+  const navClip = await navPending;
+  const navOk = navClip !== null;
+  if (!navOk) failed++;
+  console.log(`${navOk ? "PASS" : "FAIL"}  navigating mid-capture keeps the audio heard so far, instead of voiding it`);
+  if (navOk) check("...cut at the moment of the jump", hNav.sliceCalls().pop(), { start: 10, end: 11.4 });
+
+  // The flush is capped at the line's own subtitle window (2026-08-15). SPA
+  // navigation is noticed by a poll, up to a second after it happened, so the
+  // buffer can already hold the start of the next episode by the time the
+  // pending capture is flushed.
+  const hCap = makeHarness();
+  hCap.tick(10);
+  const capLine = hCap.markCueBoundary("けれど", { start: 10, end: 12 });
+  const capPending = hCap.sliceClipWavWhenReady(capLine, 5000, null, null);
+  hCap.tick(13.5); // the jump was noticed 1.5s after the line's own window ended
+  hCap.noteSeek();
+  await capPending;
+  check("a flushed clip can't run past the line's own subtitle window", hCap.sliceCalls().pop(), {
+    start: 10,
+    end: 12.25,
+  });
 
   // Widening must not reach back across a jump into timings recorded before it.
   const h3 = makeHarness();
