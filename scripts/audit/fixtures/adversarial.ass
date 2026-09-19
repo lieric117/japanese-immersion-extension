@@ -1,0 +1,10 @@
+[Script Info]
+ScriptType: v4.00+
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\an8}本当に\hいいの？
+Dialogue: 1,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\an8}本当に\hいいの？
+Dialogue: 0,0:00:04.00,0:00:06.00,Sign,,0,0,0,,{\p1}m 0 0 l 100 0 100 100 0 100{\p0}
+Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\k20}な{\k30}つ{\k25}や{\k40}すみ
+Dialogue: 0,0:00:07.00,0:00:09.00,Default,,0,0,0,,（ナレーター）むかしむかし\N（少年）ねえ

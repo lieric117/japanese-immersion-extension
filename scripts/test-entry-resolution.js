@@ -42,7 +42,8 @@ const vm = require("vm");
 // chrome.runtime listener at top level. Both are stubbed; nothing else in it
 // runs until a function is called. Loading the whole real file (rather than
 // extracting pieces by regex) is what keeps this from drifting.
-const src = fs.readFileSync(path.join(__dirname, "..", "background.js"), "utf8");
+// BACKGROUND_JS lets the suite run against another copy (e.g. a pre-fix commit).
+const src = fs.readFileSync(process.env.BACKGROUND_JS || path.join(__dirname, "..", "background.js"), "utf8");
 
 let logs = [];
 let warns = [];

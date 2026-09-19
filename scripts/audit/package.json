@@ -1,0 +1,9 @@
+{
+  "name": "jp-immersion-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Audit-harness-only dependencies (2026-09-18). Not used by the extension.",
+  "dependencies": {
+    "lindera-wasm-unidic": "^2.1.0"
+  }
+}
