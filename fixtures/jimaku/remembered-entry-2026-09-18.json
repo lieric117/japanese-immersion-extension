@@ -1,0 +1,727 @@
+{
+ "https://jimaku.cc/api/entries/search?anime=true&query=Shangri-La%20Frontier": [
+  {
+   "id": 1135,
+   "name": "Shangri-La Frontier",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": true,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-04-06T02:20:54Z",
+   "anilist_id": 151970,
+   "notes": "No. overall: 1-25",
+   "english_name": "Shangri-La Frontier",
+   "japanese_name": "シャングリラ・フロンティア"
+  },
+  {
+   "id": 7707,
+   "name": "Shangri-La Frontier 2nd Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-04-01T10:57:25Z",
+   "creator_id": 15,
+   "anilist_id": 176508,
+   "notes": "No. overall: 26-50\r\n\r\nNo. in season: 1-25",
+   "english_name": "Shangri-La Frontier Season 2",
+   "japanese_name": "シャングリラ・フロンティア 2nd season"
+  }
+ ],
+ "https://jimaku.cc/api/entries/7707/files?episode=43": [],
+ "https://jimaku.cc/api/entries/7707/files?episode=1": [
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 100697,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 33281,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2001%20(BS4%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 01 (BS4 1920x1080 x265 AAC).ass",
+   "size": 100031,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2001%20(BS4%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 01 (BS4 1920x1080 x265 AAC).srt",
+   "size": 31515,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E01.%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94.in.%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E01.半裸と愉快な仲間達.in.ゴーレムパラダイス.WEBRip.Netflix.ja[cc].srt",
+   "size": 31185,
+   "last_modified": "2024-10-13T21:13:55.74188905Z"
+  }
+ ],
+ "https://jimaku.cc/api/entries/7707/files?episode=18": [
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2018%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).ass",
+   "size": 93199,
+   "last_modified": "2025-02-10T16:19:28.52384034Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2018%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).srt",
+   "size": 29972,
+   "last_modified": "2025-02-10T16:19:28.52384034Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E18.%E8%B5%A4%E9%AF%A8%E3%80%81%E9%AD%9A%E6%80%AA%E3%81%A8%E7%9B%B8%E5%AF%BE%E3%81%99.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E18.赤鯨、魚怪と相対す.WEBRip.Netflix.ja[cc].srt",
+   "size": 30703,
+   "last_modified": "2025-02-09T22:29:52.744357113Z"
+  }
+ ],
+ "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2018%20(TBS%201920x1080%20x265%20AAC).ass": "",
+ "https://jimaku.cc/api/entries/7707/files?episode=26": [
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 100697,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 33281,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  }
+ ],
+ "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass": "",
+ "https://jimaku.cc/api/entries/7707/files?episode=51": [],
+ "https://jimaku.cc/api/entries/7707/files": [
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 100697,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2026%20%E3%80%8C%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94in%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 26 「半裸と愉快な仲間達inゴーレムパラダイス」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 33281,
+   "last_modified": "2024-10-14T02:07:51.735009565Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2027%20%E3%80%8C%E8%9E%8D%E9%80%9A%E7%9F%A5%E3%82%89%E3%81%9A%E3%81%AE%E9%96%80%E7%95%AA%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 27 「融通知らずの門番」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 89320,
+   "last_modified": "2024-10-20T16:09:38.068340058Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2027%20%E3%80%8C%E8%9E%8D%E9%80%9A%E7%9F%A5%E3%82%89%E3%81%9A%E3%81%AE%E9%96%80%E7%95%AA%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 27 「融通知らずの門番」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 28613,
+   "last_modified": "2024-10-20T16:09:38.068340058Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2028%20%E3%80%8C%E5%8A%A0%E9%80%9F%E3%81%99%E3%82%8B%E4%BC%9A%E8%AD%B0%E3%80%81%E8%BF%B8(%E3%81%BB%E3%81%A8%E3%81%B0%E3%81%97)%E3%82%8B%E6%AC%B2%E6%9C%9B%E3%80%81%E3%81%9D%E3%81%97%E3%81%A6%E3%81%9D%E3%82%8C%E3%81%9E%E3%82%8C%E3%81%AE%E7%B3%B8%E5%8F%A3%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 28 「加速する会議、迸(ほとばし)る欲望、そしてそれぞれの糸口」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 103958,
+   "last_modified": "2024-10-27T16:55:50.140107065Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2028%20%E3%80%8C%E5%8A%A0%E9%80%9F%E3%81%99%E3%82%8B%E4%BC%9A%E8%AD%B0%E3%80%81%E8%BF%B8(%E3%81%BB%E3%81%A8%E3%81%B0%E3%81%97)%E3%82%8B%E6%AC%B2%E6%9C%9B%E3%80%81%E3%81%9D%E3%81%97%E3%81%A6%E3%81%9D%E3%82%8C%E3%81%9E%E3%82%8C%E3%81%AE%E7%B3%B8%E5%8F%A3%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 28 「加速する会議、迸(ほとばし)る欲望、そしてそれぞれの糸口」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 33257,
+   "last_modified": "2024-10-27T16:55:50.140107065Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2029%20%E3%80%8C%E4%BA%BA%E3%81%AF%E4%B8%8D%E5%8F%AF%E8%83%BD%E3%82%92%E5%A4%A2%E3%81%AB%E8%A6%8B%E3%82%8B%E3%80%81%E3%81%84%E3%81%96%E7%A9%BA%E3%82%92%E6%AD%A9%E3%81%8F%E6%99%82%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 29 「人は不可能を夢に見る、いざ空を歩く時」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 100476,
+   "last_modified": "2024-11-03T17:15:33.618027947Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2029%20%E3%80%8C%E4%BA%BA%E3%81%AF%E4%B8%8D%E5%8F%AF%E8%83%BD%E3%82%92%E5%A4%A2%E3%81%AB%E8%A6%8B%E3%82%8B%E3%80%81%E3%81%84%E3%81%96%E7%A9%BA%E3%82%92%E6%AD%A9%E3%81%8F%E6%99%82%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 29 「人は不可能を夢に見る、いざ空を歩く時」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 30366,
+   "last_modified": "2024-11-03T17:15:33.618027947Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2030%20%E3%80%8C%E3%81%9D%E3%81%AE%E8%A1%9D%E5%8B%95%E3%81%AF%E3%80%81%E9%A3%A2%E9%A4%93%20%E3%81%9D%E3%81%AE%E5%9F%B7%E5%BF%B5%E3%81%AF%E3%80%81%E6%B8%87%E6%9C%9B%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 30 「その衝動は、飢餓 その執念は、渇望」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 83131,
+   "last_modified": "2024-11-11T00:24:05.279613896Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2030%20%E3%80%8C%E3%81%9D%E3%81%AE%E8%A1%9D%E5%8B%95%E3%81%AF%E3%80%81%E9%A3%A2%E9%A4%93%20%E3%81%9D%E3%81%AE%E5%9F%B7%E5%BF%B5%E3%81%AF%E3%80%81%E6%B8%87%E6%9C%9B%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 30 「その衝動は、飢餓 その執念は、渇望」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 24361,
+   "last_modified": "2024-11-11T00:24:05.279613896Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2031%20%E3%80%8C%E6%BF%80%E9%97%98%E3%81%AE%E6%9E%9C%E3%81%A6%E3%81%AB%E3%80%81%E7%B5%B6%E6%9C%9B%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 31 「激闘の果てに、絶望」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 89002,
+   "last_modified": "2024-11-17T17:59:45.223263843Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2031%20%E3%80%8C%E6%BF%80%E9%97%98%E3%81%AE%E6%9E%9C%E3%81%A6%E3%81%AB%E3%80%81%E7%B5%B6%E6%9C%9B%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 31 「激闘の果てに、絶望」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 28631,
+   "last_modified": "2024-11-17T17:59:45.223263843Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2032%20%E3%80%8C%E5%8F%8C%E7%BF%BC%E7%9B%B8%E6%89%93%E3%81%A4%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 32 「双翼相打つ」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 88122,
+   "last_modified": "2024-11-26T14:30:07.505781562Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2032%20%E3%80%8C%E5%8F%8C%E7%BF%BC%E7%9B%B8%E6%89%93%E3%81%A4%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 32 「双翼相打つ」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 28953,
+   "last_modified": "2024-11-26T14:30:07.505781562Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2033%20%E3%80%8C%E7%8D%85%E5%AD%90%E3%81%AF%E5%85%8E%E3%81%AB%E5%85%A8%E5%8A%9B%E3%82%92%E3%80%81%E8%9F%B9%E3%81%AF%E4%B8%8D%E6%AD%BB%E9%B3%A5%E3%81%AB%E3%83%94%E3%82%B6%E3%82%AB%E3%83%83%E3%82%BF%E3%83%BC%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 33 「獅子は兎に全力を、蟹は不死鳥にピザカッター」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 91203,
+   "last_modified": "2024-12-01T16:32:44.846860264Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2033%20%E3%80%8C%E7%8D%85%E5%AD%90%E3%81%AF%E5%85%8E%E3%81%AB%E5%85%A8%E5%8A%9B%E3%82%92%E3%80%81%E8%9F%B9%E3%81%AF%E4%B8%8D%E6%AD%BB%E9%B3%A5%E3%81%AB%E3%83%94%E3%82%B6%E3%82%AB%E3%83%83%E3%82%BF%E3%83%BC%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 33 「獅子は兎に全力を、蟹は不死鳥にピザカッター」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 30345,
+   "last_modified": "2024-12-01T16:32:44.846860264Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2034%20%E3%80%8C%E9%A7%86%E3%81%91%E3%82%8D%E3%80%81%E7%84%A6%E7%87%A5%E3%82%92%E7%87%83%E6%96%99%E3%81%AB%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 34 「駆けろ、焦燥を燃料に」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 93240,
+   "last_modified": "2024-12-09T05:33:57.563791624Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2034%20%E3%80%8C%E9%A7%86%E3%81%91%E3%82%8D%E3%80%81%E7%84%A6%E7%87%A5%E3%82%92%E7%87%83%E6%96%99%E3%81%AB%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 34 「駆けろ、焦燥を燃料に」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 30141,
+   "last_modified": "2024-12-09T05:33:57.563791624Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2035%20%E3%80%8C%E7%8C%9F%E7%8A%AC%E3%81%AE%E5%A6%82%E3%81%8F%E5%97%85%E3%81%8E%E4%BB%98%E3%81%91%E3%81%A6%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2024) - 35 「猟犬の如く嗅ぎ付けて」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 101756,
+   "last_modified": "2024-12-16T07:25:11.842356555Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2024)%20-%2035%20%E3%80%8C%E7%8C%9F%E7%8A%AC%E3%81%AE%E5%A6%82%E3%81%8F%E5%97%85%E3%81%8E%E4%BB%98%E3%81%91%E3%81%A6%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2024) - 35 「猟犬の如く嗅ぎ付けて」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 31687,
+   "last_modified": "2024-12-16T07:25:11.842356555Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2040%20%E3%80%8C%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6%20%E5%85%B6%E3%81%AE%E4%BA%94%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2025) - 40 「大志の灯火を抱いて 其の五」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 107736,
+   "last_modified": "2025-01-21T14:53:41.625351567Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2040%20%E3%80%8C%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6%20%E5%85%B6%E3%81%AE%E4%BA%94%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2025) - 40 「大志の灯火を抱いて 其の五」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 32401,
+   "last_modified": "2025-01-21T14:53:41.62135164Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2041%20%E3%80%8C%E8%B2%B4%E6%96%B9%E3%81%AF%E3%81%AA%E3%82%93%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AB%E3%82%B2%E3%83%BC%E3%83%A0%E3%82%92%E3%81%97%E3%81%BE%E3%81%99%E3%81%8B%EF%BC%9F%20%E5%BD%BC%E3%82%89%E3%81%AE%E5%9B%9E%E7%AD%94%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2025) - 41 「貴方はなんのためにゲームをしますか？ 彼らの回答」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 83464,
+   "last_modified": "2025-02-07T07:31:34.754713467Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2041%20%E3%80%8C%E8%B2%B4%E6%96%B9%E3%81%AF%E3%81%AA%E3%82%93%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AB%E3%82%B2%E3%83%BC%E3%83%A0%E3%82%92%E3%81%97%E3%81%BE%E3%81%99%E3%81%8B%EF%BC%9F%20%E5%BD%BC%E3%82%89%E3%81%AE%E5%9B%9E%E7%AD%94%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2025) - 41 「貴方はなんのためにゲームをしますか？ 彼らの回答」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 28986,
+   "last_modified": "2025-02-07T07:31:34.754713467Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2042%20%E3%80%8C%E3%82%B8%E3%83%A7%E3%83%BC%E3%82%AB%E3%83%BC%E6%B7%B7%E3%81%98%E3%82%8A%E3%81%AE%E3%82%B9%E3%83%88%E3%83%AC%E3%83%BC%E3%83%88%E3%83%95%E3%83%A9%E3%83%83%E3%82%B7%E3%83%A5%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).ass",
+   "name": "Shangri-La Frontier (2025) - 42 「ジョーカー混じりのストレートフラッシュ」 (TBS 1920x1080 x264 AAC).ass",
+   "size": 102275,
+   "last_modified": "2025-02-08T17:57:57.954208497Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/Shangri-La%20Frontier%20(2025)%20-%2042%20%E3%80%8C%E3%82%B8%E3%83%A7%E3%83%BC%E3%82%AB%E3%83%BC%E6%B7%B7%E3%81%98%E3%82%8A%E3%81%AE%E3%82%B9%E3%83%88%E3%83%AC%E3%83%BC%E3%83%88%E3%83%95%E3%83%A9%E3%83%83%E3%82%B7%E3%83%A5%E3%80%8D%20(TBS%201920x1080%20x264%20AAC).srt",
+   "name": "Shangri-La Frontier (2025) - 42 「ジョーカー混じりのストレートフラッシュ」 (TBS 1920x1080 x264 AAC).srt",
+   "size": 32172,
+   "last_modified": "2025-02-08T17:57:57.958208437Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2001%20(BS4%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 01 (BS4 1920x1080 x265 AAC).ass",
+   "size": 100031,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2001%20(BS4%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 01 (BS4 1920x1080 x265 AAC).srt",
+   "size": 31515,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2002%20(BS4%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 02 (BS4 1920x1080 x264 AAC).ass",
+   "size": 89319,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2002%20(BS4%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 02 (BS4 1920x1080 x264 AAC).srt",
+   "size": 28614,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2003%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 03 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 96389,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2003%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 03 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 32921,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2004%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 04 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 93159,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2004%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 04 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 29969,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2005%20(BS4%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 05 (BS4 1920x1080 x265 AAC).ass",
+   "size": 83099,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2005%20(BS4%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 05 (BS4 1920x1080 x265 AAC).srt",
+   "size": 24361,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2006%20(BS-NTV%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 06 (BS-NTV 1920x1080 x265 AAC).ass",
+   "size": 88990,
+   "last_modified": "2024-11-24T00:28:09.247689623Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2006%20(BS-NTV%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 06 (BS-NTV 1920x1080 x265 AAC).srt",
+   "size": 28602,
+   "last_modified": "2024-11-24T00:28:09.247689623Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2006%20(BS4%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 06 (BS4 1920x1080 x265 AAC).ass",
+   "size": 88990,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2006%20(BS4%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 06 (BS4 1920x1080 x265 AAC).srt",
+   "size": 28602,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2007%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 07 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 81615,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2007%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 07 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 28464,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2008%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 08 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 84476,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2008%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 08 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 30009,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2009%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 09 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 86725,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2009%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 09 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 29763,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2010%20(CBC%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 10 (CBC 1920x1080 x264 AAC).ass",
+   "size": 101763,
+   "last_modified": "2025-01-06T10:57:53.243427792Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2010%20(CBC%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 10 (CBC 1920x1080 x264 AAC).srt",
+   "size": 31685,
+   "last_modified": "2025-01-06T10:57:53.243427792Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2010%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 10 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 94493,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2010%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 10 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 31309,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2011%20(CBC%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 11 (CBC 1920x1080 x264 AAC).ass",
+   "size": 83035,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2011%20(CBC%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 11 (CBC 1920x1080 x264 AAC).srt",
+   "size": 27183,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2012%20(CBC%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 12 (CBC 1920x1080 x264 AAC).ass",
+   "size": 88519,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2012%20(CBC%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 12 (CBC 1920x1080 x264 AAC).srt",
+   "size": 27170,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2013%20(CBC%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 13 (CBC 1920x1080 x264 AAC).ass",
+   "size": 90284,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2013%20(CBC%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 13 (CBC 1920x1080 x264 AAC).srt",
+   "size": 29102,
+   "last_modified": "2025-01-06T11:02:20.323530955Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2014%20(WEB-DL%201920x1080%20x264%20AAC).sdh.srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 14 (WEB-DL 1920x1080 x264 AAC).sdh.srt",
+   "size": 24664,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2015%20(BS4%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 15 (BS4 1920x1080 x265 AAC).ass",
+   "size": 107768,
+   "last_modified": "2025-01-26T06:12:58.890890209Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2015%20(BS4%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 15 (BS4 1920x1080 x265 AAC).srt",
+   "size": 32401,
+   "last_modified": "2025-01-26T06:12:58.890890209Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2016%20(RKB%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 16 (RKB 1920x1080 x265 AAC).ass",
+   "size": 84026,
+   "last_modified": "2025-01-26T09:36:32.597371485Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2016%20(RKB%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 16 (RKB 1920x1080 x265 AAC).srt",
+   "size": 28924,
+   "last_modified": "2025-01-26T09:36:32.597371485Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2017%20(WEB-DL%201920x1080%20x264%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 17 (WEB-DL 1920x1080 x264 AAC).ass",
+   "size": 94931,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2017%20(WEB-DL%201920x1080%20x264%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 17 (WEB-DL 1920x1080 x264 AAC).srt",
+   "size": 31836,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2018%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).ass",
+   "size": 93199,
+   "last_modified": "2025-02-10T16:19:28.52384034Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2018%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 18 (TBS 1920x1080 x265 AAC).srt",
+   "size": 29972,
+   "last_modified": "2025-02-10T16:19:28.52384034Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2019%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 19 (TBS 1920x1080 x265 AAC).ass",
+   "size": 101700,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2019%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 19 (TBS 1920x1080 x265 AAC).srt",
+   "size": 31458,
+   "last_modified": "2025-04-01T10:57:24.996704643Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2020%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 20 (TBS 1920x1080 x265 AAC).ass",
+   "size": 105619,
+   "last_modified": "2025-02-23T11:39:16.170278776Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2020%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 20 (TBS 1920x1080 x265 AAC).srt",
+   "size": 33566,
+   "last_modified": "2025-02-23T11:39:16.170278776Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2021%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 21 (TBS 1920x1080 x265 AAC).ass",
+   "size": 103542,
+   "last_modified": "2025-03-02T12:19:02.888184915Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2021%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 21 (TBS 1920x1080 x265 AAC).srt",
+   "size": 33806,
+   "last_modified": "2025-03-02T12:19:02.888184915Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2022%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 22 (TBS 1920x1080 x265 AAC).ass",
+   "size": 108383,
+   "last_modified": "2025-03-20T16:18:43.658227333Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2022%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 22 (TBS 1920x1080 x265 AAC).srt",
+   "size": 33224,
+   "last_modified": "2025-03-20T16:18:43.658227333Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2023%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 23 (TBS 1920x1080 x265 AAC).ass",
+   "size": 94090,
+   "last_modified": "2025-03-16T10:17:18.153087708Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2023%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 23 (TBS 1920x1080 x265 AAC).srt",
+   "size": 30238,
+   "last_modified": "2025-03-16T10:17:18.153087708Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2024%20(MBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 24 (MBS 1920x1080 x265 AAC).srt",
+   "size": 38563,
+   "last_modified": "2025-03-23T17:11:11.233679912Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2025%20END%20(TBS%201920x1080%20x265%20AAC).ass",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 25 END (TBS 1920x1080 x265 AAC).ass",
+   "size": 102388,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%5BNanakoRaws%5D%20Shangri-La%20Frontier%20S2%20-%2025%20END%20(TBS%201920x1080%20x265%20AAC).srt",
+   "name": "[NanakoRaws] Shangri-La Frontier S2 - 25 END (TBS 1920x1080 x265 AAC).srt",
+   "size": 33694,
+   "last_modified": "2025-04-01T10:57:24.992704632Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E01.%E5%8D%8A%E8%A3%B8%E3%81%A8%E6%84%89%E5%BF%AB%E3%81%AA%E4%BB%B2%E9%96%93%E9%81%94.in.%E3%82%B4%E3%83%BC%E3%83%AC%E3%83%A0%E3%83%91%E3%83%A9%E3%83%80%E3%82%A4%E3%82%B9.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E01.半裸と愉快な仲間達.in.ゴーレムパラダイス.WEBRip.Netflix.ja[cc].srt",
+   "size": 31185,
+   "last_modified": "2024-10-13T21:13:55.74188905Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E02.%E8%9E%8D%E9%80%9A%E7%9F%A5%E3%82%89%E3%81%9A%E3%81%AE%E9%96%80%E7%95%AA.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E02.融通知らずの門番.WEBRip.Netflix.ja[cc].srt",
+   "size": 29229,
+   "last_modified": "2024-10-22T21:47:20.71757452Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E03.%E5%8A%A0%E9%80%9F%E3%81%99%E3%82%8B%E4%BC%9A%E8%AD%B0%E3%80%81%E8%BF%B8.(%E3%81%BB%E3%81%A8%E3%81%B0%E3%81%97).%E3%82%8B%E6%AC%B2%E6%9C%9B%E3%80%81%E3%81%9D%E3%81%97%E3%81%A6%E3%81%9D%E3%82%8C%E3%81%9E%E3%82%8C%E3%81%AE%E7%B3%B8%E5%8F%A3.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E03.加速する会議、迸.(ほとばし).る欲望、そしてそれぞれの糸口.WEBRip.Netflix.ja[cc].srt",
+   "size": 35624,
+   "last_modified": "2024-10-31T03:43:21.655303106Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E04.%E4%BA%BA%E3%81%AF%E4%B8%8D%E5%8F%AF%E8%83%BD%E3%81%AB%E5%A4%A2%E3%82%92%E8%A6%8B%E3%82%8B%E3%80%81%E3%81%84%E3%81%96%E7%A9%BA%E3%82%92%E6%AD%A9%E3%81%8F%E6%99%82.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E04.人は不可能に夢を見る、いざ空を歩く時.WEBRip.Netflix.ja[cc].srt",
+   "size": 31250,
+   "last_modified": "2024-11-06T20:15:32.146750014Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E05.%E3%81%9D%E3%81%AE%E8%A1%9D%E5%8B%95%E3%81%AF%E3%80%81%E9%A3%A2%E9%A4%93.%E3%81%9D%E3%81%AE%E5%9F%B7%E5%BF%B5%E3%81%AF%E3%80%81%E6%B8%87%E6%9C%9B.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E05.その衝動は、飢餓.その執念は、渇望.WEBRip.Netflix.ja[cc].srt",
+   "size": 22747,
+   "last_modified": "2024-11-26T22:29:54.762033709Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E06.%E6%BF%80%E9%97%98%E3%81%AE%E6%9E%9C%E3%81%A6%E3%81%AB%E3%80%81%E7%B5%B6%E6%9C%9B.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E06.激闘の果てに、絶望.WEBRip.Netflix.ja[cc].srt",
+   "size": 28961,
+   "last_modified": "2024-11-26T22:29:54.766033663Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E07.%E5%8F%8C%E7%BF%BC%E7%9B%B8%E6%89%93%E3%81%A4.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E07.双翼相打つ.WEBRip.Netflix.ja[cc].srt",
+   "size": 27605,
+   "last_modified": "2024-11-26T22:29:54.766033663Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E08.%E7%8D%85%E5%AD%90%E3%81%AF%E5%85%8E%E3%81%AB%E5%85%A8%E5%8A%9B%E3%82%92%E3%80%81%E8%9F%B9%E3%81%AF%E4%B8%8D%E6%AD%BB%E9%B3%A5%E3%81%AB%E3%83%94%E3%82%B6%E3%82%AB%E3%83%83%E3%82%BF%E3%83%BC.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E08.獅子は兎に全力を、蟹は不死鳥にピザカッター.WEBRip.Netflix.ja[cc].srt",
+   "size": 30567,
+   "last_modified": "2024-12-18T01:54:11.639501313Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E09.%E9%A7%86%E3%81%91%E3%82%8D%E3%80%81%E7%84%A6%E7%87%A5%E3%82%92%E7%87%83%E6%96%99%E3%81%AB.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E09.駆けろ、焦燥を燃料に.WEBRip.Netflix.ja[cc].srt",
+   "size": 30990,
+   "last_modified": "2024-12-18T01:54:11.639501313Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E10.%E7%8C%9F%E7%8A%AC%E3%81%AE%E5%A6%82%E3%81%8F%E5%97%85%E3%81%8E%E4%BB%98%E3%81%91%E3%81%A6.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E10.猟犬の如く嗅ぎ付けて.WEBRip.Netflix.ja[cc].srt",
+   "size": 33350,
+   "last_modified": "2024-12-18T01:54:11.639501313Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E11.%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6.%E5%85%B6%E3%81%AE%E4%B8%80.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E11.大志の灯火を抱いて.其の一.WEBRip.Netflix.ja[cc].srt",
+   "size": 27926,
+   "last_modified": "2024-12-26T03:48:25.801222028Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E12.%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6.%E5%85%B6%E3%81%AE%E4%BA%8C.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E12.大志の灯火を抱いて.其の二.WEBRip.Netflix.ja[cc].srt",
+   "size": 26946,
+   "last_modified": "2025-01-01T01:55:56.667653394Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E13.%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6.%E5%85%B6%E3%81%AE%E4%B8%89.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E13.大志の灯火を抱いて.其の三.WEBRip.Netflix.ja[cc].srt",
+   "size": 30574,
+   "last_modified": "2025-01-12T20:49:27.245149427Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E14.%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6.%E5%85%B6%E3%81%AE%E5%9B%9B.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E14.大志の灯火を抱いて.其の四.WEBRip.Netflix.ja[cc].srt",
+   "size": 26039,
+   "last_modified": "2025-01-12T20:49:27.245149427Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E15.%E5%A4%A7%E5%BF%97%E3%81%AE%E7%81%AF%E7%81%AB%E3%82%92%E6%8A%B1%E3%81%84%E3%81%A6.%E5%85%B6%E3%81%AE%E4%BA%94.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E15.大志の灯火を抱いて.其の五.WEBRip.Netflix.ja[cc].srt",
+   "size": 37274,
+   "last_modified": "2025-01-19T21:59:58.193832347Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E16.%E8%B2%B4%E6%96%B9%E3%81%AF%E3%81%AA%E3%82%93%E3%81%AE%E3%81%9F%E3%82%81%E3%81%AB%E3%82%B2%E3%83%BC%E3%83%A0%E3%82%92%E3%81%97%E3%81%BE%E3%81%99%E3%81%8B_._.%E5%BD%BC%E3%82%89%E3%81%AE%E5%9B%9E%E7%AD%94.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E16.貴方はなんのためにゲームをしますか_._.彼らの回答.WEBRip.Netflix.ja[cc].srt",
+   "size": 28230,
+   "last_modified": "2025-01-26T22:40:15.726307573Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E17.%E3%82%B8%E3%83%A7%E3%83%BC%E3%82%AB%E3%83%BC%E6%B7%B7%E3%81%98%E3%82%8A%E3%81%AE%E3%82%B9%E3%83%88%E3%83%AC%E3%83%BC%E3%83%88%E3%83%95%E3%83%A9%E3%83%83%E3%82%B7%E3%83%A5.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E17.ジョーカー混じりのストレートフラッシュ.WEBRip.Netflix.ja[cc].srt",
+   "size": 33648,
+   "last_modified": "2025-02-02T22:31:52.498560136Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E18.%E8%B5%A4%E9%AF%A8%E3%80%81%E9%AD%9A%E6%80%AA%E3%81%A8%E7%9B%B8%E5%AF%BE%E3%81%99.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E18.赤鯨、魚怪と相対す.WEBRip.Netflix.ja[cc].srt",
+   "size": 30703,
+   "last_modified": "2025-02-09T22:29:52.744357113Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E19.%E9%9D%99%E8%AC%90%E3%81%8C%E7%B5%82%E3%82%8F%E3%82%8B%E3%80%81%E5%BB%83%E9%83%BD%E3%82%88%E8%B3%91%E3%82%84%E3%81%8B%E3%81%AA%E3%82%8C.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E19.静謐が終わる、廃都よ賑やかなれ.WEBRip.Netflix.ja[cc].srt",
+   "size": 31320,
+   "last_modified": "2025-02-24T00:49:06.195676059Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E20.%E3%81%84%E3%81%96%E9%BE%8D%E9%AD%9A%E4%B8%89%E6%9E%9A%E3%81%8A%E3%82%8D%E3%81%97.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E20.いざ龍魚三枚おろし.WEBRip.Netflix.ja[cc].srt",
+   "size": 34992,
+   "last_modified": "2025-03-03T01:49:39.328125547Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E21.%E3%81%9D%E3%81%97%E3%81%A6%E6%97%85%E7%8B%BC%E3%81%AF%E6%B5%B7%E3%81%8B%E3%82%89%E6%91%A9%E5%A4%A9%E6%A5%BC%E3%81%B8.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E21.そして旅狼は海から摩天楼へ.WEBRip.Netflix.ja[cc].srt",
+   "size": 36193,
+   "last_modified": "2025-03-10T05:09:46.881752965Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E22.%E3%81%9F%E3%81%A0%E4%B8%80%E7%9E%AC%E3%81%AB%E3%81%A6%E6%B0%97%E5%8F%96%E3%82%8B%E3%81%AF%E7%81%BC%E5%85%89%E3%81%AE%E9%99%90%E7%95%8C.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E22.ただ一瞬にて気取るは灼光の限界.WEBRip.Netflix.ja[cc].srt",
+   "size": 33218,
+   "last_modified": "2025-03-17T22:24:27.766757547Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E23.%E7%A7%92%E9%80%9F%E7%99%BE%E3%83%A1%E3%83%BC%E3%83%88%E3%83%AB%E3%81%AE%E6%AE%BA%E6%84%8F.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E23.秒速百メートルの殺意.WEBRip.Netflix.ja[cc].srt",
+   "size": 31203,
+   "last_modified": "2025-03-24T03:30:49.078928673Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E24.%E6%B7%B1%E3%81%8D%E6%B5%B7%E3%81%AE%E7%8E%8B%E3%82%88%E3%80%81%E3%81%B6%E3%81%A1%E3%81%AE%E3%82%81%E3%81%97%E5%A5%89.(%E3%81%9F%E3%81%A6%E3%81%BE%E3%81%A4).%E3%82%8B.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E24.深き海の王よ、ぶちのめし奉.(たてまつ).る.WEBRip.Netflix.ja[cc].srt",
+   "size": 27855,
+   "last_modified": "2025-03-31T01:10:47.645446546Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/7707/download/%E3%82%B7%E3%83%A3%E3%83%B3%E3%82%B0%E3%83%AA%E3%83%A9%E3%83%BB%E3%83%95%E3%83%AD%E3%83%B3%E3%83%86%E3%82%A3%E3%82%A2.S02E25.%E5%8C%BF%E5%90%8D.(%E9%A6%AC%E9%B9%BF).%E9%87%8E%E9%83%8EA%E3%83%81%E3%83%BC%E3%83%A0%E3%80%81%E3%81%9D%E3%81%97%E3%81%A6%E9%A2%A8%E9%9B%B2%E6%80%A5.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "シャングリラ・フロンティア.S02E25.匿名.(馬鹿).野郎Aチーム、そして風雲急.WEBRip.Netflix.ja[cc].srt",
+   "size": 34496,
+   "last_modified": "2025-04-05T22:43:02.050502039Z"
+  }
+ ]
+}

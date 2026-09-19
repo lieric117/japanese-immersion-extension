@@ -1858,6 +1858,17 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   if (entryName) label.title = `Jimaku entry: ${entryName}`;
 
   const select = document.createElement("select");
+  // Nothing auto-loaded (2026-09-18): a manual entry pick whose files name no
+  // file for this episode lists them WITHOUT loading one, rather than loading
+  // whichever sorted first. Say so, instead of the dropdown appearing to show
+  // a file that isn't playing.
+  if (!files.some((f) => f.url === selectedUrl)) {
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = "— none loaded: no file here is marked as this episode, pick one —";
+    none.selected = true;
+    select.appendChild(none);
+  }
   for (const file of files) {
     const option = document.createElement("option");
     option.value = file.url;
