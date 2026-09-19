@@ -63,95 +63,117 @@ function episodeNumberFromName(name) {
   return m ? Number(m[1]) : null;
 }
 
+// Every TVEpisode block on the page must describe the same episode, or the page
+// is treated as not yet detectable (2026-09-18). Only the first used to be
+// read, so two disagreeing blocks — the plausible shape of a page mid-way
+// through replacing one episode's metadata with the next — were settled by
+// document order, silently. Returning null routes that moment into the
+// existing retry/watchdog path instead of choosing.
+let warnedConflictingBlocksFor = null;
 function detectShowEpisode() {
+  const found = [];
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
-    let data;
-    try {
-      data = JSON.parse(script.textContent);
-    } catch {
-      continue;
+    const d = detectFromJsonLdScript(script);
+    if (d) found.push(d);
+  }
+  if (!found.length) return null;
+  const identities = new Set(found.map(episodeIdentity));
+  if (identities.size > 1) {
+    if (warnedConflictingBlocksFor !== location.pathname) {
+      warnedConflictingBlocksFor = location.pathname;
+      console.warn("[jp-immersion] this page carries TVEpisode blocks for different episodes — waiting rather than choosing one:", [...identities]);
     }
-    if (data["@type"] !== "TVEpisode") continue;
-    const seriesTitle = data.partOfSeries?.name;
-    const jsonLdEpisode = Number.isInteger(data.episodeNumber) ? data.episodeNumber : null;
-    // `episodeNumber` is NOT reliably the episode Crunchyroll itself displays,
-    // and it is not the number Jimaku indexes by (2026-08-01). Measured on two
-    // real pages:
-    //
-    //   One Piece Elbaph  episodeNumber: 1     name: "… | E1156 - …"   shown: 1156
-    //   Naruto S2 opener  episodeNumber: 33    name: "… | E33 - …"     shown: 33
-    //
-    // The code inside `name` matched the displayed episode on both, and the
-    // CMS API's own `episode_number` on both; `episodeNumber` matched on only
-    // one. So the code is preferred where it's numeric. This was a live
-    // wrong-episode load: One Piece episode 1156 resolved against episode 1.
-    const nameEpisode = episodeNumberFromName(data.name);
-    const episodeNumber = nameEpisode ?? jsonLdEpisode;
-    // Checked AFTER the title code, not before it (2026-08-01). Crunchyroll
-    // publishes real, watchable entries with no `episode_number` at all —
-    // prologues carrying the code "0", and films — measured across a 2,385
-    // episode sample. Rejecting the page on the number alone threw away a
-    // usable code and produced "Couldn't detect the show/episode" on content
-    // that resolves perfectly well once the code is read.
-    if (!seriesTitle || !Number.isInteger(episodeNumber)) continue;
-    if (nameEpisode !== null && nameEpisode !== jsonLdEpisode && warnedEpisodeMismatchFor !== location.pathname) {
-      warnedEpisodeMismatchFor = location.pathname;
+    return null;
+  }
+  return found[0];
+}
+
+function detectFromJsonLdScript(script) {
+  let data;
+  try {
+    data = JSON.parse(script.textContent);
+  } catch {
+    return null;
+  }
+  if (data?.["@type"] !== "TVEpisode") return null;
+  const seriesTitle = data.partOfSeries?.name;
+  const jsonLdEpisode = Number.isInteger(data.episodeNumber) ? data.episodeNumber : null;
+  // `episodeNumber` is NOT reliably the episode Crunchyroll itself displays,
+  // and it is not the number Jimaku indexes by (2026-08-01). Measured on two
+  // real pages:
+  //
+  //   One Piece Elbaph  episodeNumber: 1     name: "… | E1156 - …"   shown: 1156
+  //   Naruto S2 opener  episodeNumber: 33    name: "… | E33 - …"     shown: 33
+  //
+  // The code inside `name` matched the displayed episode on both, and the
+  // CMS API's own `episode_number` on both; `episodeNumber` matched on only
+  // one. So the code is preferred where it's numeric. This was a live
+  // wrong-episode load: One Piece episode 1156 resolved against episode 1.
+  const nameEpisode = episodeNumberFromName(data.name);
+  const episodeNumber = nameEpisode ?? jsonLdEpisode;
+  // Checked AFTER the title code, not before it (2026-08-01). Crunchyroll
+  // publishes real, watchable entries with no `episode_number` at all —
+  // prologues carrying the code "0", and films — measured across a 2,385
+  // episode sample. Rejecting the page on the number alone threw away a
+  // usable code and produced "Couldn't detect the show/episode" on content
+  // that resolves perfectly well once the code is read.
+  if (!seriesTitle || !Number.isInteger(episodeNumber)) return null;
+  if (nameEpisode !== null && nameEpisode !== jsonLdEpisode && warnedEpisodeMismatchFor !== location.pathname) {
+    warnedEpisodeMismatchFor = location.pathname;
+    console.warn(
+      `[jp-immersion] this page's JSON-LD says episodeNumber ${jsonLdEpisode} but its title says ` +
+        `episode ${nameEpisode} — using ${nameEpisode}, which is what Crunchyroll displays and what ` +
+        `Jimaku indexes by. Title was: ${JSON.stringify(data.name)}`
+    );
+  }
+  const detected = {
+    seriesTitle,
+    episodeNumber,
+    seasonNumber: Number.isInteger(data.partOfSeason?.seasonNumber) ? data.partOfSeason.seasonNumber : null,
+    // Crunchyroll's own name for this season, when it publishes one
+    // (2026-07-27). Preferred over `seasonNumber` for picking a Jimaku
+    // entry — see background.js's resolveTextFiles for why the NUMBER can't
+    // be trusted on its own.
+    seasonName: typeof data.partOfSeason?.name === "string" ? data.partOfSeason.name : null,
+    // The episode's OWN title (2026-08-01). For ordinary TV this is just the
+    // episode name and resolution ignores it, but for a film it is the only
+    // signal that says WHICH film — `partOfSeries.name` is the franchise on
+    // some film pages ("Demon Slayer: Kimetsu no Yaiba" for Mugen Train) and
+    // the film itself on others, and the season name at best says "a movie".
+    // Without it, a franchise with several films can only be guessed at; see
+    // background.js's matchEntryByContentTitle.
+    episodeTitle: typeof data.name === "string" ? data.name : null,
+  };
+  // Diagnostic, logged only when the expected field is missing: the
+  // season-name matching in background.js is built on Crunchyroll publishing
+  // this, which couldn't be verified without a live browser (the page is
+  // behind a Cloudflare challenge). If this line ever appears, that fix has
+  // degraded to the old number-only behaviour and the object dumped here
+  // says what to try instead. Once per episode, not once per call — this
+  // function runs on every watchdog tick as well as on every load.
+  if (detected.seasonName === null && warnedMissingSeasonNameFor !== location.pathname) {
+    warnedMissingSeasonNameFor = location.pathname;
+    if (data.partOfSeason) {
       console.warn(
-        `[jp-immersion] this page's JSON-LD says episodeNumber ${jsonLdEpisode} but its title says ` +
-          `episode ${nameEpisode} — using ${nameEpisode}, which is what Crunchyroll displays and what ` +
-          `Jimaku indexes by. Title was: ${JSON.stringify(data.name)}`
+        "[jp-immersion] no partOfSeason.name on this page — season matching falls back to the season NUMBER, " +
+          "which Crunchyroll assigns by list position rather than by season. partOfSeason was:",
+        data.partOfSeason
+      );
+    } else {
+      // Not gated on partOfSeason existing, as of 2026-07-31 — the ENTIRELY
+      // absent case was the one that mattered and the one that said nothing.
+      // Films, OVAs, specials and compilations have no season block at all,
+      // which used to be read as "season 1" in silence: a movie playing under
+      // the franchise's first season subtitles, with an empty console. Entry
+      // resolution now handles this case explicitly (see background.js's
+      // matchEntryByFullTitle); this line is what says the page is in it.
+      console.log(
+        "[jp-immersion] this title has no season information at all (normal for a movie, OVA or special) — " +
+          "the Jimaku entry will be identified by title instead."
       );
     }
-    const detected = {
-      seriesTitle,
-      episodeNumber,
-      seasonNumber: Number.isInteger(data.partOfSeason?.seasonNumber) ? data.partOfSeason.seasonNumber : null,
-      // Crunchyroll's own name for this season, when it publishes one
-      // (2026-07-27). Preferred over `seasonNumber` for picking a Jimaku
-      // entry — see background.js's resolveTextFiles for why the NUMBER can't
-      // be trusted on its own.
-      seasonName: typeof data.partOfSeason?.name === "string" ? data.partOfSeason.name : null,
-      // The episode's OWN title (2026-08-01). For ordinary TV this is just the
-      // episode name and resolution ignores it, but for a film it is the only
-      // signal that says WHICH film — `partOfSeries.name` is the franchise on
-      // some film pages ("Demon Slayer: Kimetsu no Yaiba" for Mugen Train) and
-      // the film itself on others, and the season name at best says "a movie".
-      // Without it, a franchise with several films can only be guessed at; see
-      // background.js's matchEntryByContentTitle.
-      episodeTitle: typeof data.name === "string" ? data.name : null,
-    };
-    // Diagnostic, logged only when the expected field is missing: the
-    // season-name matching in background.js is built on Crunchyroll publishing
-    // this, which couldn't be verified without a live browser (the page is
-    // behind a Cloudflare challenge). If this line ever appears, that fix has
-    // degraded to the old number-only behaviour and the object dumped here
-    // says what to try instead. Once per episode, not once per call — this
-    // function runs on every watchdog tick as well as on every load.
-    if (detected.seasonName === null && warnedMissingSeasonNameFor !== location.pathname) {
-      warnedMissingSeasonNameFor = location.pathname;
-      if (data.partOfSeason) {
-        console.warn(
-          "[jp-immersion] no partOfSeason.name on this page — season matching falls back to the season NUMBER, " +
-            "which Crunchyroll assigns by list position rather than by season. partOfSeason was:",
-          data.partOfSeason
-        );
-      } else {
-        // Not gated on partOfSeason existing, as of 2026-07-31 — the ENTIRELY
-        // absent case was the one that mattered and the one that said nothing.
-        // Films, OVAs, specials and compilations have no season block at all,
-        // which used to be read as "season 1" in silence: a movie playing under
-        // the franchise's first season subtitles, with an empty console. Entry
-        // resolution now handles this case explicitly (see background.js's
-        // matchEntryByFullTitle); this line is what says the page is in it.
-        console.log(
-          "[jp-immersion] this title has no season information at all (normal for a movie, OVA or special) — " +
-            "the Jimaku entry will be identified by title instead."
-        );
-      }
-    }
-    return detected;
   }
-  return null;
+  return detected;
 }
 
 // JAPANESE_WORD_RE and groupTokens live in tokenize-utils.js (loaded before
