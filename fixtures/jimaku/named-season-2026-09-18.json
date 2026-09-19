@@ -1,0 +1,378 @@
+{
+ "https://jimaku.cc/api/entries/search?anime=true&query=Kaiju%20No.%208": [
+  {
+   "id": 2866,
+   "name": "Kaijuu 8-gou",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": true,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-10-18T23:46:05Z",
+   "anilist_id": 153288,
+   "english_name": "Kaiju No.8",
+   "japanese_name": "怪獣８号"
+  },
+  {
+   "id": 9877,
+   "name": "Kaijuu 8-gou: Hoshina no Kyuujitsu",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-02-22T07:39:08Z",
+   "creator_id": 15,
+   "anilist_id": 179999,
+   "english_name": "Kaiju No.8: Hoshina's Day Off",
+   "japanese_name": "怪獣8号 保科の休日"
+  },
+  {
+   "id": 9876,
+   "name": "Kaijuu 8-gou 2nd Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-10-03T23:45:03Z",
+   "creator_id": 15,
+   "anilist_id": 178754,
+   "notes": "No. overall: 13-23\r\n\r\nNo. in season: 1-11\r\n\r\nNetflix files originally numbered E14-24",
+   "english_name": "Kaiju No. 8 Season 2",
+   "japanese_name": "怪獣８号 第２期"
+  }
+ ],
+ "https://jimaku.cc/api/entries/search?anime=true&query=Re%3AZERO%20-Starting%20Life%20in%20Another%20World": [
+  {
+   "id": 332,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": true,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-10-10T14:33:14Z",
+   "anilist_id": 21355,
+   "notes": "No. overall: 1-25",
+   "english_name": "Re:ZERO -Starting Life in Another World-",
+   "japanese_name": "Re:ゼロから始める異世界生活"
+  },
+  {
+   "id": 3081,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu 2nd Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2024-11-26T20:28:56Z",
+   "creator_id": 15,
+   "anilist_id": 108632,
+   "notes": "No. overall: 26-38\r\n\r\nNo. in season: 1-13",
+   "english_name": "Re:ZERO -Starting Life in Another World- Season 2",
+   "japanese_name": "Re:ゼロから始める異世界生活 2nd Season"
+  },
+  {
+   "id": 3082,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu 2nd Season Part 2",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2024-11-26T20:29:23Z",
+   "creator_id": 15,
+   "anilist_id": 119661,
+   "notes": "No. overall: 39-50\r\n\r\nNo. in season: 14-25",
+   "english_name": "Re:ZERO -Starting Life in Another World- Season 2 Part 2",
+   "japanese_name": "Re:ゼロから始める異世界生活 2nd Season Part 2"
+  },
+  {
+   "id": 7615,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu 3rd Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-06-02T23:50:52Z",
+   "creator_id": 15,
+   "anilist_id": 163134,
+   "notes": "No. overall: 51-66\r\n\r\nNo. in season: 1-16",
+   "english_name": "Re:ZERO -Starting Life in Another World- Season 3",
+   "japanese_name": "Re:ゼロから始める異世界生活 3rd season"
+  },
+  {
+   "id": 11820,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-09-17T10:02:53Z",
+   "creator_id": 1211,
+   "anilist_id": 189046,
+   "english_name": "Re:ZERO -Starting Life in Another World- Season 4",
+   "japanese_name": "Re:ゼロから始める異世界生活 4th season"
+  },
+  {
+   "id": 3083,
+   "name": "Re:Zero kara Hajimeru Isekai Seikatsu OVAs",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2024-11-26T20:27:30Z",
+   "creator_id": 15,
+   "anilist_id": 100049,
+   "english_name": "Re:ZERO -Starting Life in Another World- OVAs",
+   "japanese_name": "Re:ゼロから始める異世界生活 OVAs"
+  }
+ ],
+ "https://jimaku.cc/api/entries/332/files?episode=1": [
+  {
+   "url": "https://jimaku.cc/entry/332/download/(Hi10)_Re_Zero_-_01_(BD_720p)_(BlurayDesuYo)_(DB3C1337).ja-en.ass",
+   "name": "(Hi10)_Re_Zero_-_01_(BD_720p)_(BlurayDesuYo)_(DB3C1337).ja-en.ass",
+   "size": 275418,
+   "last_modified": "2025-10-10T14:33:14.360878502Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/332/download/(Hi10)_Re_Zero_-_01_(BD_720p)_(BlurayDesuYo)_(DB3C1337).ja.srt",
+   "name": "(Hi10)_Re_Zero_-_01_(BD_720p)_(BlurayDesuYo)_(DB3C1337).ja.srt",
+   "size": 64022,
+   "last_modified": "2025-10-10T14:33:14.352878473Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/332/download/Re%20Life%20in%20a%20different%20world%20from%20zero.S01E01.WEBRip.ja%5Bcc%5D.srt",
+   "name": "Re Life in a different world from zero.S01E01.WEBRip.ja[cc].srt",
+   "size": 70259,
+   "last_modified": "2025-10-10T14:33:14.356878487Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/332/download/Re%20ZERO%20Directors%20Cut%20Episode%2001%20%5BCombined%20Episodes%5D.srt",
+   "name": "Re ZERO Directors Cut Episode 01 [Combined Episodes].srt",
+   "size": 84586,
+   "last_modified": "2025-10-10T14:33:14.356878487Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/332/download/Re_%E3%82%BC%E3%83%AD%E3%81%8B%E3%82%89%E5%A7%8B%E3%82%81%E3%82%8B%E7%95%B0%E4%B8%96%E7%95%8C%E7%94%9F%E6%B4%BB.%E6%96%B0%E7%B7%A8%E9%9B%86%E7%89%88.S01E01.%E5%A7%8B%E3%81%BE%E3%82%8A%E3%81%AE%E7%B5%82%E3%82%8F%E3%82%8A%E3%81%A8%E7%B5%82%E3%82%8F%E3%82%8A%E3%81%AE%E5%A7%8B%E3%81%BE%E3%82%8A.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "Re_ゼロから始める異世界生活.新編集版.S01E01.始まりの終わりと終わりの始まり.WEBRip.Netflix.ja[cc].srt",
+   "size": 85477,
+   "last_modified": "2024-11-26T20:27:12.170067157Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/332/download/%5BKamigami%5D%20Re%20Zero%20kara%20Hajimeru%20Isekai%20Seikatsu%20-%2001v3%20%5B1920x1080%20x265%20Ma10p%20AAC%5D%5BJPN%5D.ass",
+   "name": "[Kamigami] Re Zero kara Hajimeru Isekai Seikatsu - 01v3 [1920x1080 x265 Ma10p AAC][JPN].ass",
+   "size": 80611,
+   "last_modified": "2024-03-03T14:29:05Z"
+  }
+ ],
+ "https://jimaku.cc/api/entries/search?anime=true&query=Fate%2FGrand%20Order%20Absolute%20Demonic%20Front%3A%20Babylonia": [
+  {
+   "id": 523,
+   "name": "Fate/Grand Order: Zettai Majuu Sensen Babylonia",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": true,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2020-04-06T23:12:53Z",
+   "anilist_id": 103275,
+   "english_name": "Fate/Grand Order Absolute Demonic Front: Babylonia",
+   "japanese_name": "Fate/Grand Order -絶対魔獣戦線バビロニア-"
+  },
+  {
+   "id": 8347,
+   "name": "Fate/Grand Order: Zettai Majuu Sensen Babylonia - Initium Iter",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2024-11-25T03:09:37Z",
+   "creator_id": 37,
+   "anilist_id": 110851,
+   "english_name": "Fate/Grand Order Absolute Demonic Front: Babylonia - Initium Iter",
+   "japanese_name": "Fate/Grand Order -絶対魔獣戦線バビロニア- Initium Iter"
+  }
+ ],
+ "https://jimaku.cc/api/entries/523/files?episode=1": [
+  {
+   "url": "https://jimaku.cc/entry/523/download/Fate%20Grand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E01.WEBRip.ja%5Bcc%5D.srt",
+   "name": "Fate Grand Order Absolute Demonic Front Babylonia.S01E01.WEBRip.ja[cc].srt",
+   "size": 26073,
+   "last_modified": "2024-03-03T12:28:54Z"
+  }
+ ],
+ "https://jimaku.cc/api/entries/search?anime=true&query=Fate%2FGrand%20Order%20Final%20Singularity%20Grand%20Temple%20of%20Time%3A%20Solomon": [
+  {
+   "id": 3720,
+   "name": "Fate/Grand Order: Shuukyoku Tokuiten - Kani Jikan Shinden Solomon",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": true,
+    "adult": false
+   },
+   "last_modified": "2024-04-25T04:37:28Z",
+   "creator_id": 37,
+   "anilist_id": 116756,
+   "english_name": "Fate/Grand Order Final Singularity - Grand Temple of Time: Solomon",
+   "japanese_name": "Fate/Grand Order -終局特異点 冠位時間神殿ソロモン-"
+  }
+ ],
+ "https://jimaku.cc/api/entries/523/files": [
+  {
+   "url": "https://jimaku.cc/entry/523/download/Fate%20Grand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E01.WEBRip.ja%5Bcc%5D.srt",
+   "name": "Fate Grand Order Absolute Demonic Front Babylonia.S01E01.WEBRip.ja[cc].srt",
+   "size": 26073,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E02.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E02.WEBRip.ja[cc].srt",
+   "size": 32868,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E03.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E03.WEBRip.ja[cc].srt",
+   "size": 30638,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E04.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E04.WEBRip.ja[cc].srt",
+   "size": 32310,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E05.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E05.WEBRip.ja[cc].srt",
+   "size": 28389,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E06.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E06.WEBRip.ja[cc].srt",
+   "size": 36327,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E07.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E07.WEBRip.ja[cc].srt",
+   "size": 29885,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E08.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E08.WEBRip.ja[cc].srt",
+   "size": 27501,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E09.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E09.WEBRip.ja[cc].srt",
+   "size": 35010,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E10.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E10.WEBRip.ja[cc].srt",
+   "size": 38784,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E11.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E11.WEBRip.ja[cc].srt",
+   "size": 30352,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E12.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E12.WEBRip.ja[cc].srt",
+   "size": 33921,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E13.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E13.WEBRip.ja[cc].srt",
+   "size": 27042,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E14.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E14.WEBRip.ja[cc].srt",
+   "size": 29836,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E15.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E15.WEBRip.ja[cc].srt",
+   "size": 27595,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E16.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E16.WEBRip.ja[cc].srt",
+   "size": 25534,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E17.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E17.WEBRip.ja[cc].srt",
+   "size": 30671,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E18.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E18.WEBRip.ja[cc].srt",
+   "size": 28944,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E19.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E19.WEBRip.ja[cc].srt",
+   "size": 28375,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E20.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E20.WEBRip.ja[cc].srt",
+   "size": 18519,
+   "last_modified": "2024-03-03T12:28:54Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/523/download/FateGrand%20Order%20Absolute%20Demonic%20Front%20Babylonia.S01E21.WEBRip.ja%5Bcc%5D.srt",
+   "name": "FateGrand Order Absolute Demonic Front Babylonia.S01E21.WEBRip.ja[cc].srt",
+   "size": 34524,
+   "last_modified": "2024-03-03T12:28:54Z"
+  }
+ ]
+}

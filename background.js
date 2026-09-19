@@ -1564,8 +1564,15 @@ function seasonNumberFromName(seasonName) {
   // season number to read, and answering 1 for it would be a guess dressed up
   // as data. A number is therefore only returned when a marker was actually
   // consumed, which is exactly when the base comes back shorter than the name.
-  if (base.length >= seasonName.trim().length) return null;
-  return season;
+  if (base.length < seasonName.trim().length) return season;
+  // Crunchyroll also puts the marker MID-name — "Season 1: Director's Cut",
+  // "Gintama Season 3 (Eps 266-316 Dub)", "… Season 2 (English Dub)" — which the
+  // end-anchored Jimaku patterns can't see (2026-09-18). An explicit "Season N"
+  // / "Nth Season" is unambiguous wherever it sits in a name Crunchyroll wrote;
+  // the bare-number and roman forms stay end-anchored, since mid-name they are
+  // ordinary title words ("Mob Psycho 100", "Part II: Wings of Freedom").
+  const mid = String(seasonName).match(/\bseason\s+(\d{1,2})\b|\b(\d{1,2})(?:st|nd|rd|th)\s+season\b/i);
+  return mid ? Number(mid[1] ?? mid[2]) : null;
 }
 
 // Does Crunchyroll's season NAME positively say this is not season 1?
@@ -2196,7 +2203,15 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
   // used. See matchEntryBySeasonName above for the Re:Zero report behind this.
   const nameMatch = matchEntryBySeasonName(entries, seasonName, query);
   const namedSeason = seasonNumberFromName(seasonName);
-  const wantedSeason = namedSeason ?? seasonNumber ?? 1;
+  // Crunchyroll's `seasonNumber` is a list POSITION (see above). It stands in
+  // for the season only when the page names no season of its own; a distinct
+  // name that states no number means the position is the ONLY evidence, and it
+  // is not evidence — Kaiju No. 8's "Mission Recon" recap sits at position 2
+  // and was loading Season 2's episodes (2026-09-18). Then no number is wanted
+  // and the season-number tier stays out of it.
+  const seasonHasOwnName =
+    Boolean(seasonName) && looseTitle(String(seasonName).replace(TRAILING_QUALIFIER_RE, "")) !== looseTitle(query);
+  const wantedSeason = namedSeason ?? (seasonHasOwnName ? null : seasonNumber ?? 1);
   // The content's own title outranks everything below it for non-episodic
   // content: it is the only signal that says WHICH film, where the season name
   // says at most "a film" and the series name is often the whole franchise.
@@ -2225,6 +2240,7 @@ async function resolveTextFiles(query, episode, headers, seasonNumber = null, se
           .filter(Boolean)
           .some(
             (field) =>
+              wantedSeason !== null &&
               entrySeasonNumber(field) === wantedSeason &&
               normalizeTitle(stripSeasonSuffix(field)) === normalizedQuery
           )
