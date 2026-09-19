@@ -14,10 +14,12 @@
 //   PICKED-OFF-EPISODE  (proven) the file fetchSubtitles actually LOADS states an
 //                       episode, not this one, while another file in the list
 //                       does state this one. The default on screen is wrong.
-//   SEASON-MIX          (proven) one episode's list holds the same episode number
+//   SEASON-MIX          (flagged) one episode's list holds the same episode number
 //                       under two different SxxEyy seasons — two different
-//                       episodes. audit-resolution's statedIdentity discards the
-//                       season, so it scored these as agreeing.
+//                       episodes — or one episode two providers label differently
+//                       (Netflix files a sequel as its own show), hence flagged.
+//   FRACTIONAL-IN-LIST  (proven) an integer episode's list holds a file naming a
+//                       fractional position (第13.5話) — a special.
 //   NONE-STATES-EPISODE (flagged) files state episodes, none of them this one (or
 //                       the offset the resolver logged). Possibly an unparsed
 //                       convention; possibly the wrong episode.
@@ -42,7 +44,8 @@ const { fileClaims, seasonMixes, ARCHIVE_RE } = require("./file-identity.js");
 
 const args = process.argv.slice(2);
 const opt = (name, fallback = null) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const captures = args.filter((a, i) => a.endsWith(".json") && args[i - 1] !== "--out" && args[i - 1] !== "--background");
+const VALUE_FLAGS = new Set(["--out", "--background", "--lists", "--only", "--exclude", "--max-per-season"]);
+const captures = args.filter((a, i) => a.endsWith(".json") && !VALUE_FLAGS.has(args[i - 1]));
 if (!captures.length) {
   console.error("usage: node scripts/audit/detection-sweep.js <capture.json>... [--only a,b] [--max-per-season N] [--out path]");
   process.exit(2);
@@ -54,6 +57,10 @@ const maxPerSeason = Number(opt("--max-per-season")) || Infinity;
 const sample = args.includes("--sample");
 const outPath = opt("--out");
 const withRemembered = !args.includes("--no-remembered");
+// --lists <path>: every episode's outcome (entry, file list, auto-picked file),
+// for diffing two resolvers on the same cached data.
+const listsPath = opt("--lists");
+const lists = [];
 const FILE_HINT = "[JPN]"; // content.js's FILE_HINT, sent on every FETCH_SUBTITLES
 
 const client = createJimakuClient({ log: (m) => process.stdout.write(m + "\n") });
@@ -114,6 +121,11 @@ async function run() {
       if (onlys.length && !onlys.some((x) => t.includes(x))) continue;
       if (excludes.some((x) => t.includes(x))) continue;
       for (const season of series.seasons ?? []) {
+        // The season's own highest Crunchyroll number: a stated number above it
+        // can be the same episode counted absolutely (Frieren S2 ep 1 is
+        // Haruhana's "- 29"), so it is never scored as a different episode —
+        // the convention audit-resolution.js settled on 2026-08-11.
+        const seasonMax = Math.max(...(season.episodes ?? []).map((e) => episodeFor(e).episode));
         for (const ep of pickEpisodes(season.episodes ?? [])) {
           const { code, hasNoPosition, episode } = episodeFor(ep);
           if (hasNoPosition) continue;
@@ -142,6 +154,12 @@ async function run() {
             offlineMisses++;
             continue;
           }
+          lists.push({
+            key: `${tag}|${seriesTitle}|${season.title}|${episode}`,
+            outcome: error ? `ERROR ${error.message}` : res?.entryUnresolved ? "UNRESOLVED" : `entry ${res?.entryId}`,
+            files: (res?.files ?? []).map((f) => f.name),
+            picked: res?.files?.find((f) => f.url === res.selectedUrl)?.name ?? null,
+          });
           if (error || !res || res.entryUnresolved || !res.files?.length) continue; // declines/empties are audit-resolution's job
           const logs = [...bg.logs];
           const names = res.files.map((f) => f.name);
@@ -154,7 +172,12 @@ async function run() {
             const stating = claims.filter((x) => x.c.episodes.size);
             const statesWanted = stating.filter((x) => [...x.c.episodes].some((e) => wanted.has(e)));
             const pickedClaims = picked ? fileClaims(picked) : null;
-            if (pickedClaims?.episodes.size && ![...pickedClaims.episodes].some((e) => wanted.has(e)) && statesWanted.length) {
+            const inSeason = (e) => e <= seasonMax;
+            if (
+              pickedClaims?.episodes.size &&
+              ![...pickedClaims.episodes].some((e) => wanted.has(e) || !inSeason(e)) &&
+              statesWanted.length
+            ) {
               add("PICKED-OFF-EPISODE", true, {
                 ...label,
                 detail: `auto-loaded "${picked}" states ${JSON.stringify([...pickedClaims.episodes])}; ${statesWanted.length} file(s) state ${[...wanted].join("/")}`,
@@ -168,8 +191,16 @@ async function run() {
                 files: names.slice(0, 6),
               });
             }
+            // Proven: a fractional position is a special between episodes, never
+            // an integer episode (MHA S1 ep 1 carried "第13.5話").
+            for (const n of names.filter((n) => /第\s*\d{1,4}\.\d\s*話|\s[-–—]\s\d{1,4}\.\d(?=[\s[(「【]|\.[^\d]|$)|[Ss]\d{1,2}[Ee]\d{1,4}\.\d(?![\d\p{L}]|\.\d)/u.test(n))) {
+              add("FRACTIONAL-IN-LIST", true, { ...label, detail: `integer episode ${episode}'s list holds "${n}"` });
+            }
+            // FLAGGED, not proven: providers label the same episode under
+            // different seasons (Netflix files Haikyu!! S2 as its own show,
+            // S01E01), measured 2026-09-18.
             for (const mix of seasonMixes(names)) {
-              add("SEASON-MIX", true, {
+              add("SEASON-MIX", false, {
                 ...label,
                 detail: `episode ${mix.episode} under seasons ${mix.seasons.map((s) => `S${s.season} (${s.files.length})`).join(", ")}`,
                 files: mix.seasons.flatMap((s) => s.files).slice(0, 6),
@@ -213,9 +244,9 @@ async function run() {
   console.log(`Jimaku: ${client.stats.hits} from cache, ${client.stats.fetched} fetched, ${client.stats.failures} failed, ${client.stats.rateLimited} rate-limited, ${offlineMisses} offline misses (mode ${client.mode})`);
   console.log(
     `PROVEN (${proven.length}): PICKED-OFF-EPISODE ${count("PICKED-OFF-EPISODE")}   SEASON-MIX ${count("SEASON-MIX")}   ` +
-      `REMEMBERED-DIVERGES(wrong) ${proven.filter((f) => f.kind === "REMEMBERED-DIVERGES").length}`
+      `REMEMBERED-DIVERGES(wrong) ${proven.filter((f) => f.kind === "REMEMBERED-DIVERGES").length}   FRACTIONAL-IN-LIST ${count("FRACTIONAL-IN-LIST")}`
   );
-  console.log(`FLAGGED: NONE-STATES-EPISODE ${count("NONE-STATES-EPISODE")}   REMEMBERED-DIVERGES(all) ${count("REMEMBERED-DIVERGES")}`);
+  console.log(`FLAGGED: NONE-STATES-EPISODE ${count("NONE-STATES-EPISODE")}   SEASON-MIX ${count("SEASON-MIX")}   REMEMBERED-DIVERGES(all) ${count("REMEMBERED-DIVERGES")}`);
   const byKind = {};
   for (const f of findings) (byKind[f.kind] ??= []).push(f);
   for (const [kind, rows] of Object.entries(byKind)) {
@@ -225,6 +256,7 @@ async function run() {
       for (const n of (f.files ?? []).slice(0, 4)) console.log(`      · ${String(n).slice(0, 90)}`);
     }
   }
+  if (listsPath) fs.writeFileSync(listsPath, JSON.stringify(lists));
   if (outPath) fs.writeFileSync(outPath, JSON.stringify({ episodes, stats: client.stats, offlineMisses, findings }, null, 1));
 }
 

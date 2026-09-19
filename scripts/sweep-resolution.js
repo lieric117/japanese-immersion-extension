@@ -68,20 +68,11 @@ const logs = [];
 // Jimaku answers 429 — which the resolver then reports as a hard error and the
 // sweep would score as a resolution failure. Spaced, plus backoff on 429, so a
 // rate limit never masquerades as a finding.
-const REQUEST_SPACING_MS = 700;
-let lastRequest = 0;
-async function throttledFetch(url, init) {
-  for (let attempt = 0; ; attempt++) {
-    const wait = Math.max(0, lastRequest + REQUEST_SPACING_MS - Date.now());
-    if (wait) await new Promise((r) => setTimeout(r, wait));
-    lastRequest = Date.now();
-    const res = await globalThis.fetch(url, init);
-    if (res.status !== 429 || attempt >= 4) return res;
-    const backoff = 2000 * Math.pow(2, attempt);
-    process.stdout.write(`   (429 — waiting ${backoff / 1000}s)\n`);
-    await new Promise((r) => setTimeout(r, backoff));
-  }
-}
+// Paced from Jimaku's own headers and cached on disk (2026-09-18) — see
+// scripts/audit/jimaku-client.js. A rate limit never masquerades as a finding.
+const { createJimakuClient } = require("./audit/jimaku-client.js");
+const client = createJimakuClient({ log: (m) => process.stdout.write(m + "\n") });
+const throttledFetch = (url, init) => client.fetch(url, init);
 
 const sandbox = {
   console: { log: (...a) => logs.push(a.join(" ")), warn: (...a) => logs.push("WARN " + a.join(" ")), error() {} },

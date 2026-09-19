@@ -10,10 +10,10 @@ Started 2026-09-18 from commit `c1c95b2`. This file exists so a fresh session ca
 | Phase | State |
 |---|---|
 | 0 — Pipeline map | done — `docs/audit/pipeline-map.md` |
-| 1 — Failure taxonomy | in progress — `docs/audit/failure-taxonomy.md` |
+| 1 — Failure taxonomy | done for detection; parsing pending corpus — `docs/audit/failure-taxonomy.md` |
 | 2 — Invariants | drafted in the map/taxonomy, enforcement pending |
-| 3 — Harness | built (see below); first live runs pending |
-| 4 — Fixes | detection first, then parsing |
+| 3 — Harness | built; detection sweep run live (1,485 sampled episodes, all three captures) |
+| 4 — Fixes | detection: 6 root causes fixed (see below); parsing next |
 
 ## Environment notes (read first)
 
@@ -40,7 +40,18 @@ Commands (run strictly one at a time):
 - `node scripts/audit-resolution.js fixtures/known-bugs-2026-08-02.json [--background <6ff83e8 copy>]` (proof: old resolver 9 defects, current 0)
 - `node scripts/sweep-resolution.js fixtures/crunchyroll-catalogue-<date>.json` for all three captures
 
-Results: *pending, filled in below when the run completes.*
+Results (live, 2026-09-18 23:20 → 2026-09-19 00:50):
+| Run | Result |
+|---|---|
+| Known-bug six shows (08-04 capture) | 274 episodes, **0 proven** (MIXED/DUPLICATE/COLLISION/EMPTY all 0); flagged: DECLINED 43, UNACCOUNTED 28, MISSING 1 |
+| `--background` proof, resolver 6ff83e8 | **9 proven** (MIXED 1, DUPLICATE 2, COLLISION 3, EMPTY 3), as documented |
+| `--background` proof, current | 0 proven |
+| sweep 08-04 (90 seasons) | OK 71, SUSPECT 3, ASKS 12, ERROR 4 |
+| sweep 08-01 (134 seasons) | OK 86, SUSPECT 25, ASKS 11, ERROR 12 |
+| sweep 08-01b (75 seasons) | OK 48, SUSPECT 4, ASKS 18, ERROR 5 |
+
+Of the 32 SUSPECTs, 30 are known-correct shapes (One Piece's arcs on its single entry, OVA buckets, title-matched compilations). **Two are real wrong-content loads present at baseline**: FGO's *Solomon* film → the Babylonia TV entry ("matched by season 1"), and *Kaiju No. 8: Mission Recon* (a recap special) → Kaiju No. 8 Season 2's episodes ("matched by season 2"). See Pending decisions.
+Every ERROR is a loud refusal. `?episode=0` on an episodic season comes back empty from Jimaku (live): episode-0 prologues fail loudly, never wrongly (taxonomy C4 → safe).
 
 ## Findings so far (Phase 0/1, from code + live-captured catalogue data)
 
@@ -62,9 +73,37 @@ Parsing. Confirmed on synthetic inputs, frequency to be measured on the corpus:
 - Whole-line parenthesised inner monologue dropped as a stage direction.
 - `𠮟` (a modern standard kanji outside the BMP) → tokenized as a symbol, so the verb is lost.
 
+## Detection sweep results (live data, cached; old = c1c95b2, new = working tree)
+
+Same 1,485 sampled episodes, identical cached responses (`JIMAKU_CACHE_MODE=offline`):
+| | old | new |
+|---|---|---|
+| REMEMBERED-DIVERGES, wrong episode loaded (proven) | 10 | 0 |
+| FRACTIONAL-IN-LIST (proven) | 4 | 0 |
+| PICKED-OFF-EPISODE (proven) | 0 | 0 |
+| SEASON-MIX (flagged; measured to be provider labelling) | 44 | 42 |
+| remembered path diverging at all | 73 | 2 (SPY x FAMILY ep 13: the right file loads, the cour's other-numbered files stay in the list) |
+
+`diff-lists.js` over the same run: automatic resolution changed on exactly 4 of 1,478 episodes. Three fractional specials were removed (MHA 13.5 ×2, Slime 24.5) and Kaiju No. 8: Mission Recon now declines. No legitimate file was lost anywhere.
+
+Census over 192 cached search responses and 876 entries:
+- Unicode-variant titles (B7): **0** Crunchyroll titles match a Jimaku name only under NFKC/diacritic folding. Measured absent, so not fixed.
+- Unparsed Jimaku season words (B2): 30 names ("FINAL SEASON", "Second Season", "Major S2"). Every use of the parse also requires the base title to match, so these produce declines, never wrong loads.
+- Duplicate entry names in one result set: 3 (One Piece Episode of Alabasta ×2, Gintama ×4). The tiers take the first. Both Alabasta entries are the same work, and Gintama's bare-name entries are reached only by the exact-title fallback.
+
+## Root causes fixed (detection)
+
+1. **RC-D1 unique identity + request binding** (content.js): committed 62919e7.
+2. **RC-D2 season memory key** (content.js): committed 62919e7.
+3. **RC-D3 one file-retrieval function for every entry source** (background.js `filesForEntry`): the remembered entry and the picker now follow the resolver's episode rules. A pick with no matching file lists the files and loads none.
+4. **Offset retry drops the absolute uploader population** (background.js).
+5. **A named season is never matched by list position alone**, plus mid-name "Season N" (background.js): fixes Kaiju No. 8: Mission Recon.
+6. **Fractional-episode files dropped from integer episodes** (background.js).
+7. **Disagreeing TVEpisode blocks = not yet detectable** (content.js).
+
 ## Pending decisions for the user
 
-*(none yet)*
+*(none so far. The FGO Solomon SUSPECT turned out to be an artifact of the sweep's reconstruction: on a film-shaped page it already fails loudly. Recorded as a residual risk, not a question.)*
 
 ## Done
 

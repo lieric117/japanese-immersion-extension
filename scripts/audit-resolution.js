@@ -130,54 +130,26 @@ if (!KEY) {
   process.exit(2);
 }
 
-// ── throttle ────────────────────────────────────────────────────────────────
-const SPACING_MS = 700;
-let lastRequest = 0;
-// Response cache keyed on URL. The resolver re-runs the same entry search for
-// every episode of a season, which at 2,500 episodes is hours of identical
-// requests; the catalogue does not change during a run, so one answer per URL
-// is enough. Roughly a 3x reduction in wall time on a full capture.
-const responseCache = new Map();
+// ── throttle + cache ────────────────────────────────────────────────────────
+// Every Jimaku request goes through scripts/audit/jimaku-client.js (2026-09-18):
+// paced from Jimaku's own rate-limit headers, and every successful response is
+// kept on disk, so a re-run after a resolver change replays the SAME live data
+// (JIMAKU_CACHE_MODE=offline makes that strict) instead of re-fetching for an
+// hour. Only successes are cached — a cached 429 once inflated a whole run
+// (Decisions Log 2026-08-04).
+const { createJimakuClient } = require("./audit/jimaku-client.js");
+const client = createJimakuClient({ log: (m) => process.stdout.write(m + "\n") });
+const responseCache = { get size() { return client.stats.fetched + client.stats.hits; } };
 let cacheHits = 0;
 let failedRequests = 0;
 async function throttledFetch(url, init) {
-  const key = String(url);
-  if (responseCache.has(key)) {
-    cacheHits++;
-    const { status, body } = responseCache.get(key);
-    return { ok: status >= 200 && status < 300, status, json: async () => JSON.parse(body), text: async () => body };
-  }
-  const res = await uncachedFetch(url, init);
-  const body = await res.text();
-  // ONLY successes are cached. Caching a failure turns one transient 429 or
-  // dropped connection into a permanent one for that URL, which is what
-  // inflated the 2026-08-04 run's EMPTY count to 84 (59 of them `fetch
-  // failed`). A retried failure costs one request; a cached failure costs the
-  // truth of the whole run.
-  if (res.ok) responseCache.set(key, { status: res.status, body });
-  else failedRequests++;
-  return { ok: res.ok, status: res.status, json: async () => JSON.parse(body), text: async () => body };
-}
-
-async function uncachedFetch(url, init) {
-  for (let attempt = 0; ; attempt++) {
-    const wait = Math.max(0, lastRequest + SPACING_MS - Date.now());
-    if (wait) await new Promise((r) => setTimeout(r, wait));
-    lastRequest = Date.now();
-    // A dropped connection THROWS rather than returning a status, and used to
-    // escape this loop entirely: it surfaced as the resolver failing, and the
-    // episode was scored a proven EMPTY defect. Retried on the same backoff as
-    // a 429, since it is the same kind of transient (2026-08-12).
-    let res;
-    try {
-      res = await globalThis.fetch(url, init);
-    } catch (e) {
-      if (attempt >= 4) throw e;
-      await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
-      continue;
-    }
-    if (res.status !== 429 || attempt >= 4) return res;
-    await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
+  try {
+    const res = await client.fetch(url, init);
+    if (!res.ok) failedRequests++;
+    return res;
+  } catch (e) {
+    if (/offline cache miss/.test(e.message)) throw new Error(`fetch failed (${e.message})`);
+    throw e;
   }
 }
 
@@ -573,7 +545,7 @@ const add = (kind, proven, row) => findings.push({ kind, proven, ...row });
 
   console.log(`\n${"═".repeat(78)}`);
   console.log(`Audited ${episodesTested} episodes across ${seriesList.length} show(s), resolver: ${path.basename(backgroundPath)}`);
-  console.log(`(${responseCache.size} distinct Jimaku requests cached, ${cacheHits} served from cache, ${failedRequests} request failure(s))`);
+  console.log(`(Jimaku: ${client.stats.hits} served from disk cache, ${client.stats.fetched} fetched live, mode ${client.mode}; ${failedRequests} request failure(s))`);
   console.log(`\nPROVEN DEFECTS (${proven.length}):  MIXED ${count("MIXED")}   DUPLICATE ${count("DUPLICATE")}   COLLISION ${count("COLLISION")}   EMPTY ${count("EMPTY")}`);
   for (const f of proven.slice(0, 40)) {
     console.log(`  [${f.kind}] ${f.series}${f.season ? ` / ${f.season}` : ""}${f.episode != null ? ` ep${f.episode}` : ""}`);

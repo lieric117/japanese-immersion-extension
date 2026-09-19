@@ -19,20 +19,20 @@ Evidence key:
 | # | Input category | Failure if mishandled | Before | Evidence |
 |---|---|---|---|---|
 | A1 | No/unparseable `TVEpisode` block | nothing to resolve | P (returns null → upload message; untested) | code |
-| A2 | **Stale block after SPA navigation** | previous episode's subtitles under the new episode | P: 1s of retries, then **loads the stale identity** | code |
-| A3 | Two `TVEpisode` blocks | first wins, silently | N (never observed) | code |
+| A2 | **Stale block after SPA navigation** | previous episode's subtitles under the new episode | P: 1s of retries, then **loads the stale identity** → **after: 5s wait; nothing shows meanwhile; responses bound to identity (C: test-subtitle-binding)** | code |
+| A3 | Two `TVEpisode` blocks | first wins, silently | N → **after: disagreeing blocks = not yet detectable (C: test-detect-show-episode)** | code |
 | A4 | Episode code forms: numeric, `EEX`, `SP1`, `P1`, `I/II/III`, `14.5`, `0`, none, duplicated-title film | wrong position | C (numeric, EEX, 14.5, 0-film, film); P (`SP1`, roman) | live |
 | A5 | `episodeNumber` ≠ title code | wrong episode | C | live |
-| A6 | `seasonNumber` positional / non-unique / unbounded | wrong season | C (name preferred; number last) | live |
+| A6 | `seasonNumber` positional / non-unique / unbounded | wrong season | P: **the number was still trusted for a distinctly named, unmarked season (Kaiju No. 8: Mission Recon → Season 2, live)** → **after: C, never matched by position alone (test-named-season)** | live |
 | A7 | No `partOfSeason.name` | falls back to the number | P | live |
-| A8 | **Two different episodes share the load identity** | staleness check and watchdog can't tell them apart | **N** — 37 real episodes collide | live |
-| A9 | **Two different works share the per-season memory key** | a remembered pick crosses works | **N** — 6 real season slots collide, 3 of them a TV season with a film | live |
+| A8 | **Two different episodes share the load identity** | staleness check and watchdog can't tell them apart | **N** — 37 real episodes collide → **after: C, 0 collisions over 6,997 (test-detection-identity)** | live |
+| A9 | **Two different works share the per-season memory key** | a remembered pick crosses works | **N** — 6 real season slots collide, 3 of them a TV season with a film → **after: C, 0 over 231 seasons** | live |
 
 ### 1b. Title and season naming (Crunchyroll vs Jimaku)
 | # | Input category | Before | Evidence |
 |---|---|---|---|
 | B1 | Season markers: `2nd Season`, `Season 2`, roman, bare trailing number, `Part/Cour N`, `Final Season` | C | live |
-| B2 | Word-form markers: `Second Season`, `Season Two`, `2nd Cour`, `Part II` | N | code |
+| B2 | Word-form markers: `Second Season`, `Season Two`, `2nd Cour`, `Part II`; **mid-name `Season 1: Director's Cut`** | N → **after: mid-name `Season N` read on Crunchyroll's side (C); Jimaku-side census pending** | code |
 | B3 | Arc-named seasons (Jimaku `STONE WARS` vs CR `Season 2`) | D (declines, remembered pick) | live |
 | B4 | Sequel/localised titles with no shared text (`√A`/`Root A`, `Case Closed`/`Detective Conan`) | D — inherently ambiguous without a title map | live |
 | B5 | Year suffixes (`Fruits Basket (2019)`) | C | live |
@@ -48,10 +48,10 @@ Evidence key:
 | C1 | CR absolute vs per-season numbering | C (magnitude rule, offset probes) | live |
 | C2 | Jimaku uploaders mixing absolute and per-season numbering inside one entry | C (second numbering, offset from ep 1) | live |
 | C3 | Fractional episodes (`14.5`) | C (non-episodic) | live |
-| C4 | **Episode 0 on an episodic season** (prologues, `E0`) | N: `?episode=0` semantics on Jimaku unverified | code |
+| C4 | Episode 0 on an episodic season (prologues, `E0`) | **measured live: `?episode=0` returns nothing → loud error. Safe (D)** | live |
 | C5 | Cour splits (Part 2 entries; arc title + bare number; 3 cours) | C | live |
-| C6 | **Season mixing inside one answer** (`S01E05` + `S02E05`) | N: invisible to the resolver *and* to `audit-resolution.js` | code |
-| C7 | Jimaku's filter answering with another episode, with no 第N話 in the names | P (only 第N話-keyed triggers + cour retry) | code |
+| C6 | Season labels differing inside one answer | **measured: 14 of 449 sampled episodes, all one episode labelled two ways by different providers (Netflix files sequels as their own show). Not a defect; flagged in the sweep, not scored** | live |
+| C7 | Jimaku's filter answering with another episode | P → **after: fractional specials (第13.5話) dropped from integer episodes (C); an offset retry drops the absolute uploader's population (C). Residual: a cour entry's own-numbered files stay in the switcher list (never auto-loaded) — see progress.md** | live |
 
 ### 1d. Entry sets and file sets
 | # | Input category | Before | Evidence |
@@ -69,14 +69,14 @@ Evidence key:
 ### 1e. Paths other than automatic resolution
 | # | Input category | Before | Evidence |
 |---|---|---|---|
-| G1 | **Remembered entry** (after a manual pick) | **N**: an empty `?episode=N` → the whole entry is listed → arbitrary file auto-loaded as "confident" | code |
-| G2 | **Manual entry pick** | **N**: same unfiltered fallback; the user sees the list, but the auto-loaded file is arbitrary | code |
+| G1 | **Remembered entry** (after a manual pick) | **N**: empty `?episode=N` → whole entry listed → arbitrary file auto-loaded as "confident" (8 proven on 449 sampled episodes) → **after: C, same rules as the resolver; 0 (test-remembered-entry)** | live |
+| G2 | **Manual entry pick** | **N**: same unfiltered fallback → **after: C, resolver rules; when nothing matches, the list is shown and NOTHING is loaded** | live |
 | G3 | Manual file pick | correct by definition | — |
 
 ### 1f. Lifecycle and concurrency
 | # | Input category | Before | Evidence |
 |---|---|---|---|
-| H1 | **A response arriving after navigation** | **N**: overwrites the current episode's cues | code |
+| H1 | **A response arriving after navigation** | **N** → **after: C, request binding (test-subtitle-binding)** | code |
 | H2 | Video element swapped | C (watchdog) | live |
 
 ### 1g. API and network
