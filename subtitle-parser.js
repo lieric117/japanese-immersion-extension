@@ -224,6 +224,43 @@ function assTimeToSeconds(timeStr) {
   return subtitleTimeToSeconds(timeStr);
 }
 
+// Karaoke typeset ONE GLYPH PER EVENT (2026-09-18) — each character its own
+// positioned Dialogue line, all on screen together. Joined for display they
+// rendered one character per line, every character a separate clickable
+// "word": measured in 7 of the audit corpus's 386 files (2,296 moments), all OP/ED
+// lyrics. Defined structurally, since nothing in the text says "effect": a
+// single-glyph event with three or more OTHER single-glyph events on screen at
+// its start is an effect layer. A lone one-character line ("あ", "え？" is two)
+// is dialogue and stays.
+const GLYPH_BURST_MIN = 4;
+function dropGlyphBursts(cues) {
+  if (!Array.isArray(cues) || cues.length < GLYPH_BURST_MIN) return cues;
+  const isGlyph = (c) => [...String(c.text ?? "").trim()].length === 1;
+  const glyphs = cues.filter(isGlyph).sort((a, b) => a.start - b.start);
+  if (glyphs.length < GLYPH_BURST_MIN) return cues;
+  const burst = new Set();
+  for (const g of glyphs) {
+    let together = 0;
+    for (const o of glyphs) {
+      if (o.start > g.start) break;
+      if (o.end > g.start) together++;
+    }
+    if (together >= GLYPH_BURST_MIN) {
+      for (const o of glyphs) {
+        if (o.start > g.start) break;
+        if (o.end > g.start) burst.add(o);
+      }
+    }
+  }
+  return burst.size ? cues.filter((c) => !burst.has(c)) : cues;
+}
+
+// Everything that turns a parsed file into the dialogue track, in one place so
+// every input path (Jimaku, manual upload) gets the same track.
+function cleanParsedCues(cues) {
+  return stripDualLanguageCues(dropGlyphBursts(cues));
+}
+
 if (typeof process !== "undefined") {
-  module.exports = { parseSrt, parseAss, stripDualLanguageCues, subtitleTimeToSeconds };
+  module.exports = { parseSrt, parseAss, stripDualLanguageCues, dropGlyphBursts, cleanParsedCues, subtitleTimeToSeconds };
 }

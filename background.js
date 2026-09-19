@@ -2454,8 +2454,9 @@ async function fetchAndParseFile(file, headers) {
   // below, which is the English file by definition and would be stripped to
   // nothing. Every Japanese-subtitle consumer (on-screen box, Anki Sentence
   // field, audio-capture cue boundaries) reads from this one parsed list, so
-  // doing it here fixes all of them at once. See stripDualLanguageCues.
-  return stripDualLanguageCues(cues);
+  // doing it here fixes all of them at once. See stripDualLanguageCues, and
+  // dropGlyphBursts for the karaoke effect layers (2026-09-18).
+  return cleanParsedCues(cues);
 }
 
 // Auto-load path: resolves candidates, picks one (fileHint override, else

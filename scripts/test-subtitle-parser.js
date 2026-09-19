@@ -58,5 +58,26 @@ check("an unreadable time is NaN (and reported), never a guessed number", Number
   check("non-tag angle brackets and plain braces in .srt dialogue survive (SYNTHETIC)", braces[0].text === "{笑} 3<5 は正しい", braces[0].text);
 }
 
+// ── typesetting layers ──────────────────────────────────────────────────────
+// VERBATIM events: [KitaujiSub&STYHSub&H-BBR] Oshi no Ko [06][WebRip][JPN].ass —
+// karaoke typeset one glyph per event. The two ordinary lines are SYNTHETIC.
+{
+  const raw = [
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    "Dialogue: 0,0:00:04.52,0:00:07.32,Idol - JP,,0,0,0,fx,{\\an2\\pos(715,82)\\fad(55,200)\\fscx50\\fscy50\\t(0,55,.2,\\fscx100\\fscy100)\\c&HFFFFFF&\\1a&H13&}知",
+    "Dialogue: 0,0:00:04.74,0:00:07.34,Idol - JP,,0,0,0,fx,{\\an2\\pos(751,82)\\fad(72.5,200)\\fscx50\\fscy50\\t(0,72.5,.2,\\fscx100\\fscy100)\\c&HFFFFFF&\\1a&H13&}り",
+    "Dialogue: 0,0:00:05.03,0:00:07.36,Idol - JP,,0,0,0,fx,{\\an2\\pos(786,82)\\fad(12.5,200)\\fscx50\\fscy50\\t(0,12.5,.2,\\fscx100\\fscy100)\\c&HFFFFFF&\\1a&H13&}た",
+    "Dialogue: 0,0:00:05.08,0:00:07.38,Idol - JP,,0,0,0,fx,{\\an2\\pos(824,82)\\fad(10,200)\\fscx50\\fscy50\\t(0,10,.2,\\fscx100\\fscy100)\\c&HFFFFFF&\\1a&H13&}い",
+    "Dialogue: 0,0:00:05.12,0:00:07.41,Idol - JP,,0,0,0,fx,{\\an2\\pos(863,82)\\fad(65,200)\\fscx50\\fscy50\\t(0,65,.2,\\fscx100\\fscy100)\\c&HFFFFFF&\\1a&H13&}そ",
+    "Dialogue: 0,0:00:05.00,0:00:06.00,Default - JP,,0,0,0,,え？",
+    "Dialogue: 0,0:00:09.00,0:00:10.00,Default - JP,,0,0,0,,あ",
+  ].join("\n");
+  const cues = parser.cleanParsedCues(parser.parseAss(raw));
+  const texts = cues.map((c) => c.text);
+  check("a glyph-per-event karaoke burst is dropped as an effect layer", !texts.some((t) => ["知", "り", "た", "い", "そ"].includes(t)), JSON.stringify(texts));
+  check("ordinary dialogue on screen with it, and a lone one-character line, survive", texts.includes("え？") && texts.includes("あ"), JSON.stringify(texts));
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

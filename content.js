@@ -1974,7 +1974,10 @@ function buildUploadControl() {
     reader.onload = () => {
       try {
         const isAss = /\.(ass|ssa)$/i.test(file.name);
-        const parsedCues = isAss ? parseAss(reader.result) : parseSrt(reader.result);
+        // The same cleaning the Jimaku path gets (2026-09-18) — an uploaded
+        // file is no less likely to carry a dual-language track or karaoke
+        // effect layers.
+        const parsedCues = cleanParsedCues(isAss ? parseAss(reader.result) : parseSrt(reader.result));
         if (!parsedCues.length) {
           status.textContent = `No cues found in "${file.name}" — check the file is a valid .srt/.ass.`;
           return;
@@ -2400,6 +2403,11 @@ function japaneseDisplayAt(fileTime) {
     if (fileTime < cue.start || fileTime > cue.end) continue;
     const text = cueDisplayText(cue);
     if (!text) continue; // stage direction or markup-only — never contributes
+    // The same line from two layers at once (a shadow/outline duplicate, or a
+    // file carrying every line twice) is shown once (2026-09-18) — measured on
+    // 1,067 displayed lines in 25 files of the audit corpus, and the Anki
+    // sentence is built from this join.
+    if (parts.some((p) => p.text === text)) continue;
     parts.push({ cue, text });
   }
   if (!parts.length) return { window: null, text: "" };
