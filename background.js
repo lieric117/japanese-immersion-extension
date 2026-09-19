@@ -386,6 +386,18 @@ function filePositionNumbers(name) {
 // Does this filename say which episode it is? Any of the three forms the
 // listings actually use. Used to tell a SINGLE-WORK entry (a film: nothing
 // distinguishes its files) from a SEASON entry (files that name episodes).
+// Does this filename name a FRACTIONAL episode position — 第13.5話, "- 14.5",
+// S01E14.5? Those are specials between episodes, never an integer episode.
+// The last form refuses a decimal followed by ".<digit>" or by a letter:
+// "S01E14.5.1ch" is episode 14 with 5.1-channel audio, and Netflix's
+// "S02E102.2つのキセキ" / "S04E13.2日目" are episodes whose TITLES start with a
+// digit ("Two Miracles", "Day Two") — the detection sweep caught the first
+// version of this dropping them (2026-09-18).
+const FRACTIONAL_EPISODE_RE = /第\s*\d{1,4}\.\d\s*話|\s[-–—]\s\d{1,4}\.\d(?=[\s[(「【]|\.[^\d]|$)|[Ss]\d{1,2}[Ee]\d{1,4}\.\d(?![\d\p{L}]|\.\d)/u;
+function statesFractionalEpisode(name) {
+  return FRACTIONAL_EPISODE_RE.test(String(name ?? ""));
+}
+
 function fileStatesAnEpisode(name) {
   const p = parseFileEpisode(name);
   return p.absolute !== null || p.seasonEpisode !== null || filePositionNumbers(name).length > 0;
@@ -2059,6 +2071,20 @@ async function filesForEntry({ entry, entries, episode, headers, seasonNumber, c
   }
   if (!files.length) {
     throw new Error(`No subtitle file found for episode ${episode}`);
+  }
+  // An integer episode is never a file that names a FRACTIONAL one — a 13.5
+  // recap, a 14.5 bonus (2026-09-18). My Hero Academia S1 ep 1's answer carried
+  // Amazon's "S02E01.第13.5話 ヒーローノート" beside the real episode.
+  if (isEpisodic && Number.isInteger(episode)) {
+    const fractional = files.filter((f) => statesFractionalEpisode(f.name));
+    if (fractional.length) {
+      console.log(
+        `[jp-immersion] dropped ${fractional.length} file(s) naming a fractional episode (a special, not episode ${episode}): ` +
+          fractional.map((f) => `"${f.name}"`).join(", ")
+      );
+      files = files.filter((f) => !fractional.includes(f));
+      if (!files.length) throw new Error(`No subtitle file found for episode ${episode} — only specials numbered between episodes`);
+    }
   }
   const textFiles = files.filter((f) => !ARCHIVE_RE.test(f.name));
   if (!textFiles.length) {

@@ -1,0 +1,394 @@
+{
+ "https://jimaku.cc/api/entries/search?anime=true&query=My%20Hero%20Academia": [
+  {
+   "id": 805,
+   "name": "Boku no Hero Academia",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": true,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:02:39Z",
+   "anilist_id": 21459,
+   "notes": "No. overall: 1-13",
+   "english_name": "My Hero Academia",
+   "japanese_name": "僕のヒーローアカデミア"
+  },
+  {
+   "id": 2841,
+   "name": "Boku no Hero Academia 2",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:03:54Z",
+   "creator_id": 37,
+   "anilist_id": 21856,
+   "notes": "No. overall: 14-38\r\n\r\nNo. in season: 1-25\r\n\r\nNetflix files originally numbered E15-39",
+   "english_name": "My Hero Academia Season 2",
+   "japanese_name": "僕のヒーローアカデミア２"
+  },
+  {
+   "id": 2842,
+   "name": "Boku no Hero Academia 3",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:05:15Z",
+   "creator_id": 37,
+   "anilist_id": 100166,
+   "notes": "No. overall: 39-63\r\n\r\nNo. in season: 1-25\r\n\r\nNetflix files originally numbered E41-65",
+   "english_name": "My Hero Academia Season 3",
+   "japanese_name": "僕のヒーローアカデミア３"
+  },
+  {
+   "id": 2843,
+   "name": "Boku no Hero Academia 4",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:05:47Z",
+   "creator_id": 37,
+   "anilist_id": 104276,
+   "notes": "No. overall: 64-88\r\n\r\nNo. in season: 1-25\r\n\r\nNetflix files originally numbered E66-90",
+   "english_name": "My Hero Academia Season 4",
+   "japanese_name": "僕のヒーローアカデミア４"
+  },
+  {
+   "id": 2844,
+   "name": "Boku no Hero Academia 5",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:06:28Z",
+   "creator_id": 37,
+   "anilist_id": 117193,
+   "notes": "No. overall: 89-113\r\n\r\nNo. in season: 1-25\r\n\r\nNetflix files originally numbered E93-117",
+   "english_name": "My Hero Academia Season 5",
+   "japanese_name": "僕のヒーローアカデミア５"
+  },
+  {
+   "id": 2853,
+   "name": "Boku no Hero Academia 5 (ONA)",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:08:02Z",
+   "creator_id": 37,
+   "anilist_id": 149073,
+   "english_name": "My Hero Academia Season 5 OVA",
+   "japanese_name": "僕のヒーローアカデミア 5 (ONA)"
+  },
+  {
+   "id": 2845,
+   "name": "Boku no Hero Academia 6",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:08:21Z",
+   "creator_id": 37,
+   "anilist_id": 139630,
+   "notes": "Recaps: [Boku no Hero Academia: Memories\r\n](https://jimaku.cc/entry/2848)\r\n\r\nNo. overall: 114-138\r\n\r\nNo. in season: 1-25\r\n\r\nNetflix files originally numbered E120-144",
+   "english_name": "My Hero Academia Season 6",
+   "japanese_name": "僕のヒーローアカデミア６"
+  },
+  {
+   "id": 4019,
+   "name": "Boku no Hero Academia 7",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-06-24T20:21:35Z",
+   "creator_id": 24,
+   "anilist_id": 163139,
+   "notes": "No. overall: 139-159\r\n\r\nNo. in season: 1-21\r\n\r\nNetflix files originally numbered E150-170",
+   "english_name": "My Hero Academia Season 7",
+   "japanese_name": "僕のヒーローアカデミア 7"
+  },
+  {
+   "id": 10501,
+   "name": "Boku no Hero Academia FINAL SEASON",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-05-05T07:40:36Z",
+   "creator_id": 24,
+   "anilist_id": 182896,
+   "notes": "No. overall: 160-170\r\n\r\nNo. in season: 1-11\r\n\r\nNetflix files originally numbered E171-181",
+   "english_name": "My Hero Academia FINAL SEASON",
+   "japanese_name": "僕のヒーローアカデミア FINAL SEASON"
+  },
+  {
+   "id": 11954,
+   "name": "Boku no Hero Academia No. 170+1: More",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-05-11T23:19:43Z",
+   "creator_id": 640,
+   "anilist_id": 204356,
+   "english_name": "My Hero Academia More",
+   "japanese_name": "僕のヒーローアカデミア No. 170+1 「More」"
+  },
+  {
+   "id": 2846,
+   "name": "Boku no Hero Academia THE MOVIE: Futari no Hero",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": true,
+    "adult": false
+   },
+   "last_modified": "2025-02-25T00:51:18Z",
+   "creator_id": 1,
+   "anilist_id": 100723,
+   "english_name": "My Hero Academia: Two Heroes",
+   "japanese_name": "僕のヒーローアカデミア THE MOVIE 〜2人の英雄〜"
+  },
+  {
+   "id": 2850,
+   "name": "Boku no Hero Academia THE MOVIE: Heroes:Rising",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": true,
+    "adult": false
+   },
+   "last_modified": "2024-04-13T14:09:09Z",
+   "creator_id": 37,
+   "anilist_id": 108553,
+   "english_name": "My Hero Academia: Heroes Rising",
+   "japanese_name": "僕のヒーローアカデミア THE MOVIE ヒーローズ:ライジング"
+  },
+  {
+   "id": 2847,
+   "name": "Boku no Hero Academia THE MOVIE: World Heroes' Mission",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": true,
+    "adult": false
+   },
+   "last_modified": "2025-02-25T00:45:52Z",
+   "creator_id": 1,
+   "anilist_id": 126659,
+   "english_name": "My Hero Academia: World Heroes' Mission",
+   "japanese_name": "僕のヒーローアカデミア THE MOVIE ワールド ヒーローズ ミッション"
+  },
+  {
+   "id": 8661,
+   "name": "Boku no Hero Academia THE MOVIE: YOU'RE NEXT",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": true,
+    "adult": false
+   },
+   "last_modified": "2025-08-15T19:08:21Z",
+   "creator_id": 205,
+   "anilist_id": 168013,
+   "english_name": "My Hero Academia: You’re Next",
+   "japanese_name": "僕のヒーローアカデミア THE MOVIE: ユア ネクスト"
+  },
+  {
+   "id": 2849,
+   "name": "Boku no Hero Academia: Ikinokore! Kesshi no Survival Kunren",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2024-04-13T14:46:15Z",
+   "creator_id": 1,
+   "anilist_id": 122349,
+   "english_name": "My Hero Academia: Make It! Do-or-Die Survival Training",
+   "japanese_name": "僕のヒーローアカデミア 生き残れ！決死のサバイバル訓練"
+  },
+  {
+   "id": 2848,
+   "name": "Boku no Hero Academia: Memories",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-06-24T20:22:04Z",
+   "creator_id": 1,
+   "notes": "Related: [Boku no Hero Academia 6](https://jimaku.cc/entry/2845)\r\n\r\n[Info](https://myanimelist.net/anime/57519/Boku_no_Hero_Academia__Memories)",
+   "english_name": "My Hero Academia: Memories",
+   "japanese_name": "僕のヒーローアカデミア Memories "
+  },
+  {
+   "id": 7609,
+   "name": "Boku no Hero Academia: Yuuei Heroes Battle",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2025-12-16T07:10:07Z",
+   "creator_id": 15,
+   "anilist_id": 169402,
+   "english_name": "My Hero Academia UA BATTLE HEROES",
+   "japanese_name": "僕のヒーローアカデミア 雄英ヒーローズ・バトル"
+  },
+  {
+   "id": 9419,
+   "name": "Vigilante: Boku no Hero Academia ILLEGALS",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-02-07T12:20:14Z",
+   "creator_id": 15,
+   "anilist_id": 185736,
+   "english_name": "My Hero Academia: Vigilantes",
+   "japanese_name": "ヴィジランテ -僕のヒーローアカデミア ILLEGALS-"
+  },
+  {
+   "id": 11309,
+   "name": "Vigilante: Boku no Hero Academia ILLEGALS 2nd Season",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-04-12T21:25:30Z",
+   "creator_id": 15,
+   "anilist_id": 195322,
+   "english_name": "My Hero Academia: Vigilantes Season 2",
+   "japanese_name": "ヴィジランテ -僕のヒーローアカデミア ILLEGALS- 第2期"
+  },
+  {
+   "id": 12479,
+   "name": "Boku no Hero Academia: I am a hero too",
+   "flags": {
+    "anime": true,
+    "unverified": false,
+    "external": false,
+    "movie": false,
+    "adult": false
+   },
+   "last_modified": "2026-08-04T02:41:05Z",
+   "creator_id": 640,
+   "anilist_id": 211711,
+   "english_name": "My Hero Academia: I am a hero too",
+   "japanese_name": "僕のヒーローアカデミア I am a hero too"
+  }
+ ],
+ "https://jimaku.cc/api/entries/805/files?episode=1": [
+  {
+   "url": "https://jimaku.cc/entry/805/download/Boku%20No%20Hero%20Academia%20-%20E01%20-%20%5BTV%5D.srt",
+   "name": "Boku No Hero Academia - E01 - [TV].srt",
+   "size": 28672,
+   "last_modified": "2024-03-03T12:06:18Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/Boku%20no%20Hero%20Academia%20S01E01%20%5BFixed%5D%5BRetimed%20From%20Netflix%5D.srt",
+   "name": "Boku no Hero Academia S01E01 [Fixed][Retimed From Netflix].srt",
+   "size": 26877,
+   "last_modified": "2024-04-13T14:01:56.34838334Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%5BAnimeKaizoku%5D%20My%20Hero%20Academia%20-%2001%20-%20Izuku%20Midoriya%20-%20Origin%20%5BBD%20720p%5D.ja.ass",
+   "name": "[AnimeKaizoku] My Hero Academia - 01 - Izuku Midoriya - Origin [BD 720p].ja.ass",
+   "size": 28527,
+   "last_modified": "2024-06-18T21:45:24.12788358Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%5BAnimeKaizoku%5D%20My%20Hero%20Academia%20%5B01-13%5D%5BBD%20720p%5D.ja-en.7z",
+   "name": "[AnimeKaizoku] My Hero Academia [01-13][BD 720p].ja-en.7z",
+   "size": 1453704,
+   "last_modified": "2024-03-03T12:06:24Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%5BGHOST%5D%5B1080p%5D%20My%20Hero%20Academia%20-%20001%20%5BBD%20HEVC%2010bit%20Dual%20Audio%20AC3%5D%5BB7712B28%5D%5BRetimed%20From%20Netflix%5D.srt",
+   "name": "[GHOST][1080p] My Hero Academia - 001 [BD HEVC 10bit Dual Audio AC3][B7712B28][Retimed From Netflix].srt",
+   "size": 26877,
+   "last_modified": "2024-06-18T21:34:40.626437922Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%5BLeopard-Raws%5D%20Boku%20no%20Hero%20Academia%20-%2001%20(TBS%201280x720%20x264%20AAC).srt",
+   "name": "[Leopard-Raws] Boku no Hero Academia - 01 (TBS 1280x720 x264 AAC).srt",
+   "size": 27506,
+   "last_modified": "2024-06-18T21:57:41.696343401Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%5BSFEO-Raws%5D%20Boku%20no%20Hero%20Academia%20-%2001%20(BD%20720P%20x264%2010bit%20AAC)%5B60442EB5%5D.ass",
+   "name": "[SFEO-Raws] Boku no Hero Academia - 01 (BD 720P x264 10bit AAC)[60442EB5].ass",
+   "size": 32696,
+   "last_modified": "2024-06-18T21:43:18.545159065Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%E5%83%95%E3%81%AE%E3%83%92%E3%83%BC%E3%83%AD%E3%83%BC%E3%82%A2%E3%82%AB%E3%83%87%E3%83%9F%E3%82%A2.S01E01.%E7%AC%AC1%E8%A9%B1%20%E7%B7%91%E8%B0%B7%E5%87%BA%E4%B9%85%EF%BC%9A%E3%82%AA%E3%83%AA%E3%82%B8%E3%83%B3.WEBRip.Amazon.ja-jp%5Bsdh%5D.srt",
+   "name": "僕のヒーローアカデミア.S01E01.第1話 緑谷出久：オリジン.WEBRip.Amazon.ja-jp[sdh].srt",
+   "size": 25537,
+   "last_modified": "2025-12-16T07:01:47.535788212Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%E5%83%95%E3%81%AE%E3%83%92%E3%83%BC%E3%83%AD%E3%83%BC%E3%82%A2%E3%82%AB%E3%83%87%E3%83%9F%E3%82%A2.S01E01.%E7%B7%91%E8%B0%B7%E5%87%BA%E4%B9%85%EF%BC%9A%E3%82%AA%E3%83%AA%E3%82%B8%E3%83%B3.WEBRip.Netflix.ja%5Bcc%5D.srt",
+   "name": "僕のヒーローアカデミア.S01E01.緑谷出久：オリジン.WEBRip.Netflix.ja[cc].srt",
+   "size": 28420,
+   "last_modified": "2024-04-13T14:34:58.336166926Z"
+  },
+  {
+   "url": "https://jimaku.cc/entry/805/download/%E5%83%95%E3%81%AE%E3%83%92%E3%83%BC%E3%83%AD%E3%83%BC%E3%82%A2%E3%82%AB%E3%83%87%E3%83%9F%E3%82%A2.S02E01.%E7%AC%AC13.5%E8%A9%B1%20%E3%83%92%E3%83%BC%E3%83%AD%E3%83%BC%E3%83%8E%E3%83%BC%E3%83%88.WEBRip.Amazon.ja-jp%5Bsdh%5D.srt",
+   "name": "僕のヒーローアカデミア.S02E01.第13.5話 ヒーローノート.WEBRip.Amazon.ja-jp[sdh].srt",
+   "size": 26827,
+   "last_modified": "2025-12-16T07:02:39.707918996Z"
+  }
+ ],
+ "https://jimaku.cc/entry/805/download/Boku%20No%20Hero%20Academia%20-%20E01%20-%20%5BTV%5D.srt": ""
+}
