@@ -32,13 +32,31 @@ function parseSrt(raw) {
       text,
     });
   }
-  return cues;
+  return warnUnreadableTimes(cues, "srt");
 }
 
-function srtTimeToSeconds(timeStr) {
-  const [h, m, sMs] = timeStr.split(":");
-  const [s, ms] = sMs.split(",");
-  return Number(h) * 3600 + Number(m) * 60 + Number(s) + Number(ms) / 1000;
+// Positional base-60 from the right, any number of fields, `,` or `.` before
+// the fraction (2026-09-18). Bandai's film releases write every time past one
+// hour as FOUR fields — "00:01:00:15,367" is 1:00:15.367 — and the old
+// three-field split turned every such cue into NaN: the second half of each
+// film silently had no subtitles (574–728 cues per file, measured on the audit
+// corpus). "00:15.367" (no hours) and "0:00:15,3" read correctly too.
+function subtitleTimeToSeconds(timeStr) {
+  const m = String(timeStr ?? "").trim().match(/^(\d+(?::\d+)*)(?:[,.](\d+))?$/);
+  if (!m) return NaN;
+  const whole = m[1].split(":").reduce((acc, f) => acc * 60 + Number(f), 0);
+  return whole + (m[2] ? Number(`0.${m[2]}`) : 0);
+}
+const srtTimeToSeconds = subtitleTimeToSeconds;
+
+// Cues whose time could not be read never display — say so, once per file,
+// rather than letting them vanish (2026-09-18).
+function warnUnreadableTimes(cues, format) {
+  const bad = cues.filter((c) => !Number.isFinite(c.start) || !Number.isFinite(c.end)).length;
+  if (bad && typeof console !== "undefined") {
+    console.warn(`[jp-immersion] ${bad} of ${cues.length} ${format} cues have an unreadable timestamp and will never show.`);
+  }
+  return cues;
 }
 
 // ASS stores subtitles as "Dialogue:" lines under an [Events] section, with
@@ -84,7 +102,7 @@ function parseAss(raw) {
 
     cues.push({ start, end, text, style, align: assAlignment(rawText) });
   }
-  return cues;
+  return warnUnreadableTimes(cues, "ass");
 }
 
 // Kana is the decisive signal: hiragana/katakana appear in Japanese and in no
@@ -189,10 +207,9 @@ function assAlignment(rawText) {
 }
 
 function assTimeToSeconds(timeStr) {
-  const [h, m, s] = timeStr.split(":");
-  return Number(h) * 3600 + Number(m) * 60 + parseFloat(s);
+  return subtitleTimeToSeconds(timeStr);
 }
 
 if (typeof process !== "undefined") {
-  module.exports = { parseSrt, parseAss, stripDualLanguageCues };
+  module.exports = { parseSrt, parseAss, stripDualLanguageCues, subtitleTimeToSeconds };
 }
