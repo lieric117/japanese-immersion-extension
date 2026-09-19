@@ -2180,6 +2180,16 @@ async function buildGroupsForText(text) {
     groups = applyKatakanaNameSuppression(groups, nameCandidates, membership);
   }
 
+  // Invariant (2026-09-18): the groups rebuild the line exactly. renderGroups'
+  // character offsets — which the Anki card bolds the clicked word by — assume
+  // it, and a pass that broke it would bold the wrong characters silently. The
+  // property test (scripts/test-parse-invariants.js) and the corpus sweep hold
+  // this at zero violations; if a future pass ever breaks it, the line shows as
+  // plain text (nothing clickable, nothing misplaced) and says so.
+  if (groups.map((g) => g.surface).join("") !== text) {
+    console.warn("[jp-immersion] segmentation did not rebuild this line; showing it unsegmented:", JSON.stringify(text));
+    return [{ surface: text, word: null }];
+  }
   return groups;
 }
 
