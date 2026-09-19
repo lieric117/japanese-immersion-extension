@@ -206,8 +206,25 @@ let seasonEpisodeTitles = [];
 // `season_id`, because the id appears only in sniffed responses while these two
 // come from the JSON-LD that's on every page — so a cache written on one visit
 // can be found on the next before anything has been sniffed at all.
-function siblingCacheKey(seriesTitle, seasonName) {
-  return `siblings:${seriesTitle ?? "?"}:${seasonName ?? "?"}`;
+function siblingCacheKey(detected) {
+  return `siblings:${seasonMemoryKey(detected)}`;
+}
+
+// The ONE key every per-season memory is stored under (2026-09-18) — the
+// remembered entry pick, the uploader preference and the sibling-title cache.
+// It used to be series + season NUMBER, which is Crunchyroll's list position
+// and is NOT unique: in the live catalogue captures six season slots are shared
+// by different works, three of them a TV season sharing with a film (Gundam and
+// Char's Counterattack; KonoSuba 3's dub and Legend of Crimson's; FGO Babylonia
+// and Solomon), so an entry picked for the film was used for the TV season.
+// The season NAME tells them apart; a page with no season at all (a film
+// folded into its parent series) is keyed on its own title instead, so two such
+// films don't share one slot either. Pinned by scripts/test-detection-identity.js
+// over every captured season.
+function seasonMemoryKey(detected) {
+  const noSeason = detected.seasonName == null && detected.seasonNumber == null;
+  const work = noSeason ? String(detected.episodeTitle ?? "").split("|")[0].trim() : "";
+  return [detected.seriesTitle ?? "?", detected.seasonNumber ?? "?", detected.seasonName ?? "?", work].join(":");
 }
 
 function looseSame(a, b) {
@@ -246,7 +263,7 @@ window.addEventListener("message", (event) => {
     // just the one or two titles it carries and CLOBBER everything previous
     // visits had accumulated. That is why episode 1's title was still not
     // excluded by episode 8: the cache never grew past its last two neighbours.
-    const key = siblingCacheKey(detected.seriesTitle, detected.seasonName);
+    const key = siblingCacheKey(detected);
     chrome.storage.local.get(key, (stored) => {
       const known = Array.isArray(stored[key]) ? stored[key] : [];
       const merged = [...new Set([...known, ...mine])];
@@ -410,8 +427,56 @@ let video = null;
 // Atelier episode 1 → 2 → 1 → 2 landing back on episode 1's default uploader
 // instead of episode 2's) matches this exact shape. See loadSubtitles.
 let lastLoadedIdentity = null;
+// Carries the season NAME and the page's compound title as well (2026-09-18).
+// Series + season number + episode number alone is shared by 37 different real
+// episodes across the live catalogue captures (Shangri-La's episode 14 and its
+// 14.5 bonus; Fate/UBW's two prologues; every dub season numbered like its
+// sub), and with a shared key the staleness check and the watchdog below
+// cannot tell one of those episodes from the other. This key collides on none
+// of the 9,740 captured episodes — pinned by scripts/test-detection-identity.js.
 function episodeIdentity(detected) {
-  return `${detected.seriesTitle} ${detected.seasonNumber} ${detected.episodeNumber}`;
+  return [detected.seriesTitle, detected.seasonName, detected.seasonNumber, detected.episodeNumber, detected.episodeTitle].join(" ‖ ");
+}
+
+// Every subtitle load is a REQUEST bound to the episode it was made for
+// (2026-09-18). A response is installed only if it is still the newest request
+// AND the page still reports that same episode — otherwise it is dropped.
+//
+// Before this, each response callback assigned `cues` unconditionally. A load
+// takes several seconds when resolution needs its retries, navigation starts a
+// new one without cancelling the old, and whichever answer arrived LAST won:
+// the previous episode's subtitles could land on the new episode, with the Anki
+// show/episode label saying the new one. The same applies to a manual entry or
+// file pick still in flight when the user navigates.
+let subtitleRequestSeq = 0;
+function beginSubtitleRequest(detected) {
+  return {
+    seq: ++subtitleRequestSeq,
+    identity: detected ? episodeIdentity(detected) : null,
+    path: location.pathname,
+    detected,
+  };
+}
+function subtitleRequestIsCurrent(request) {
+  if (request.seq !== subtitleRequestSeq) return false; // superseded by a newer load or pick
+  if (location.pathname !== request.path) return false; // navigated since
+  const now = detectShowEpisode();
+  return (now ? episodeIdentity(now) : null) === request.identity;
+}
+// The one place cues are installed. Returns false (and installs nothing) for a
+// response that no longer belongs to this page.
+function installCues(request, newCues, filename) {
+  if (!subtitleRequestIsCurrent(request)) {
+    console.log(
+      `[jp-immersion] discarded subtitles for "${request.identity}" — the page has moved on since they were requested.`
+    );
+    return false;
+  }
+  cues = newCues;
+  lastText = null;
+  currentShowEpisode = request.detected ?? currentShowEpisode;
+  setActiveSubtitleFile(filename, request.detected ?? currentShowEpisode);
+  return true;
 }
 // True from the moment a subtitle load starts until it finishes or fails,
 // including across its own internal retries — read only by the watchdog below,
@@ -960,7 +1025,7 @@ function applyStoredOffset() {
 }
 
 // Per-show-per-season uploader preference memory (Phase 4.5, 2026-07-16).
-// Keyed on the SAME (seriesTitle, seasonNumber) pair detectShowEpisode()
+// Keyed on seasonMemoryKey (was (seriesTitle, seasonNumber) until 2026-09-18) — the season detectShowEpisode()
 // already resolves — deliberately NOT per-episode (that's what `fileHint`
 // and the switcher panel's live per-episode pick are for) and NOT scoped to
 // offset memory's existing per-pathname key at all (that's a separate,
@@ -968,8 +1033,8 @@ function applyStoredOffset() {
 // (e.g. "Haruhana"), not a specific file/URL — a saved file URL would go
 // stale the moment the episode changes, but an uploader tag generalizes
 // across every episode of the same show+season, which is the whole point.
-function uploaderPrefKey(seriesTitle, seasonNumber) {
-  return `uploaderPref:${seriesTitle}:${seasonNumber ?? "?"}`;
+function uploaderPrefKey(detected) {
+  return `uploaderPref:${seasonMemoryKey(detected)}`;
 }
 
 // The Jimaku entry the user picked for this season, remembered so the pick is
@@ -982,8 +1047,8 @@ function uploaderPrefKey(seriesTitle, seasonNumber) {
 // pick per episode, which is worse than the silent wrong-subtitles bug it
 // replaced was annoying. Keyed exactly like the uploader preference beside it,
 // so the two behave the same way and expire together with the season slot.
-function entryPrefKey(seriesTitle, seasonNumber) {
-  return `entryPref:${seriesTitle}:${seasonNumber ?? "?"}`;
+function entryPrefKey(detected) {
+  return `entryPref:${seasonMemoryKey(detected)}`;
 }
 
 // Extracts a release group's bracket tag from the START of a Jimaku
@@ -1007,10 +1072,21 @@ function extractUploaderTag(filename) {
 // jp-immersion-locationchange listener below on every SPA episode change.
 // `switcherPanel` (2026-07-15) is populated with the same response's ranked
 // candidate list, so it doesn't need its own separate Jimaku round trip.
-function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange = false) {
+// Retries for a detection that still reports the previous episode after
+// navigation. Raised from 2 (1s) to 10 (5s) on 2026-09-18: when the retries ran
+// out, the load went ahead with the STALE identity and showed the previous
+// episode's subtitles under the new one until the watchdog noticed. Nothing
+// shows during the wait, which is the safe side of the trade.
+const STALE_DETECTION_RETRIES = 10;
+function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = null, expectChange = false) {
+  if (retriesLeft === null) retriesLeft = expectChange ? STALE_DETECTION_RETRIES : 2;
   subtitleLoadPending = true;
+  // Nothing from an earlier load may be installed from here on — including one
+  // still in flight — and nothing may be captured against the old episode.
+  subtitleRequestSeq++;
   cues = null;
   lastText = null;
+  currentShowEpisode = null;
   // NOTE: English captions are deliberately NOT reset here (moved out
   // 2026-07-26 — see resetEnglishCaptions below for the bug this caused).
   // They come from an entirely separate pipeline driven by Crunchyroll's own
@@ -1051,8 +1127,18 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
       'Couldn\'t detect the show/episode from this page — use "Upload subtitle file" below instead.';
     return;
   }
+  if (stale) {
+    // Still the previous episode after the whole wait. Either Crunchyroll's
+    // block is badly late, or the URL changed without the episode changing
+    // (a rewrite). Loading is right for the second and the watchdog repairs the
+    // first as soon as the block updates, since the identity then differs.
+    console.warn(
+      `[jp-immersion] the page URL changed but its episode data still says "${episodeIdentity(detected)}" after ` +
+        `${STALE_DETECTION_RETRIES * 0.5}s — treating it as the same episode.`
+    );
+  }
   lastLoadedIdentity = episodeIdentity(detected);
-  currentShowEpisode = detected;
+  const request = beginSubtitleRequest(detected);
   // Saved per-show-per-season uploader preference (if any) is threaded into
   // the SAME FETCH_SUBTITLES call rather than fetched separately and then
   // possibly re-fetched — background.js's rankFiles gives it top priority
@@ -1060,9 +1146,9 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
   // regardless of whether a preference exists. A saved preference with no
   // matching file this episode is a silent no-op there (the "sticky
   // fallback" requirement) — nothing to handle on this side.
-  const prefKey = uploaderPrefKey(detected.seriesTitle, detected.seasonNumber);
-  const sibKey = siblingCacheKey(detected.seriesTitle, detected.seasonName);
-  const entryKey = entryPrefKey(detected.seriesTitle, detected.seasonNumber);
+  const prefKey = uploaderPrefKey(detected);
+  const sibKey = siblingCacheKey(detected);
+  const entryKey = entryPrefKey(detected);
   chrome.storage.local.get([prefKey, sibKey, entryKey], (stored) => {
     const preferredUploader = stored[prefKey] ?? null;
     const preferredEntryId = Number.isInteger(stored[entryKey]) ? stored[entryKey] : null;
@@ -1086,6 +1172,8 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
         preferredEntryId,
       },
       (response) => {
+        // A newer load owns the page now; this one reports nothing at all.
+        if (request.seq !== subtitleRequestSeq) return;
         subtitleLoadPending = false;
         if (!response) {
           subtitleBox.textContent = "Extension error: no response from background.";
@@ -1095,11 +1183,9 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = 2, expectChange
           subtitleBox.textContent = `Subtitle error: ${response.error} — use "Upload subtitle file" below if Jimaku has nothing for this show.`;
           return;
         }
-        cues = response.cues;
-        setActiveSubtitleFile(
-          response.files?.find((f) => f.url === response.selectedUrl)?.name ?? null,
-          detected
-        );
+        if (!installCues(request, response.cues, response.files?.find((f) => f.url === response.selectedUrl)?.name ?? null)) {
+          return;
+        }
         // Nothing matched, so nothing loaded (2026-08-01) — deliberately not an
         // error state: the video keeps playing, and the switcher panel below
         // still renders its entry picker so there's a way forward.
@@ -1501,7 +1587,7 @@ function init() {
     activeProviderOffsetKey = null;
     applyStoredOffset();
     rebindVideoIfSwapped();
-    loadSubtitles(subtitleBox, switcherPanel, 2, true);
+    loadSubtitles(subtitleBox, switcherPanel, null, true);
   });
 
   // Re-query for the <video> element and rebind if Crunchyroll swapped in a
@@ -1711,11 +1797,23 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
       // episode is still the right entry for the season.
       if (detected) {
         chrome.storage.local.set({
-          [entryPrefKey(detected.seriesTitle, detected.seasonNumber)]: chosenId,
+          [entryPrefKey(detected)]: chosenId,
         });
       }
+      const request = beginSubtitleRequest(detected);
       chrome.runtime.sendMessage(
-        { type: "FETCH_ENTRY_FILES", entryId: chosenId, episode: detected?.episodeNumber ?? null },
+        {
+          type: "FETCH_ENTRY_FILES",
+          entryId: chosenId,
+          episode: detected?.episodeNumber ?? null,
+          // The page context, so the pick is held to the same episode rules as
+          // automatic resolution (2026-09-18) — see background.js's fetchEntryFiles.
+          query: detected?.seriesTitle ?? null,
+          seasonNumber: detected?.seasonNumber ?? null,
+          seasonName: detected?.seasonName ?? null,
+          episodeTitle: detected?.episodeTitle ?? null,
+          siblingTitles: seasonEpisodeTitles,
+        },
         (response) => {
           entrySelect.disabled = false;
           if (!response || response.error) {
@@ -1723,8 +1821,7 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
             warning.textContent = response?.error ?? "Couldn't load that entry.";
             return;
           }
-          cues = response.cues;
-          lastText = null;
+          if (!installCues(request, response.cues, response.files?.find((f) => f.url === response.selectedUrl)?.name ?? null)) return;
           // Re-rendered from the new entry's own file list, with the picker
           // kept open on the entry now in use — the pick may well need
           // another try, and collapsing the control after one attempt would
@@ -1771,18 +1868,18 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
   select.addEventListener("change", () => {
     const chosen = files.find((f) => f.url === select.value);
     if (!chosen) return;
+    const request = beginSubtitleRequest(detected);
     chrome.runtime.sendMessage(
       { type: "FETCH_SUBTITLE_FILE", url: chosen.url, name: chosen.name },
       (response) => {
         if (!response || response.error) {
           // Revert the dropdown to whatever's still actually loaded rather
           // than leaving it showing a selection that silently failed.
-          select.value = selectedUrl;
+          select.value = selectedUrl ?? "";
           return;
         }
-        cues = response.cues;
-        lastText = null;
-        setActiveSubtitleFile(chosen.name, detected);
+        if (!installCues(request, response.cues, chosen.name)) return;
+        selectedUrl = chosen.url;
         // A manual pick becomes this show+season's remembered uploader
         // preference going forward (2026-07-16) — only when the chosen
         // file actually has an extractable uploader tag; an unbracketed
@@ -1792,7 +1889,7 @@ function renderSwitcherOptions(panel, files, selectedUrl, detected, entryName = 
         const uploaderTag = extractUploaderTag(chosen.name);
         if (uploaderTag && detected) {
           chrome.storage.local.set({
-            [uploaderPrefKey(detected.seriesTitle, detected.seasonNumber)]: uploaderTag,
+            [uploaderPrefKey(detected)]: uploaderTag,
           });
         }
         // Same forced-re-render fix as loadSubtitles() above — a manual
@@ -1849,8 +1946,9 @@ function buildUploadControl() {
           status.textContent = `No cues found in "${file.name}" — check the file is a valid .srt/.ass.`;
           return;
         }
-        cues = parsedCues;
-        setActiveSubtitleFile(file.name, currentShowEpisode);
+        // Bound to the page as it is NOW — an upload is always for the episode
+        // on screen, whatever the automatic load was doing.
+        installCues(beginSubtitleRequest(detectShowEpisode()), parsedCues, file.name);
         status.textContent = `Loaded "${file.name}" (${parsedCues.length} cues).`;
         // Forces an immediate re-render using the existing timeupdate
         // listener (see init()) rather than waiting for the video to fire
