@@ -391,6 +391,19 @@ function fileStatesAnEpisode(name) {
   return p.absolute !== null || p.seasonEpisode !== null || filePositionNumbers(name).length > 0;
 }
 
+// The text in front of a stated position — "Shangri-La Frontier (2024)" for
+// "Shangri-La Frontier (2024) - 26 「…」" — which identifies one uploader's
+// numbering population within an entry. Returns one prefix per " - N" that
+// states `position`.
+function positionPrefixes(name, position) {
+  const out = [];
+  const text = String(name ?? "");
+  for (const m of text.matchAll(FILE_POSITION_RE)) {
+    if (Number(m[1]) === position) out.push(text.slice(0, m.index).trim().toLowerCase());
+  }
+  return out;
+}
+
 function episodeOffsetFromFirst(files) {
   const positions = files.flatMap((f) => filePositionNumbers(f.name));
   if (!positions.length) return 0;
@@ -1870,7 +1883,17 @@ async function filesForEntry({ entry, entries, episode, headers, seasonNumber, c
     const offset = episodeOffsetFromFirst(first);
     const localEpisode = episode - offset;
     if (offset > 0 && localEpisode >= 1) {
-      const retry = await listFiles(entry, { episode: localEpisode });
+      // The answer can hold the ABSOLUTE uploader's own file for this number
+      // (2026-09-18). Its "- 26" is Crunchyroll's 26, i.e. this entry's episode
+      // 1 — that is exactly what the offset was derived from — so asking for
+      // local episode 26 of Shangri-La's season 2 (which the entry doesn't
+      // have) came back with season 2's FIRST episode, loaded as confident.
+      // Files from the population the probe proved absolute are dropped; what
+      // is left is this entry's own numbering, or nothing.
+      const absolutePrefixes = new Set(first.flatMap((f) => positionPrefixes(f.name, offset + 1)));
+      const retry = (await listFiles(entry, { episode: localEpisode })).filter(
+        (f) => !positionPrefixes(f.name, localEpisode).some((p) => absolutePrefixes.has(p))
+      );
       if (retry.length) {
         console.log(
           `[jp-immersion] "${entry.english_name ?? entry.name}" has nothing under episode ${episode}, but it ` +

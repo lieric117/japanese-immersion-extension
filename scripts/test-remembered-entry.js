@@ -48,6 +48,16 @@ const picked = (r) => (r?.selectedUrl ? decodeURIComponent(r.selectedUrl) : null
   r = await bg.fetchSubtitles({ ...page(26), fileHint: "[JPN]", preferredEntryId: 7707 });
   check("remembered entry, episode 26: loads season 2 episode 1 (the absolute uploader's '- 26')", /\(2024\) - 26 |S2 - 01|S02E01/.test(picked(r) ?? ""), picked(r));
 
+  // An episode the entry doesn't hold. Crunchyroll's season ends at 50, so this
+  // is constructed from the real listing to reach the offset retry past the
+  // end: local 26 does not exist, and Jimaku's `?episode=26` answers with the
+  // ABSOLUTE uploader's "- 26" — season 2's first episode.
+  r = await bg.fetchEntryFiles(7707, page(51));
+  check("entry picker, episode 51 (not in the entry): loads NOTHING", r.selectedUrl === null && r.cues.length === 0, picked(r));
+  check("…but still lists the entry's files to choose from", r.files.length > 3, `${r.files.length} files`);
+  r = await bg.fetchSubtitles({ ...page(51), fileHint: "[JPN]", preferredEntryId: 7707 }).catch((e) => ({ error: e.message }));
+  check("remembered entry, episode 51: never loads the absolute '- 26' file — refuses with no file for the episode", !/\(2024\) - 26 /.test(picked(r) ?? "") && /No subtitle file found for episode 51/.test(r.error ?? ""), picked(r) ?? r.error);
+
   console.log(failed ? `\n${failed} failed` : "\nall passed");
   process.exit(failed ? 1 : 0);
 })();
