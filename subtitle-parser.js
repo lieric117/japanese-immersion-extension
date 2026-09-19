@@ -13,6 +13,18 @@
 // ordinary characters that a line of dialogue could legitimately contain.
 const SRT_OVERRIDE_RE = /\{\\[^}]*\}/g;
 
+// Tag-shaped markup in an .srt file (2026-09-18) — <i>, <font color=…>, <b>,
+// and the <rb> that Amazon rips use for ruby. Measured on the audit corpus: 7 of
+// 248 .srt files, 984 displayed lines, rendered the tags literally and sent them
+// to Anki. Stripped as a CLASS, not a list of tag names: .srt dialogue has no
+// other use for ASCII angle brackets (Japanese quotes with 〈〉), so anything
+// shaped like a tag is markup.
+const SRT_TAG_RE = /<\/?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?>/g;
+// ARIB gaiji placeholders from TV rips — "[外:<32 hex>]" stands for a character
+// the source encoding could not represent. Replaced with 〓, the conventional
+// mark for exactly that, rather than left as 38 characters of hex.
+const GAIJI_PLACEHOLDER_RE = /\[外:[0-9A-Fa-f]{32}\]/g;
+
 function parseSrt(raw) {
   const cues = [];
   const blocks = raw.replace(/\r/g, "").trim().split(/\n\n+/);
@@ -25,6 +37,8 @@ function parseSrt(raw) {
       .slice(lines.indexOf(timeLine) + 1)
       .join("\n")
       .replace(SRT_OVERRIDE_RE, "")
+      .replace(SRT_TAG_RE, "")
+      .replace(GAIJI_PLACEHOLDER_RE, "〓")
       .replace(/\\N/gi, "\n");
     cues.push({
       start: srtTimeToSeconds(startStr),

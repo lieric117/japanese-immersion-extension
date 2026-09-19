@@ -39,5 +39,24 @@ for (const [s, want] of [["00:00:04.000", 4], ["00:15,367", 15.367], ["0:00:01.0
 }
 check("an unreadable time is NaN (and reported), never a guessed number", Number.isNaN(parser.subtitleTimeToSeconds("garbage")));
 
+// ── markup ──────────────────────────────────────────────────────────────────
+// VERBATIM excerpts: [Moozzi2] Kusuriya no Hitorigoto - 13 (<font>),
+// [Amazon] Mobile Suit Gundam - The Witch from Mercury 07 (<rb>), Fairy Tail
+// 100-nen Quest - E13 [TV].srt (gaiji).
+{
+  const raw =
+    '1\n00:00:17,000 --> 00:00:18,059\n<font color="japanese">（壬氏(ジンシ)）本気ですか？</font>\n\n' +
+    "2\n00:00:17,017 --> 00:00:21,605\n<rb>今日</rb>こんにちの あらゆるシステム管理や\n\n" +
+    "3\n00:11:40,000 --> 00:11:41,750\nﾓｰﾄﾞ[外:46123D2913F84CFAB6F8F782E9F5B2F8]雷竜!!\n\n" +
+    "4\n00:00:30,000 --> 00:00:31,000\n<i>（どうしよう…）</i>\n\n";
+  const cues = parser.parseSrt(raw);
+  check("<font color=…> is stripped, the dialogue kept", cues[0].text === "（壬氏(ジンシ)）本気ですか？", cues[0].text);
+  check("<rb> ruby tags are stripped and every character kept", cues[1].text === "今日こんにちの あらゆるシステム管理や", cues[1].text);
+  check("an ARIB gaiji placeholder becomes 〓", cues[2].text === "ﾓｰﾄﾞ〓雷竜!!", cues[2].text);
+  check("<i> is stripped (SYNTHETIC)", cues[3].text === "（どうしよう…）", cues[3].text);
+  const braces = parser.parseSrt("1\n00:00:01,000 --> 00:00:02,000\n{笑} 3<5 は正しい\n\n");
+  check("non-tag angle brackets and plain braces in .srt dialogue survive (SYNTHETIC)", braces[0].text === "{笑} 3<5 は正しい", braces[0].text);
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);
