@@ -79,5 +79,26 @@ check("an unreadable time is NaN (and reported), never a guessed number", Number
   check("ordinary dialogue on screen with it, and a lone one-character line, survive", texts.includes("え？") && texts.includes("あ"), JSON.stringify(texts));
 }
 
+// ── dual-language strip ─────────────────────────────────────────────────────
+// VERBATIM lines: [CoalGuys] K-ON!! S2 - 07 .en+jp.ass (Japanese dialogue in the
+// English-majority Default style) and a Chinese staff credit from [Kamigami]
+// Barakamon - 07. The English lines filling the Default style are SYNTHETIC.
+{
+  const cue = (text, style) => ({ start: 0, end: 1, text, style });
+  const cues = [
+    ...Array.from({ length: 6 }, (_, i) => cue(`English line ${i}`, "Default")),
+    cue("（和）よいしょっと　ハア…", "Default"),
+    cue("日听:丸子  翻译:东坡&有明の月  校对:小白&lucifer  时间轴:灵灵  后期:娜夏", "LOGO"),
+    // SYNTHETIC: the rest of the credit style, as in the real file, carries no kana.
+    cue("字幕组 出品", "LOGO"),
+    cue("仅供学习交流", "LOGO"),
+    ...Array.from({ length: 6 }, (_, i) => cue(`日本語の台詞${i}です`, "JP")),
+  ];
+  const kept = parser.stripDualLanguageCues(cues).map((c) => c.text);
+  check("Japanese dialogue in an English-majority style survives the strip", kept.includes("（和）よいしょっと　ハア…"), JSON.stringify(kept));
+  check("the English lines around it are still stripped", !kept.some((t) => t.startsWith("English line")), JSON.stringify(kept));
+  check("a Chinese staff credit with a の inside a name is still stripped", !kept.some((t) => t.startsWith("日听")), JSON.stringify(kept));
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

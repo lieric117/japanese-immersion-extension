@@ -126,6 +126,15 @@ function parseAss(raw) {
 const KANA_RE = /[぀-ゟ゠-ヿ]/;
 const LATIN_LETTER_RE = /[A-Za-z]/;
 
+// Hiragana share of a line's Japanese characters (hiragana + kanji). Katakana
+// is left out on purpose: staff credits write names in it ("ヨーク").
+const JAPANESE_LINE_MIN_HIRAGANA = 0.25;
+function readsAsJapaneseLine(text) {
+  const hira = (String(text).match(/\p{Script=Hiragana}/gu) ?? []).length;
+  const han = (String(text).match(/\p{Script=Han}/gu) ?? []).length;
+  return hira > 0 && hira / (hira + han) >= JAPANESE_LINE_MIN_HIRAGANA;
+}
+
 // Removes a parallel translation track from a dual-language subtitle file,
 // keeping only the Japanese lines (2026-07-26). Live testing found that when
 // such a file is selected, its embedded English renders in the Japanese
@@ -176,7 +185,12 @@ function stripDualLanguageCues(cues) {
   // (or kana detection failed); leave it exactly as it was.
   if (japaneseStyles.size === 0) return cues;
 
-  const kept = cues.filter((c) => japaneseStyles.has(c.style ?? ""));
+  // A Japanese line in a dropped style is still Japanese (2026-09-18) — the
+  // audit corpus had 351 of them: dialogue in an English-majority Default, a
+  // whole style named "JP" outvoted by its own song lines. Kept when hiragana
+  // is at least a quarter of its Japanese characters; the Chinese staff
+  // credits those styles also carry have at most a の inside a name.
+  const kept = cues.filter((c) => japaneseStyles.has(c.style ?? "") || readsAsJapaneseLine(c.text));
   // Every style is Japanese: a normal single-language file, nothing to strip.
   if (kept.length === cues.length) return cues;
   return kept;
