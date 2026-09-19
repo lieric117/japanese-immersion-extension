@@ -38,7 +38,13 @@ const cueDisplayText = new Function(
     grab(/^const FANSUB_MARKUP_RE =[\s\S]*?;$/m, "FANSUB_MARKUP_RE"),
     grab(/^const ASS_OVERRIDE_RE =[\s\S]*?;$/m, "ASS_OVERRIDE_RE"),
     grab(/^const SENTENCE_PERIOD_RE =[\s\S]*?;$/m, "SENTENCE_PERIOD_RE"),
+    grab(/^const FORMAT_CHAR_RE =[\s\S]*?;$/m, "FORMAT_CHAR_RE"),
+    grab(/^const DIGIT_COLON_RE =[\s\S]*?;$/m, "DIGIT_COLON_RE"),
+    grab(/^const DIALOGUE_DASH_RE =[\s\S]*?;$/m, "DIALOGUE_DASH_RE"),
+    grab(/^const DOUBLED_OPEN_RE =[\s\S]*?;$/m, "DOUBLED_OPEN_RE"),
+    grab(/^const DOUBLED_CLOSE_RE =[\s\S]*?;$/m, "DOUBLED_CLOSE_RE"),
     grab(/^function cueDisplayText\(cue\) \{[\s\S]*?\n\}/m, "cueDisplayText"),
+    grab(/^function lineDisplayText\(line\) \{[\s\S]*?\n\}/m, "lineDisplayText"),
     "return cueDisplayText;",
   ].join("\n")
 )(normalizeHalfwidthKatakana);
@@ -74,6 +80,27 @@ const cases = [
   ["⚟あの子", "あの子", "off-screen-speech marker, 12 lines in the corpus"],
   ["⸨そこのあなた⸩", "そこのあなた", "second monologue bracket pair, 11 lines in the corpus"],
   ["\u{1F44D}\u{1F3FD}", "", "skin-tone modifier goes with its emoji"],
+
+  // — 2026-09-18 audit corpus (386 real Jimaku files), VERBATIM lines: the
+  //   filters assumed one clean line per cue
+  ["\u200E（ひとり）うわっ", "うわっ", "a U+200E mark at the line start defeated every anchored filter (Netflix-derived, 780 cues)"],
+  ["\u202A（ひとり）これは…", "これは…", "…U+202A likewise"],
+  ["あっ\n（喜多）あれ？", "あっ\nあれ？", "the second speaker's label on the second line (7,729 corpus lines kept it)"],
+  ["（女子１）\nうわっ ちょっと 見て見て！", "うわっ ちょっと 見て見て！", "a label alone on the first line"],
+  ["（ギターの\n巧みな速弾き）", "", "a stage direction spanning both lines of its cue is still dropped whole"],
+  ["（ドアの開く音）\nただいま", "ただいま", "a stage-direction line above dialogue goes, the dialogue stays"],
+  ["（壬氏(ジンシ)）本気ですか？", "本気ですか？", "a name carrying its own katakana reading is one label"],
+  ["事務所の取り分５：５なんでしょ", "事務所の取り分５：５なんでしょ", "a ratio's colon is not a speaker label (was shown as '５なんでしょ')"],
+  ["うち８：２ うらやましいな", "うち８：２ うらやましいな", "…likewise"],
+
+  ["-（アガット）何やってるの…\n-（リチェ）あ…？", "何やってるの…\nあ…？", "Netflix dialogue dashes in front of each speaker's label"],
+  ["（白銀御行(しろがね みゆき)）へえー いかがわしいな", "へえー いかがわしいな", "a full-name reading with a space inside the label"],
+  ["((本当の自分を\n隠したままでいいの？))", "本当の自分を\n隠したままでいいの？", "doubled parentheses wrap SPOKEN lines — brackets go, words stay"],
+  ["（花）((ポスター見た？　町長選の))", "ポスター見た？　町長選の", "a speaker label in front of doubled parentheses (VERBATIM, Kimi no Na wa)"],
+  ["（腹の鳴る音）（ルフィ）あー　腹へったー！", "あー　腹へったー！", "a sound effect AND a speaker label in front of the words"],
+  ["（一同）", "", "a label alone is a stage direction, not emptied into nothing else"],
+  ["\u200E（虹夏(にじか)）\n\u200Eあたしたちとバンドやろう！", "あたしたちとバンドやろう！", "a label carrying its own reading, alone on its line (Netflix-derived, VERBATIM)"],
+  ["STARRY(スターリー)っていうんだけどね", "STARRY(スターリー)っていうんだけどね", "a reading after a Latin word is content, kept"],
 
   // — things that must NOT be touched
   ["本当か⁉", "本当か⁉", "interrobang is punctuation here, despite being Extended_Pictographic"],

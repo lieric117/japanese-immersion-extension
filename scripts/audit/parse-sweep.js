@@ -21,7 +21,8 @@
 //     SPEAKER-STRIP      text removed as a "speaker name" (sub-typed by shape)
 //     STAGE-DROP         a whole line dropped as a stage direction (sub-typed)
 //     PARTIAL-PAREN      a parenthetical left inside displayed dialogue
-//     DUP-LAYER          the same text shown twice at once (layered events)
+//     DUP-LAYER          the same text from two events at once (collapsed by the
+//                        display join, as japaneseDisplayAt does — informational)
 //     MIDWORD-BREAK      a line break that splits a word kuromoji would keep whole
 //     HAN-UNCLICKABLE    a Han character outside the clickable-character ranges
 //     UNRESOLVED         clickable, but lookupWord finds nothing
@@ -179,9 +180,12 @@ function stageShape(line) {
     if (bad.length > 3) note("NAN-TIME", `${isAss ? "ass" : "srt"} (+${bad.length - 3} more in file)`, { line: "", file, invariant: true });
     for (const c of cues.filter((c) => c.end < c.start).slice(0, 2)) note("NEG-DURATION", isAss ? "ass" : "srt", { line: c.text.slice(0, 60), file });
 
-    const kept = pipe.stripDualLanguageCues(cues);
-    if (kept !== cues && kept.length !== cues.length) {
-      const keptSet = new Set(kept);
+    const kept = pipe.cleanParsedCues(cues);
+    // Losses are judged against the DUAL-LANGUAGE strip alone — the glyph-burst
+    // step removes karaoke glyphs by design and is not a loss of dialogue.
+    const dualKept = pipe.stripDualLanguageCues(cues);
+    if (dualKept !== cues && dualKept.length !== cues.length) {
+      const keptSet = new Set(dualKept);
       const droppedKana = cues.filter((c) => !keptSet.has(c) && KANA.test(c.text));
       for (const c of droppedKana.slice(0, 3)) note("DUAL-STRIP-KANA", `style ${c.style || "(none)"}`, { line: c.text.slice(0, 80), file, invariant: true });
     }
@@ -206,6 +210,11 @@ function stageShape(line) {
           }
           continue;
         }
+        // Mirrors japaneseDisplayAt: the same text twice at once is shown once.
+        if (parts.includes(d)) {
+          note("DUP-LAYER", isAss ? "ass" : "srt", { line: d.slice(0, 80), file });
+          continue;
+        }
         parts.push(d);
         // Speaker strip: what the filter removed from the front.
         const pre = cue.text.trim().replace(/\{\\[^}]*\}/g, "");
@@ -215,9 +224,6 @@ function stageShape(line) {
         }
       }
       if (!parts.length) continue;
-      // Identical text from two simultaneously active cues.
-      const dupCount = parts.length - new Set(parts).size;
-      if (dupCount) note("DUP-LAYER", isAss ? "ass" : "srt", { line: parts.join(" ⏎ ").slice(0, 80), file });
       const text = parts.join("\n");
       if (seenText.has(text)) continue;
       seenText.add(text);

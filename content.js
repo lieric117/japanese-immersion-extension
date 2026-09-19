@@ -691,7 +691,33 @@ const SPEAKER_PREFIX_RE = /^(?:[（(][^）)]{1,12}[）)]|[^:：\n]{1,12}[:：])\
 // strips a parenthetical directly attached (no space) to a kanji run whose
 // contents are pure hiragana, so it doesn't touch stage directions or other
 // asides that aren't a reading annotation.
-const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んー]+)[）)]/g;
+// Katakana readings too (2026-09-18) — names carry them, "（壬氏(ジンシ)）".
+// A full-name reading carries a space: "白銀御行(しろがね みゆき)".
+const INLINE_FURIGANA_RE = /([㐀-鿿々]+)[（(]([ぁ-んァ-ヺー][ぁ-んァ-ヺー 　]*)[）)]/g;
+
+// A leading dialogue dash marks a speaker turn in Netflix/Prime-derived files
+// ("-（アガット）何やってるの…"), and stood in front of the label it introduces.
+const DIALOGUE_DASH_RE = /^[-－]\s*/;
+
+// Doubled parentheses wrap SPOKEN lines in some releases — an inner or
+// child-like voice, "((本当の自分を⏎隠したままでいいの？))" — so the brackets go and
+// the words stay (2026-09-18; one of the three shapes Open Questions carried).
+// Judged per LINE, opening and closing separately: the pair routinely spans two
+// lines, and in NanakoRaws' Kimi no Na wa it spans two CUES shown together, so
+// the two halves never meet in one string.
+const DOUBLED_OPEN_RE = /^[（(]{2}/;
+const DOUBLED_CLOSE_RE = /[）)]{2}$/;
+
+// Invisible formatting characters (Unicode Cf: bidi marks, zero-width space,
+// BOM, soft hyphen). Netflix-derived files begin lines with U+200E / U+202A,
+// which trim() leaves in place — so every filter anchored on the start of a line
+// silently failed on every line of those files (2026-09-18, 780 cues).
+const FORMAT_CHAR_RE = /\p{Cf}/gu;
+
+// A colon between two digits is time or ratio notation — "５：５", "1:23:34" —
+// never the end of a speaker label (2026-09-18: 18 corpus lines were losing
+// everything before the ratio).
+const DIGIT_COLON_RE = /[0-9０-９][:：]\s*$/;
 
 // Fansub-provider markup with no linguistic content, stripped globally
 // (unlike STAGE_RE above, which only matches a parenthetical that's the
@@ -2436,19 +2462,44 @@ function japaneseDisplayAt(fileTime) {
 // INLINE_FURIGANA_RE both key off parentheses/kanji that markup stripping
 // never touches.
 function cueDisplayText(cue) {
-  let t = cue.text.trim();
+  let t = cue.text.replace(FORMAT_CHAR_RE, "").trim();
   // Before FANSUB_MARKUP_RE, which would otherwise eat the tag's contents and
   // leave the braces behind as stray punctuation.
   t = t.replace(ASS_OVERRIDE_RE, "").trim();
   t = t.replace(FANSUB_MARKUP_RE, "").trim();
+  // A stage direction can span every line of its cue ("（ギターの⏎巧みな速弾き）");
+  // that is judged on the whole cue before the lines are judged one by one.
   if (!t || STAGE_RE.test(t)) return "";
-  t = t.replace(SPEAKER_PREFIX_RE, "").trim();
-  t = t.replace(INLINE_FURIGANA_RE, "$1").trim();
+  // Line by line (2026-09-18): the tests below are anchored on the start of a
+  // line, and a two-speaker cue carries its second label on its second line —
+  // 7,729 corpus lines kept that label when these ran on the whole cue.
+  t = t.split("\n").map(lineDisplayText).filter(Boolean).join("\n");
   // Last, so the stage-direction and speaker-prefix tests above still see the
   // punctuation their patterns were measured against.
   t = t.replace(SENTENCE_PERIOD_RE, " ").replace(/[ \t]{2,}/g, " ").trim();
   if (!t) return "";
   return normalizeHalfwidthKatakana(t);
+}
+
+// One line of a cue: a whole-line stage direction goes, an inline reading goes
+// (before the speaker test, so a name carrying its own reading is one name),
+// then a leading speaker label goes — unless its colon sits between two digits.
+function lineDisplayText(line) {
+  // Readings go FIRST: a label carrying one, "（虹夏(にじか)）", only reads as the
+  // bare label the stage-direction test recognises once its inner reading is out.
+  let t = line.trim().replace(DIALOGUE_DASH_RE, "").replace(INLINE_FURIGANA_RE, "$1").trim();
+  if (!t || STAGE_RE.test(t)) return "";
+  // More than one leading group can precede the words — a sound effect and then
+  // the speaker, "（腹の鳴る音）（ルフィ）あー" — so labels are taken while dialogue
+  // still follows them. (Bounded: a line is never emptied by this.)
+  for (let n = 0; n < 3; n++) {
+    const label = t.match(SPEAKER_PREFIX_RE);
+    if (!label || label[0].length >= t.length) break;
+    if (DIGIT_COLON_RE.test(label[0]) && /^[0-9０-９]/.test(t.slice(label[0].length))) break;
+    t = t.slice(label[0].length).trim();
+  }
+  // After the labels, so "（花）((ポスター見た？…))" loses both.
+  return t.replace(DOUBLED_OPEN_RE, "").replace(DOUBLED_CLOSE_RE, "").trim();
 }
 
 // One spoken sentence is often split across two consecutive Japanese subtitle

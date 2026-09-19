@@ -53,11 +53,14 @@ async function createPipeline({ contentPath = path.join(ROOT, "content.js"), bac
   ];
   // Optional helpers a fixed content.js may define and cueDisplayText call.
   const optional = [];
-  for (const name of ["DISPLAY_HTML_TAG_RE", "ASS_ESCAPE_RE", "ASS_DRAWING_RE"]) {
+  for (const name of ["FORMAT_CHAR_RE", "DIGIT_COLON_RE", "DIALOGUE_DASH_RE", "DOUBLED_OPEN_RE", "DOUBLED_CLOSE_RE"]) {
     const m = src.match(new RegExp(`^const ${name} = .*$`, "m"));
     if (m) optional.push(m[0]);
   }
-  const cueDisplayTextSrc = grab(src, /^function cueDisplayText\([\s\S]*?\n\}/m, "cueDisplayText");
+  const cueDisplayTextSrc =
+    grab(src, /^function cueDisplayText\([\s\S]*?\n\}/m, "cueDisplayText") +
+    "\n" +
+    ((src.match(/^function lineDisplayText\([\s\S]*?\n\}/m) ?? [""])[0]);
   const buildSrc = grab(src, /^async function buildGroupsForText\([\s\S]*?\n\}/m, "buildGroupsForText");
 
   const checkKanaMerges = async (texts) => bg.checkKanaMergeCandidates(texts);
@@ -81,6 +84,8 @@ async function createPipeline({ contentPath = path.join(ROOT, "content.js"), bac
     parseSrt: parser.parseSrt,
     parseAss: parser.parseAss,
     stripDualLanguageCues: parser.stripDualLanguageCues,
+    // The real track-cleaning step when this subtitle-parser.js has one.
+    cleanParsedCues: parser.cleanParsedCues ?? parser.stripDualLanguageCues,
     utils,
   };
 }
