@@ -10,10 +10,10 @@ Started 2026-09-18 from commit `c1c95b2`. This file exists so a fresh session ca
 | Phase | State |
 |---|---|
 | 0 — Pipeline map | done — `docs/audit/pipeline-map.md` |
-| 1 — Failure taxonomy | done for detection; parsing pending corpus — `docs/audit/failure-taxonomy.md` |
-| 2 — Invariants | drafted in the map/taxonomy, enforcement pending |
+| 1 — Failure taxonomy | done — `docs/audit/failure-taxonomy.md` |
+| 2 — Invariants | enforced in code and tests — see `report.md` §3 |
 | 3 — Harness | built; detection sweep run live (1,485 sampled episodes, all three captures) |
-| 4 — Fixes | detection: 6 root causes fixed (see below); parsing next |
+| 4 — Fixes | done: 7 detection + 7 parsing root causes, one commit each; end-of-session report in `report.md` |
 
 ## Environment notes (read first)
 
@@ -109,3 +109,14 @@ Census over 192 cached search responses and 876 entries:
 
 - Phase 0 map.
 - Harness scaffolding: offline-tested on fixtures; the detection sweep smoke-tested offline.
+
+## Parsing (386-file corpus, `.audit-cache/corpus.json`)
+
+Root causes fixed, one commit each: lossless tokenization, any-count timestamps, .srt tag markup/gaiji, typesetting layers, per-line display filters, Japanese lines in dropped dual-language styles, grunts/stutters, runtime losslessness guard. Before/after numbers are in `failure-taxonomy.md` section 2 and `report.md`.
+
+## Where to resume
+
+Nothing is mid-flight. The next step is live: checklist group F in `project-plan.md` section 6. To re-verify offline after any change:
+- `JIMAKU_CACHE_MODE=offline node scripts/audit/detection-sweep.js <3 captures> --sample --lists after.json`, then `diff-lists.js` against a run with `--background <old copy>`;
+- `node scripts/audit/parse-sweep.js --out r.json`;
+- `node scripts/test-parse-invariants.js`.

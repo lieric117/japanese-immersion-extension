@@ -87,56 +87,52 @@ Evidence key:
 
 ## 2. Parsing and segmentation
 
-### 2a. File format (`subtitle-parser.js`, display filters)
-| # | Input category | Before | Evidence |
-|---|---|---|---|
-| PA1 | **SRT `.`-millisecond timestamps** | N: NaN, the cue silently never shows | synthetic |
-| PA2 | **SRT HTML markup** (`<i>`, `<font>`) | N: shown literally, sent to Anki | synthetic |
-| PA3 | ASS override tags in SRT | C (2026-08-15) | live |
-| PA4 | **ASS escapes** `\h` | N: literal `\h` | synthetic |
-| PA5 | ASS vector drawings (`\p1`) | N (usually removed by accident by the dual-language strip) | synthetic |
-| PA6 | Karaoke `\k` tags | C | code |
-| PA7 | **Layered duplicate events** | N: the line shown twice | synthetic |
-| PA8 | Stacked / overlapping cues | P (joined with `\n`) | live |
-| PA9 | **Line break inside a word** | N | synthetic |
-| PA10 | **Speaker labels**: `Name：`, `（Name）` | P: first line only; **also strips non-names** (`10:`) | synthetic |
-| PA11 | Stage directions / sound effects | P: whole-line only (Open Q #14) | live |
-| PA12 | **Inner monologue in parentheses** | N: dropped as a stage direction. Inherently ambiguous by shape | synthetic |
-| PA13 | Music symbols, emoji | C | live |
-| PA14 | Half-width katakana / full-width digits | C | live |
-| PA15 | Inline furigana `漢字(かんじ)` | C (hiragana readings); katakana readings N | live |
-| PA16 | Dual-language tracks | C | live |
-| PA17 | Encoding (BOM, UTF-16, mojibake) | N | — |
-| PA18 | **HTML entities** | N | synthetic |
-| PA19 | **Han characters kuromoji can't classify** (`𠮟`, compatibility ideographs) | N: symbol, orphaned auxiliary | synthetic |
+Measured on the 386-file corpus (`scripts/audit/parse-sweep.js`: 233,963 distinct displayed lines, 129 Jimaku entries, 90 series, every release-group/format bucket). "After" is the same corpus, same cache.
 
-### 2b. Tokenization (kuromoji/IPADIC + grouping)
-| # | Input category | Before | Evidence |
-|---|---|---|---|
-| PB1 | Losslessness (tokens/groups rebuild the text) | N: never asserted; Anki bold offsets depend on it | — |
-| PB2 | Unknown words | P (fallback lookups) | live |
-| PB3 | Personal names (katakana, kanji) | C | live |
-| PB4 | Katakana loanwords | C | live |
-| PB5 | Compounds | C (noun+noun fuse) | live |
-| PB6 | Long auxiliary chains | C (allowlist, Rule 0.6) | live |
-| PB7 | Colloquial contractions ちゃう/じゃん/んだ/てる | P (てる, んだ covered; others unmeasured) | live |
-| PB8 | Sentence-final particles | C (prt filter) | live |
-| PB9 | Interjections, fragmented by punctuation | C (kana-merge) | live |
-| PB10 | Stutters (`わ、わたし`) and elongations (`すごーい`, `ねぇ`) | P (small-vowel collapse only) | live |
-| PB11 | Onomatopoeia | P | — |
-| PB12 | Honorific prefixes and suffixes | C | live |
-| PB13 | Counters, numerals, dates | P (numerals only) | live |
-| PB14 | Dialects (Kansai `せや/あかん/ほんま/へん`) | N | — |
+### 2a. File format (`subtitle-parser.js`, display filters)
+| # | Input category | Before | After | Evidence |
+|---|---|---|---|---|
+| PA1 | **Timestamps**: `.` separator, **four-field `00:01:00:15,367` (Bandai films)** | N: every cue past 1h NaN, never shown (5 files, 574–728 cues each) | C: base-60 fields of any count; unreadable ones reported | live corpus |
+| PA2 | **.srt tag markup** (`<i>`, `<font>`, `<rb>`) | N: 984 lines rendered tags | C: 0 | live corpus |
+| PA2b | **ARIB gaiji placeholders** `[外:<hex>]` | N (1 file) | C: → 〓 | live corpus |
+| PA3 | ASS override tags in .srt | C | C | live |
+| PA4 | ASS escapes `\h` | N | measured 0 occurrences; not changed | live corpus |
+| PA5 | ASS vector drawings | N | measured 0 residue lines; not changed | live corpus |
+| PA6 | Karaoke `\k` tags | C | C | code |
+| PA7 | **Layered duplicate events** | N: 1,067 lines doubled | C: shown once | live corpus |
+| PA7b | **Karaoke typeset one glyph per event** | N: 7 files, 2,296 moments, one char per line | C: dropped as an effect layer | live corpus |
+| PA8 | Stacked / overlapping cues | P | P (NanakoRaws four-line shape still open) | live |
+| PA9 | Line break inside a word | suspected | **measured not a defect**: line breaks in real files are sentence/speaker boundaries; the detector's hits were joins of separate lines | live corpus |
+| PA10 | **Speaker labels** | P: first line only; `５：５` cut | C: per line; digit colon guarded (18 lines) | live corpus |
+| PA10b | **Invisible marks (U+200E/U+202A) before labels** | N: 780 cues unfiltered | C | live corpus |
+| PA10c | Labels carrying readings, dialogue dashes, several leading groups | N | C | live corpus |
+| PA11 | Stage directions not spanning the line | P (Open Q #14) | C: per line (leftover parentheticals 8,411 → 614 lines, the rest content) | live corpus |
+| PA11b | **Doubled `((…))` around speech** | N | C: brackets removed per line, words kept | live corpus |
+| PA12 | Parenthesised speech vs sound effect | N | **D — inherently ambiguous, measured 14 of 233,963 lines**; kept as a stage direction | live corpus |
+| PA13 | Music symbols, emoji | C | C | live |
+| PA14 | Half-width katakana / full-width digits | C | C | live |
+| PA15 | Inline furigana | C (hiragana) | C (hiragana + katakana, spaces) | live corpus |
+| PA16 | **Dual-language tracks dropping Japanese lines** | N: 351 lines lost | C: 338 rescued; 13 left are Chinese credits (correct) + katakana-only exclamations/lyrics (accepted) | live corpus |
+| PA16b | Chinese lines inside a Japanese-majority style | N | residual (honest: visible, never mis-looked-up) — Open Questions | live corpus |
+| PA17 | Encoding (BOM, UTF-16, mojibake) | N | not observed in the corpus; not changed | live corpus |
+| PA18 | HTML entities | N | measured 0 | live corpus |
+| PA19 | **Astral-plane characters (emoji runs, 𠮟, 𩸽)** | N: kuromoji deleted following text | C: `tokenizeLossless`; the characters themselves stay unclickable (51 lines) | property test + corpus |
+
+### 2b. Tokenization
+| # | Input category | Before | After | Evidence |
+|---|---|---|---|---|
+| PB1 | **Losslessness** (tokens / groups rebuild the line) | N, and FALSE on astral runs | C: property test (6,000 inputs) + corpus (0 violations) + runtime guard | synthetic + live |
+| PB2 | Unknown words | P | P | live |
+| PB3 | Names | C | C; residual: kanji given names split to single kanji (KANJI-FRAGMENT 11.8k lines, e.g. 紅|莉|栖) — inherent to IPADIC, shown honestly | live corpus |
+| PB5 | Compounds | C | C; residual: numeral + counter (２|人) split | live corpus |
+| PB7 | Colloquial contractions | P | P | live |
+| PB10 | **Stutters** (`ほ… ほかには`) | N: fragment → ほる/いる | C: unclickable | live corpus |
+| PB10b | **Grunts read as verb stems** (`うっ`, `くっ`, `うわっ`, `うう`) | N: thousands of wrong verbs | C: utterance lookup, strict (verbs-as-interjection 2,483 → 341) | UniDic disagreement |
+| PB14 | Dialects | N | not separately measured; UniDic disagreement shows no dialect-specific cluster | live corpus |
 
 ### 2c. Lookup
-| # | Input category | Before | Evidence |
-|---|---|---|---|
-| PC1 | Deinflection to dictionary form | P (kuromoji `basic_form` + potential-form fallback) | live |
-| PC2 | Homographs | C: ordered by frequency, all shown, the user picks the card | live |
-| PC3 | Multiple readings | C (`rs` swap) | live |
-| PC4 | Wrong-sense selection | D: every sense shown; nothing auto-picked | live |
-| PC5 | No JMdict match | C ("no dictionary entry") | live |
-| PC6 | Multi-word expressions / grammar patterns | C (phrase matcher, dual-view) | live |
-| PC7 | **Lemma drift**: a mis-segmented token's `basic_form` is a real but unrelated word | N | live (historical `っ`→`く`) |
-
-*Measured frequencies and the "after" column are filled in from the sweeps; see `progress.md`.*
+| # | Input category | Before | After | Evidence |
+|---|---|---|---|---|
+| PC2/PC4 | Homographs / wrong sense | C / D | unchanged: every entry shown, the user picks the card | live |
+| PC7 | **Lemma drift** | N | C for the attach-only-form class; residual: ~100 genuinely cut-off kana verbs (`あたっ…`) now show no entry (the stated trade) | UniDic disagreement |
+| PC8 | Old-form kanji (會/當/來) | N | residual: honest no-entry, mostly lyrics — Open Questions | live corpus |
