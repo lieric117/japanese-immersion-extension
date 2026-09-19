@@ -1226,10 +1226,50 @@ function applyKatakanaUnsuppress(groups, candidates, membership) {
   });
 }
 
+// kuromoji.js silently DELETES text (2026-09-18, found by
+// scripts/test-parse-invariants.js). When two or more astral-plane characters
+// (emoji; rare kanji such as 𩸽, or 𠮟, the 2010 常用 form of 叱) form one
+// unknown-word token, it drops the same number of characters AFTER them —
+// "😊😊abc" comes back as "😊😊" + "c". Every consumer assumes the tokens
+// rebuild the line: the on-screen text, the Anki Sentence field and the bold
+// offset renderGroups computes.
+//
+// So kuromoji only ever sees the text BETWEEN astral characters, and each
+// astral character becomes its own symbol token (a single astral character is
+// handled correctly by kuromoji, but splitting all of them keeps one rule). The
+// result is then checked to rebuild the input; if it ever doesn't — some other
+// shape nobody has found yet — the line falls back to one symbol token per
+// character: unclickable, but never missing text.
+const ASTRAL_CHAR_RE = /[\u{10000}-\u{10FFFF}]/u;
+function symbolToken(ch) {
+  return { surface_form: ch, pos: "記号", pos_detail_1: "一般", pos_detail_2: "*", pos_detail_3: "*", conjugated_type: "*", conjugated_form: "*", basic_form: "*", word_type: "UNKNOWN" };
+}
+function tokenizeLossless(tokenizer, text) {
+  const tokens = [];
+  let run = "";
+  const flush = () => {
+    if (run) tokens.push(...tokenizer.tokenize(run));
+    run = "";
+  };
+  for (const ch of text) {
+    if (ASTRAL_CHAR_RE.test(ch)) {
+      flush();
+      tokens.push(symbolToken(ch));
+    } else {
+      run += ch;
+    }
+  }
+  flush();
+  if (tokens.map((t) => t.surface_form).join("") === text) return tokens;
+  if (typeof console !== "undefined") console.warn("[jp-immersion] tokenizer lost text; showing this line unsegmented:", JSON.stringify(text));
+  return [...text].map(symbolToken);
+}
+
 // typeof process is the reliable Node.js signal — module can be defined in
 // some browser/extension contexts and would cause unexpected assignment there.
 if (typeof process !== "undefined") {
   module.exports = {
+    tokenizeLossless,
     groupTokens,
     JAPANESE_WORD_RE,
     findKanaMergeCandidates,

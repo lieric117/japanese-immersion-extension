@@ -19,6 +19,7 @@ const kuromoji = require("kuromoji");
 // ── shared modules from the extension ────────────────────────────────────────
 const { parseSrt, parseAss } = require("../subtitle-parser.js");
 const {
+  tokenizeLossless,
   groupTokens,
   JAPANESE_WORD_RE,
   findKanaMergeCandidates,
@@ -437,7 +438,7 @@ async function main() {
         report.totalLines++;
         linesThisEp++;
 
-        const tokens = tokenizer.tokenize(text);
+        const tokens = tokenizeLossless(tokenizer, text);
         const { fuseHits, dualViewHits, groups } = detectPhraseMatches(tokens, jmdict);
 
         for (const hit of detectTeFormChains(tokens))          record("teFormChain", text, hit);

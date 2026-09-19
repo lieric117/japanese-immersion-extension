@@ -2106,7 +2106,9 @@ function checkKanaMerges(texts) {
 }
 
 async function buildGroupsForText(text) {
-  const tokens = tokenizer.tokenize(text);
+  // Never tokenizer.tokenize directly — see tokenizeLossless (tokenize-utils.js)
+  // for the text kuromoji silently drops.
+  const tokens = tokenizeLossless(tokenizer, text);
 
   // Phrase-matching (multi-token JMdict expressions like からといって, じゃない,
   // んだ, たら) has to run on the RAW token stream, before groupTokens/Rule 3
