@@ -2166,6 +2166,7 @@ async function buildGroupsForText(text) {
   // a lone っ into a real merged word (んっ) — see suppressTrailingSokuon in
   // tokenize-utils.js for why the ordering matters.
   groups = suppressTrailingSokuon(groups);
+  groups = suppressStutterFragments(groups);
 
   const unsuppressCandidates = findKatakanaUnsuppressCandidates(groups);
   if (unsuppressCandidates.length > 0) {

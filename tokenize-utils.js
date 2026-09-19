@@ -315,6 +315,11 @@ function isPlainCopula(token) {
   return (token.basic_form === "だ" || token.basic_form === "です") && token.conjugated_form === "基本形";
 }
 
+// Conjugated forms that exist only to have something attached: 連用タ接続 (the
+// euphonic stem before た/て — 言っ, 読ん) and 連用ゴザイ接続 (the adjective stem
+// before ございます). See the attach-only rule in groupTokens.
+const ATTACH_ONLY_FORMS = new Set(["連用タ接続", "連用ゴザイ接続"]);
+
 // Content-word POS categories, used to decide whether a phrase-match's
 // boundary tokens are "real" independent words worth their own click (see
 // applyPhraseMatches' dual-view vs. full-fuse split). Deliberately does NOT
@@ -722,6 +727,30 @@ function groupTokens(tokens, fuseSpans = []) {
     // affect grouping/merge behavior, just carries a bit more of what
     // kuromoji already knows through to content.js.
     const conjugatedForm = token.conjugated_form && token.conjugated_form !== "*" ? token.conjugated_form : null;
+    // A kana grunt read as a verb stem (2026-09-18). 連用タ接続 exists only to take
+    // た/て (and 連用ゴザイ接続 only to take ございます), so a token in that form with
+    // NOTHING attached — end of line, punctuation, a space — has no verb reading
+    // to support it: "うっ" came back as 得る/打つ, "くっ" as 来る, "うわっ" as a
+    // non-word "うわる" (thousands of corpus occurrences, found by UniDic
+    // disagreeing). Looked up as the utterance itself under the interjection
+    // filter instead. Kana only: "言っ…" / "待っ…" are cut-off verbs, and the
+    // kanji is what says so.
+    const nextRaw = tokens[j];
+    const nothingAttached = !nextRaw || !JAPANESE_WORD_RE.test(nextRaw.surface_form);
+    if (
+      (token.pos === "動詞" || token.pos === "形容詞") &&
+      ATTACH_ONLY_FORMS.has(token.conjugated_form) &&
+      inflections.length === 0 &&
+      nothingAttached &&
+      HIRAGANA_ONLY_RE.test(surface) &&
+      // A bare sokuon is the dramatic cut-off suppressTrailingSokuon already
+      // handles (it keys on kuromoji's bogus く lemma), not an utterance.
+      !/^っ+$/.test(surface)
+    ) {
+      groups.push({ surface, word: surface, inflections: [], pos: "__utterance", conjugatedForm: null, tokenStart: i, tokenEnd: j - 1 });
+      i = j;
+      continue;
+    }
     const group = { surface, word: resolvedWord, inflections, isProperNoun, pos: token.pos, conjugatedForm, tokenStart: i, tokenEnd: j - 1 };
     if (isDummyNoParticle) group.isParticle = true;
     if (isHonorificSuffix) group.isHonorificSuffix = true;
@@ -1164,6 +1193,29 @@ function suppressTrailingSokuon(groups) {
   return result;
 }
 
+// Stutter fragments (2026-09-18): "ほ… ほかには", "い… いや", "ひっ… ひい～っ" — a
+// short kana group, a pause, then a word beginning with the same sound. The
+// fragment has no meaning of its own and was resolving to whatever verb IPADIC
+// could make of it (ほる, いる, ひる). Left unclickable; the word after it is
+// the one to look up. Kana only: a kanji repetition ("今、今日") is not a
+// sound being stammered.
+const STUTTER_FRAGMENT_RE = /^[ぁ-ゖァ-ヺ]{1,2}[っッーぁぃぅぇぉァィゥェォ〜～]?$/;
+const STUTTER_PAUSE_RE = /^[…‥、,，.．\s　]+$/;
+const STUTTER_TAIL_RE = /[っッーぁぃぅぇぉァィゥェォ〜～]+$/;
+function suppressStutterFragments(groups) {
+  return groups.map((g, i) => {
+    if (g.word === null || !STUTTER_FRAGMENT_RE.test(g.surface)) return g;
+    // The pause can be several groups ("…" then a space).
+    let k = i + 1;
+    while (k < groups.length && groups[k].word === null && STUTTER_PAUSE_RE.test(groups[k].surface)) k++;
+    const next = groups[k];
+    if (k === i + 1 || !next || next.word === null) return g;
+    const stem = g.surface.replace(STUTTER_TAIL_RE, "");
+    if (!stem || !next.surface.startsWith(stem) || next.surface.length <= stem.length) return g;
+    return { surface: g.surface, word: null };
+  });
+}
+
 // Catches standalone katakana names groupTokens' 固有名詞-based rule misses.
 // kuromoji's UNK handler is inconsistent about tagging unrecognized katakana
 // as 固有名詞 vs. plain 名詞/一般 — confirmed empirically: レン/ハイター got
@@ -1275,6 +1327,7 @@ if (typeof process !== "undefined") {
     findKanaMergeCandidates,
     applyKanaMerges,
     suppressTrailingSokuon,
+    suppressStutterFragments,
     findPhraseMatchCandidates,
     classifyAndSelectPhraseMatches,
     applyPhraseMatches,

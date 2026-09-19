@@ -33,6 +33,7 @@ const {
   findKatakanaUnsuppressCandidates,
   applyKatakanaUnsuppress,
   suppressTrailingSokuon,
+  suppressStutterFragments,
   findKatakanaNameCandidates,
   applyKatakanaNameSuppression,
 } = utils;
@@ -94,6 +95,10 @@ function oldChain(tokenizer, lookup, text, done) {
 
   function afterKanaMerge(groups) {
     groups = suppressTrailingSokuon(groups);
+    // Added 2026-09-18 — a deliberate pipeline change made AFTER the refactor this
+    // file guards (stutter fragments, see tokenize-utils.js). The reference has to
+    // carry it or every stammered line would read as a refactor regression.
+    groups = suppressStutterFragments(groups);
     const candidates = findKatakanaUnsuppressCandidates(groups);
     if (candidates.length === 0) {
       afterKatakanaUnsuppress(groups);

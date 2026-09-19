@@ -2787,6 +2787,13 @@ const POS_CATEGORY_MATCHERS = {
   __phraseFuse: (p) => p === "exp" || p === "int",
 };
 
+// A kana utterance that the tokenizer had read as a verb stem (tokenize-utils.js,
+// the attach-only rule, 2026-09-18). STRICT, unlike every matcher above: where
+// JMdict has no interjection for it ("ふっ", "うう"), the entries left are
+// the unrelated ones the rule exists to stop showing ("うう" → 植う "to plant"),
+// so none is the honest answer.
+const UTTERANCE_POS = (p) => p === "int" || p === "exp";
+
 // normalizeHalfwidthKatakana is defined in tokenize-utils.js (imported above)
 // — jmdict-compact.json's index is full-width-only (confirmed 2026-07-01),
 // so this still runs a second time here as a defense-in-depth normalization
@@ -2911,6 +2918,8 @@ async function lookupWord(word, isParticle = false, pos = null, isHonorificSuffi
     // specific trigger.
     const sufCandidates = candidates.filter((c) => c.display.p && c.display.p.includes("suf"));
     if (sufCandidates.length > 0) candidates = sufCandidates;
+  } else if (pos === "__utterance") {
+    candidates = candidates.filter((c) => c.display.p && c.display.p.some(UTTERANCE_POS));
   } else if (pos && POS_CATEGORY_MATCHERS[pos]) {
     const matcher = POS_CATEGORY_MATCHERS[pos];
     const posCandidates = candidates.filter((c) => c.display.p && c.display.p.some(matcher));
