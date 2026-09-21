@@ -57,7 +57,7 @@ In tests:
 
 | Case | How it degrades |
 |---|---|
-| Stale JSON-LD after navigation | ~~time-based~~ **closed 2026-09-20**: the block names its own episode URL, so a stale block is recognised however long it lasts. Residual only if Crunchyroll drops the field, which logs a warning and falls back to the 5s wait |
+| Stale JSON-LD after navigation | ~~time-based~~ **closed 2026-09-20**: the block names its own episode URL, so a stale block is recognised however long it lasts, and a detection still stale when the retries run out now loads nothing. Residual only if Crunchyroll drops the field: a warning fires, the timed wait returns, and a URL rewrite on such a page shows nothing until the block settles |
 | Cour entry's other-numbered files in the switcher list (SPY x FAMILY ep 13) | never auto-loaded; only offered |
 | FGO *Solomon* (film under the Babylonia series) | loud refusal on a film-shaped page; the sweep's wrong load came from its own reconstruction |
 | Parenthesised speech vs sound effect (14 lines) | kept as a stage direction (dropped) |
@@ -69,7 +69,7 @@ In tests:
 
 ## 6. Questions for you — all three answered 2026-09-20
 
-1. **JSON-LD URL/id** (Open Question 21): **yes — `url` and `@id` both.** The user loaded S1E1, clicked next, and read the block on E2 immediately and again seconds later: `url`, `@id`, `episodeNumber` and `name` had all updated both times, so the block is replaced in place on in-app navigation and does not stay stale for human-scale delays. The sub-second window right after navigation can't be observed by hand — and that is precisely the window the check now covers. **Built the same day:** `detectShowEpisode` compares the id after `/watch/` in the block's `url`/`@id` with the page's own, drops a block naming a different episode, and uses one naming this page with no wait. The 5s wait survives only as the fallback for a block carrying no URL, with a once-per-episode warning if Crunchyroll ever drops the field. See Decisions Log 2026-09-20; tests in `scripts/test-detect-show-episode.js` (8 new cases) and `scripts/test-subtitle-binding.js` (the stale gate).
+1. **JSON-LD URL/id** (Open Question 21): **yes — `url` and `@id` both.** The user loaded S1E1, clicked next, and read the block on E2 immediately and again seconds later: `url`, `@id`, `episodeNumber` and `name` had all updated both times, so the block is replaced in place on in-app navigation and does not stay stale for human-scale delays. The sub-second window right after navigation can't be observed by hand — and that is precisely the window the check now covers. **Built the same day:** `detectShowEpisode` compares the id after `/watch/` in the block's `url`/`@id` with the page's own, drops a block naming a different episode, and uses one naming this page with no wait. The 5s wait survives only as the fallback for a block carrying no URL, with a once-per-episode warning if Crunchyroll ever drops the field — and at the end of it the load is now refused rather than proceeding as the same episode, which removes the last route to silent wrong content in this path. See Decisions Log 2026-09-20; tests in `scripts/test-detect-show-episode.js` (8 new cases) and `scripts/test-subtitle-binding.js` (the stale gate).
 2. **The kana cut-off trade** in P7: **accepted as built** — "no entry" is right for `あたっ…`, in exchange for grunts no longer showing a confident wrong verb. No warning-plus-verb variant.
 3. **Picks re-asked once:** **accepted as built** — old-key picks are not migrated.
 

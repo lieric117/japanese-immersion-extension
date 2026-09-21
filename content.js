@@ -1268,14 +1268,25 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = null, expectCha
     return;
   }
   if (stale) {
-    // Still the previous episode after the whole wait. Either Crunchyroll's
-    // block is badly late, or the URL changed without the episode changing
-    // (a rewrite). Loading is right for the second and the watchdog repairs the
-    // first as soon as the block updates, since the identity then differs.
+    // Still the previous episode after the whole wait, on a page whose block
+    // carries no URL to settle it with. Either Crunchyroll's block is badly
+    // late, or the URL changed without the episode changing (a rewrite).
+    // **Nothing is loaded either way (2026-09-20).** Until then this loaded the
+    // block anyway, "treating it as the same episode", which is right for a
+    // rewrite and serves the PREVIOUS episode's subtitles under the new one for
+    // the other case — the exact silent-wrong-content shape the audit exists to
+    // remove, and now the only route left to it. Refusing costs a rewrite its
+    // subtitles until the block settles; the watchdog reloads the moment it
+    // does, because `lastLoadedIdentity` is deliberately left alone here.
+    subtitleLoadPending = false;
     console.warn(
       `[jp-immersion] the page URL changed but its episode data still says "${episodeIdentity(detected)}" after ` +
-        `${STALE_DETECTION_RETRIES * 0.5}s — treating it as the same episode.`
+        `${STALE_DETECTION_RETRIES * 0.5}s, and the block carries no episode URL to confirm it — loading nothing.`
     );
+    subtitleBox.textContent =
+      "This page's episode data still describes the previous episode — not loading subtitles rather than risking the " +
+      'wrong ones. Reload the page, or use "Upload subtitle file" below.';
+    return;
   }
   lastLoadedIdentity = episodeIdentity(detected);
   const request = beginSubtitleRequest(detected);

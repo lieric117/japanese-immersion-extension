@@ -120,7 +120,7 @@ Root causes fixed, one commit each: lossless tokenization, any-count timestamps,
 
 Nothing is mid-flight. The next step is live: checklist group F in `project-plan.md` section 6 (item 1 now also covers the 2026-09-20 URL check's console lines).
 
-**Environment, as of 2026-09-20:** `~/.zshenv` no longer exists on this machine, so `JIMAKU_API_KEY` is unset and every live script fails with "JIMAKU_API_KEY not set"; `.audit-cache/` is also gone, so the offline replays below need one live re-fetch before they can run again. To re-verify offline after any change:
+**Environment, 2026-09-20:** both went missing and both are restored — `~/.zshenv` was re-created with the key (verified by a live `test-render-pipeline.js` run), and `.audit-cache/` was moved back from the user's Downloads folder (2,001 cached Jimaku responses + `corpus.json`, 60MB), so the offline replays below run again as written. To re-verify offline after any change:
 - `JIMAKU_CACHE_MODE=offline node scripts/audit/detection-sweep.js <3 captures> --sample --lists after.json`, then `diff-lists.js` against a run with `--background <old copy>`;
 - `node scripts/audit/parse-sweep.js --out r.json`;
 - `node scripts/test-parse-invariants.js`.

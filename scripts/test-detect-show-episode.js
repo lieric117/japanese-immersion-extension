@@ -15,7 +15,7 @@ const grab = (re, label) => {
   return m[0];
 };
 const page = { blocks: [], pathname: "/watch/X/y" };
-const detect = new Function(
+const helpers = new Function(
   "page",
   `
   const document = { querySelectorAll: () => page.blocks.map((b) => ({ textContent: typeof b === "string" ? b : JSON.stringify(b) })) };
@@ -29,9 +29,11 @@ const detect = new Function(
   ${grab(/^function episodeIdentity\([\s\S]*?\n\}/m, "episodeIdentity")}
   ${grab(/^let warnedConflictingBlocksFor = null;\nlet warnedStaleBlockFor = null;\nfunction detectShowEpisode\([\s\S]*?\n\}/m, "detectShowEpisode")}
   ${grab(/^function detectFromJsonLdScript\([\s\S]*?\n\}/m, "detectFromJsonLdScript")}
-  return detectShowEpisode;
+  return { detectShowEpisode, watchIdFrom };
 `
 )(page);
+const detect = () => helpers.detectShowEpisode();
+const { watchIdFrom } = helpers;
 
 let failed = 0;
 const check = (label, cond, detail = "") => {
@@ -115,6 +117,55 @@ page.pathname = "/watch/GONE1/slug-text";
 page.blocks = [{ ...elbaph, url: "https://www.crunchyroll.com/series/GSERIES/one-piece" }];
 d = detect();
 check("a url that isn't a watch URL is not treated as a mismatch", d?.episodeNumber === 1156 && d.urlConfirmed === null, JSON.stringify(d));
+
+// --- URL shapes on either side of the comparison (2026-09-20) --------------
+// Only the id after /watch/ is compared, so everything around it — a locale
+// prefix, the slug, a query string, a fragment, a trailing slash, the origin —
+// must be ignored on both sides. Watch URLs in the wild carry all of these:
+// Crunchyroll localises the path (/de/watch/…), links carry ?t= resume
+// timestamps, and the JSON-LD side is an absolute URL where the page side is a
+// bare pathname.
+const ID = "GRDQKPQ1X";
+for (const [label, value] of [
+  ["absolute URL with slug", `https://www.crunchyroll.com/watch/${ID}/the-long-sought-elbaph`],
+  ["locale-prefixed path", `/de/watch/${ID}/die-lang-ersehnte`],
+  ["locale-region prefix", `/es-419/watch/${ID}/slug`],
+  ["query string", `https://www.crunchyroll.com/watch/${ID}/slug?t=612`],
+  ["query string, no slug", `https://www.crunchyroll.com/watch/${ID}?t=612`],
+  ["fragment", `https://www.crunchyroll.com/watch/${ID}/slug#top`],
+  ["trailing slash", `/watch/${ID}/`],
+  ["no slug at all", `/watch/${ID}`],
+]) {
+  check(`watch id reads through a ${label}`, watchIdFrom(value) === ID, `${value} → ${watchIdFrom(value)}`);
+}
+check("a non-watch URL yields no id", watchIdFrom("https://www.crunchyroll.com/series/GSER/one-piece") === null);
+check("a missing url yields no id", watchIdFrom(undefined) === null && watchIdFrom(null) === null);
+
+// The same shapes, through the real comparison: page and block written
+// differently must still match, and a different id must still mismatch.
+const shapes = [
+  ["absolute block url vs bare pathname", `https://www.crunchyroll.com/watch/${ID}/slug`, `/watch/${ID}/slug`],
+  ["locale prefix on the page only", `https://www.crunchyroll.com/watch/${ID}/slug`, `/de/watch/${ID}/anderer-slug`],
+  ["query on the block url", `https://www.crunchyroll.com/watch/${ID}/slug?t=90`, `/watch/${ID}/slug`],
+  ["trailing slash on the page", `https://www.crunchyroll.com/watch/${ID}/slug`, `/watch/${ID}/`],
+  ["different slug, same id", `https://www.crunchyroll.com/watch/${ID}/en-slug`, `/watch/${ID}/jp-slug`],
+];
+for (const [label, url, pathname] of shapes) {
+  page.pathname = pathname;
+  page.blocks = [{ ...elbaph, url }];
+  d = detect();
+  check(`same episode across ${label}`, d?.urlConfirmed === true, `${url} vs ${pathname} → ${JSON.stringify(d?.urlConfirmed)}`);
+}
+page.pathname = `/de/watch/GOTHER9/slug/`;
+page.blocks = [{ ...elbaph, url: `https://www.crunchyroll.com/watch/${ID}/slug?t=90` }];
+check("a different id still mismatches through all of that", detect() === null);
+
+// `@id` is used when `url` is absent, and ignored when `url` is usable.
+page.pathname = `/watch/${ID}/slug`;
+page.blocks = [{ ...elbaph, "@id": `https://www.crunchyroll.com/watch/${ID}` }];
+check("@id alone confirms the page", detect()?.urlConfirmed === true);
+page.blocks = [{ ...elbaph, url: `https://www.crunchyroll.com/watch/${ID}/slug`, "@id": "https://www.crunchyroll.com/watch/GSTALE1" }];
+check("url wins over a disagreeing @id", detect()?.urlConfirmed === true);
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);
