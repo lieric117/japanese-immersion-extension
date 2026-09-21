@@ -57,7 +57,7 @@ In tests:
 
 | Case | How it degrades |
 |---|---|
-| Stale JSON-LD lasting more than 5s after navigation | the previous episode's lines show until the watchdog sees the new block. A JSON-LD URL/id would make this exact (Open Question 21) |
+| Stale JSON-LD after navigation | ~~time-based~~ **closed 2026-09-20**: the block names its own episode URL, so a stale block is recognised however long it lasts. Residual only if Crunchyroll drops the field, which logs a warning and falls back to the 5s wait |
 | Cour entry's other-numbered files in the switcher list (SPY x FAMILY ep 13) | never auto-loaded; only offered |
 | FGO *Solomon* (film under the Babylonia series) | loud refusal on a film-shaped page; the sweep's wrong load came from its own reconstruction |
 | Parenthesised speech vs sound effect (14 lines) | kept as a stage direction (dropped) |
@@ -67,11 +67,11 @@ In tests:
 | ~100 cut-off kana verbs (`あたっ…`) | "no entry" instead of their verb (the price of 3,400 fewer wrong verbs) |
 | Katakana-only exclamations in a dropped dual-language style | lost (2 lines) |
 
-## 6. Questions for you
+## 6. Questions for you — all three answered 2026-09-20
 
-1. **JSON-LD URL/id** (Open Question 21): could you check once in DevTools whether a watch page's `TVEpisode` block has a `url` or `@id`? If it does, stale detection becomes exact instead of time-based.
-2. **The kana cut-off trade** in P7: is "no entry" acceptable for `あたっ…`-style cut-off verbs, in exchange for grunts no longer showing unrelated verbs? I judged yes by the fail-safe rule. Say if you'd rather have the verb shown with a warning instead.
-3. **Picks re-asked once:** entry picks saved under the old (colliding) key aren't migrated, so each season needing a pick asks one more time. Say if you'd rather migrate the unambiguous ones.
+1. **JSON-LD URL/id** (Open Question 21): **yes — `url` and `@id` both.** The user loaded S1E1, clicked next, and read the block on E2 immediately and again seconds later: `url`, `@id`, `episodeNumber` and `name` had all updated both times, so the block is replaced in place on in-app navigation and does not stay stale for human-scale delays. The sub-second window right after navigation can't be observed by hand — and that is precisely the window the check now covers. **Built the same day:** `detectShowEpisode` compares the id after `/watch/` in the block's `url`/`@id` with the page's own, drops a block naming a different episode, and uses one naming this page with no wait. The 5s wait survives only as the fallback for a block carrying no URL, with a once-per-episode warning if Crunchyroll ever drops the field. See Decisions Log 2026-09-20; tests in `scripts/test-detect-show-episode.js` (8 new cases) and `scripts/test-subtitle-binding.js` (the stale gate).
+2. **The kana cut-off trade** in P7: **accepted as built** — "no entry" is right for `あたっ…`, in exchange for grunts no longer showing a confident wrong verb. No warning-plus-verb variant.
+3. **Picks re-asked once:** **accepted as built** — old-key picks are not migrated.
 
 ## 7. Suggested doc updates (already applied — review rather than rewrite)
 

@@ -32,7 +32,8 @@ const make = new Function(
   ${grab(/^function episodeIdentity\([\s\S]*?\n\}/m, "episodeIdentity")}
   ${grab(/^let subtitleRequestSeq = 0;[\s\S]*?\n\}\nfunction subtitleRequestIsCurrent\([\s\S]*?\n\}/m, "request helpers")}
   ${grab(/^function installCues\([\s\S]*?\n\}/m, "installCues")}
-  return { beginSubtitleRequest, installCues, bump: () => ++subtitleRequestSeq, state: () => ({ cues, currentShowEpisode }) };
+  ${grab(/^function detectionIsStale\([\s\S]*?\n\}/m, "detectionIsStale")}
+  return { beginSubtitleRequest, installCues, detectionIsStale, episodeIdentity, bump: () => ++subtitleRequestSeq, state: () => ({ cues, currentShowEpisode }) };
 `
 );
 const h = make(page, installed);
@@ -42,6 +43,9 @@ const check = (label, cond) => {
   if (!cond) failed++;
   console.log(`${cond ? "PASS" : "FAIL"}  ${label}`);
 };
+// content.js's own key, not a copy of it — so the checks below can't drift
+// from the real one.
+const episodeIdentityOf = (d) => h.episodeIdentity(d);
 const ep = (n) => ({ seriesTitle: "S", seasonName: "Season 1", seasonNumber: 1, episodeNumber: n, episodeTitle: `Season 1 | E${n} - T${n}` });
 
 // 1. ordinary load
@@ -78,6 +82,15 @@ const a = { seriesTitle: "Shangri-La Frontier", seasonName: "Season 1", seasonNu
 const b = { ...a, episodeTitle: "Season 1 | E14.5 - Special Bonus Episode" };
 page.detected = b;
 check("episodes sharing series/season/number are still distinct requests", !h.installCues(h.beginSubtitleRequest(a), ["x"], "f"));
+
+// 7. the stale gate loadSubtitles uses after SPA navigation (2026-09-20)
+const loaded = ep(5);
+const same = { ...ep(5) };
+check("on a fresh load nothing is ever treated as stale", !h.detectionIsStale(same, false, episodeIdentityOf(loaded)));
+check("after navigation, a block still reporting the loaded episode is stale", h.detectionIsStale(same, true, episodeIdentityOf(loaded)));
+check("…unless its own URL names this page — then it's a URL rewrite, load now", !h.detectionIsStale({ ...same, urlConfirmed: true }, true, episodeIdentityOf(loaded)));
+check("a block reporting a different episode is never stale", !h.detectionIsStale(ep(6), true, episodeIdentityOf(loaded)));
+check("no detection at all is not 'stale' (it's 'nothing yet')", !h.detectionIsStale(null, true, episodeIdentityOf(loaded)));
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

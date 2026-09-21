@@ -52,6 +52,7 @@ const FILE_HINT = "[JPN]";
 // empty title.
 let warnedMissingSeasonNameFor = null;
 let warnedEpisodeMismatchFor = null;
+let warnedMissingBlockUrlFor = null;
 
 // The episode number Crunchyroll bakes into its own page title, e.g. the 1156
 // in "Elbaph (1156-current) | E1156 - The Long-sought Elbaph!". Numeric only:
@@ -63,6 +64,27 @@ function episodeNumberFromName(name) {
   return m ? Number(m[1]) : null;
 }
 
+// Crunchyroll's own id for an episode: the token after `/watch/` in a watch
+// URL (`/watch/GRDQKPQ1X/the-long-sought-elbaph` → `GRDQKPQ1X`). The TVEpisode
+// block carries that same URL in its `url` and `@id` — checked on a live page
+// 2026-09-20, which closes Open Question 21. The same check also established
+// that the block is replaced IN PLACE on in-app navigation: loading S1E1, then
+// clicking next and reading the block immediately, already gave E2's url, @id,
+// episodeNumber and name.
+//
+// That turns "is this block still the previous episode's?" from a question
+// about TIME (the 5s wait in loadSubtitles) into one about IDENTITY. A block
+// whose URL names a different episode than the one open is stale no matter how
+// long the page has had to settle; a block whose URL names THIS episode is
+// current even when its contents equal what's already loaded. Only the
+// sub-second window right after navigation was unobservable by hand, and that
+// window is exactly what this check covers.
+const WATCH_ID_RE = /\/watch\/([^/?#]+)/u;
+function watchIdFrom(urlOrPath) {
+  const m = typeof urlOrPath === "string" ? urlOrPath.match(WATCH_ID_RE) : null;
+  return m ? m[1] : null;
+}
+
 // Every TVEpisode block on the page must describe the same episode, or the page
 // is treated as not yet detectable (2026-09-18). Only the first used to be
 // read, so two disagreeing blocks — the plausible shape of a page mid-way
@@ -70,6 +92,7 @@ function episodeNumberFromName(name) {
 // document order, silently. Returning null routes that moment into the
 // existing retry/watchdog path instead of choosing.
 let warnedConflictingBlocksFor = null;
+let warnedStaleBlockFor = null;
 function detectShowEpisode() {
   const found = [];
   for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
@@ -77,7 +100,25 @@ function detectShowEpisode() {
     if (d) found.push(d);
   }
   if (!found.length) return null;
-  const identities = new Set(found.map(episodeIdentity));
+  // A block whose own URL names a different episode than the page is on is the
+  // previous episode's metadata caught mid-replacement (2026-09-20). It is
+  // never a description of what's playing, so it is dropped rather than
+  // weighed — and if it is all there is, the page is not yet detectable and the
+  // existing retry/watchdog path waits for the real block.
+  const usable = found.filter((d) => d.urlConfirmed !== false);
+  if (usable.length !== found.length && warnedStaleBlockFor !== location.pathname) {
+    warnedStaleBlockFor = location.pathname;
+    console.log(
+      "[jp-immersion] ignoring a TVEpisode block whose own URL names a different episode than this page — " +
+        "the page is still swapping its metadata."
+    );
+  }
+  if (!usable.length) return null;
+  // Where a block does name this page, blocks that say nothing about which
+  // page they belong to can't outvote it.
+  const confirmed = usable.filter((d) => d.urlConfirmed === true);
+  const candidates = confirmed.length ? confirmed : usable;
+  const identities = new Set(candidates.map(episodeIdentity));
   if (identities.size > 1) {
     if (warnedConflictingBlocksFor !== location.pathname) {
       warnedConflictingBlocksFor = location.pathname;
@@ -85,7 +126,7 @@ function detectShowEpisode() {
     }
     return null;
   }
-  return found[0];
+  return candidates[0];
 }
 
 function detectFromJsonLdScript(script) {
@@ -111,6 +152,11 @@ function detectFromJsonLdScript(script) {
   // wrong-episode load: One Piece episode 1156 resolved against episode 1.
   const nameEpisode = episodeNumberFromName(data.name);
   const episodeNumber = nameEpisode ?? jsonLdEpisode;
+  // Which episode this block itself claims to describe, independent of what it
+  // says about series/season/number — see WATCH_ID_RE above.
+  const blockWatchId = watchIdFrom(data.url) ?? watchIdFrom(data["@id"]);
+  const pageWatchId = watchIdFrom(location.pathname);
+  const urlConfirmed = blockWatchId && pageWatchId ? blockWatchId === pageWatchId : null;
   // Checked AFTER the title code, not before it (2026-08-01). Crunchyroll
   // publishes real, watchable entries with no `episode_number` at all —
   // prologues carrying the code "0", and films — measured across a 2,385
@@ -143,7 +189,30 @@ function detectFromJsonLdScript(script) {
     // Without it, a franchise with several films can only be guessed at; see
     // background.js's matchEntryByContentTitle.
     episodeTitle: typeof data.name === "string" ? data.name : null,
+    // Tri-state (2026-09-20): `true` = this block's own `url`/`@id` names the
+    // episode whose watch page is open, so it is this page's block and nothing
+    // about it is stale; `null` = no watch id could be read from either side
+    // (a non-watch page, or a block shape that no longer carries one), so
+    // nothing can be said and the time-based wait in loadSubtitles still
+    // applies; `false` = it names a different episode. A `false` never reaches
+    // a caller — detectShowEpisode drops those blocks.
+    urlConfirmed,
   };
+  // Same shape of diagnostic as the season-name one below, for the same
+  // reason: the exact staleness check above rests on Crunchyroll publishing
+  // the episode's own URL in this block, which was read off a live page once
+  // (2026-09-20) and can't be re-checked from here. If this line appears,
+  // staleness has quietly degraded to the old 5-second wait, and the object
+  // dumped here says what the block carries instead.
+  if (blockWatchId === null && pageWatchId !== null && warnedMissingBlockUrlFor !== location.pathname) {
+    warnedMissingBlockUrlFor = location.pathname;
+    console.warn(
+      "[jp-immersion] this page's TVEpisode block carries no episode URL (no url/@id with a /watch/ id) — " +
+        "stale-metadata detection falls back to waiting. Block url/@id were:",
+      data.url,
+      data["@id"]
+    );
+  }
   // Diagnostic, logged only when the expected field is missing: the
   // season-name matching in background.js is built on Crunchyroll publishing
   // this, which couldn't be verified without a live browser (the page is
@@ -1112,6 +1181,22 @@ function extractUploaderTag(filename) {
   return match ? match[1] : null;
 }
 
+// Whether a detection is the PREVIOUS episode's metadata rather than this
+// page's. Pure, so scripts/test-subtitle-binding.js can pin it.
+//
+// `urlConfirmed` short-circuits the guess (2026-09-20): a block that names this
+// page's own watch id IS this page's block, so an identity equal to what's
+// already loaded means the URL changed without the episode changing (a
+// rewrite), not late metadata — load immediately instead of waiting 5s for a
+// change that will never come. Only a block that can't say which page it
+// belongs to falls back to the identity guess, and only where the caller
+// already knows the pathname just changed.
+function detectionIsStale(detected, expectChange, loadedIdentity) {
+  if (!expectChange || !detected) return false;
+  if (detected.urlConfirmed === true) return false;
+  return loadedIdentity === episodeIdentity(detected);
+}
+
 // Detects the current show/episode and fetches its subtitles into the
 // shared `cues` variable, which the timeupdate listener below (attached
 // once in init()) already reads from continuously — so reassigning `cues`
@@ -1125,6 +1210,13 @@ function extractUploaderTag(filename) {
 // out, the load went ahead with the STALE identity and showed the previous
 // episode's subtitles under the new one until the watchdog noticed. Nothing
 // shows during the wait, which is the safe side of the trade.
+//
+// Since 2026-09-20 this wait is the FALLBACK, not the primary mechanism: a
+// block carrying its own watch URL is recognised as stale or current exactly
+// (see WATCH_ID_RE), so a stale block is skipped however long it lasts, and a
+// confirmed one is used without any wait at all. The retries still cover the
+// window before any block for the new episode exists, and pages whose block
+// carries no URL.
 const STALE_DETECTION_RETRIES = 10;
 function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = null, expectChange = false) {
   if (retriesLeft === null) retriesLeft = expectChange ? STALE_DETECTION_RETRIES : 2;
@@ -1156,7 +1248,7 @@ function loadSubtitles(subtitleBox, switcherPanel, retriesLeft = null, expectCha
   // real 2026-07-17: navigating Witch Hat Atelier ep1→ep2→ep1→ep2 landed
   // back on ep1's default uploader instead of ep2's, consistent with a
   // stale re-detection silently re-fetching the wrong episode.
-  const stale = expectChange && detected && lastLoadedIdentity === episodeIdentity(detected);
+  const stale = detectionIsStale(detected, expectChange, lastLoadedIdentity);
   if ((!detected || stale) && retriesLeft > 0) {
     // On SPA episode/show navigation, the pathname can update slightly
     // before Crunchyroll's own schema.org TVEpisode block for the new

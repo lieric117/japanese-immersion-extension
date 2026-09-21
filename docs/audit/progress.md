@@ -103,7 +103,9 @@ Census over 192 cached search responses and 876 entries:
 
 ## Pending decisions for the user
 
-*(none so far. The FGO Solomon SUSPECT turned out to be an artifact of the sweep's reconstruction: on a film-shaped page it already fails loudly. Recorded as a residual risk, not a question.)*
+*(none. The FGO Solomon SUSPECT turned out to be an artifact of the sweep's reconstruction: on a film-shaped page it already fails loudly. Recorded as a residual risk, not a question.)*
+
+The three questions in `report.md` §6 were answered on 2026-09-20 — see that section. One produced code: the `TVEpisode` block carries the episode's own watch URL, so staleness is now exact (Decisions Log 2026-09-20). The other two confirmed what was already built.
 
 ## Done
 
@@ -116,7 +118,9 @@ Root causes fixed, one commit each: lossless tokenization, any-count timestamps,
 
 ## Where to resume
 
-Nothing is mid-flight. The next step is live: checklist group F in `project-plan.md` section 6. To re-verify offline after any change:
+Nothing is mid-flight. The next step is live: checklist group F in `project-plan.md` section 6 (item 1 now also covers the 2026-09-20 URL check's console lines).
+
+**Environment, as of 2026-09-20:** `~/.zshenv` no longer exists on this machine, so `JIMAKU_API_KEY` is unset and every live script fails with "JIMAKU_API_KEY not set"; `.audit-cache/` is also gone, so the offline replays below need one live re-fetch before they can run again. To re-verify offline after any change:
 - `JIMAKU_CACHE_MODE=offline node scripts/audit/detection-sweep.js <3 captures> --sample --lists after.json`, then `diff-lists.js` against a run with `--background <old copy>`;
 - `node scripts/audit/parse-sweep.js --out r.json`;
 - `node scripts/test-parse-invariants.js`.

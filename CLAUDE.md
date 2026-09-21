@@ -21,7 +21,7 @@ At the start of every session, read `project-plan.md`'s **Decisions Log** and **
 ## Current phase & priorities
 
 **Phase 5 — Anki export. Every build item is complete, and entry resolution is closed** (verified live 2026-08-13). Checklist group B was run on 2026-08-15 and everything it found is fixed — including a five-part rework of the audio capture path and a rebuilt trim editor — but none of that has been back in a browser. Details in `project-plan.md` Section 6 Phase 5. Next, in priority order:
-1. **Live-test the 2026-08-15 work and the 2026-09-18 correctness audit** — checklist groups B–F, plus the 20–30 minute continuous-session check. The audit (detection + parsing, all offline-verified against live-captured data) is written up in `docs/audit/`.
+1. **Live-test the 2026-08-15 work and the 2026-09-18/20 correctness audit** — checklist groups B–F, plus the 20–30 minute continuous-session check. The audit (detection + parsing, all offline-verified against live-captured data) is written up in `docs/audit/`.
 2. **Settle the NanakoRaws line-break shape** — the rest of the 2026-07-31 filtering report was fixed by the audit.
 3. Sentence-only capture stays deliberately unscheduled until there's real usage data (see Open Questions).
 
@@ -33,7 +33,7 @@ Offline tests live in `scripts/`: `batch-test.js` (corpus baseline `92/49/57/33/
 
 If regenerating `jmdict-compact.json` (any phase), run in this order: `generate-jmdict-compact.js` → `fix-jmdict-priority.js` → `scripts/build-orphaned-tier-overrides.js` → `scripts/apply-tubelex-frequency.js` (must run last among these four — see its own header) → `scripts/apply-jlpt-level.js` (no ordering dependency on the others, just needs `id` to exist; appended last by convention). Skipping a step has shipped a real regression before (see Decisions Log 2026-07-13).
 
-`JIMAKU_API_KEY` is a persistent environment variable in `~/.zshenv` — `scripts/batch-test.js` runs directly without asking the user for the key. The Bash tool's shell doesn't source it: run live scripts as `zsh -c 'source ~/.zshenv; node …'`.
+`JIMAKU_API_KEY` belongs in `~/.zshenv` — but that file is missing again as of 2026-09-20, so any live script needs the user to re-add it first. The Bash tool's shell doesn't source it: run live scripts as `zsh -c 'source ~/.zshenv; node …'`.
 
 ## Scope guardrails — do not build these unless asked
 

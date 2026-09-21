@@ -21,11 +21,13 @@ const detect = new Function(
   const document = { querySelectorAll: () => page.blocks.map((b) => ({ textContent: typeof b === "string" ? b : JSON.stringify(b) })) };
   const location = { get pathname() { return page.pathname; } };
   const console = { warn() {}, log() {} };
-  let warnedMissingSeasonNameFor = null, warnedEpisodeMismatchFor = null;
+  let warnedMissingSeasonNameFor = null, warnedEpisodeMismatchFor = null, warnedMissingBlockUrlFor = null;
   ${grab(/^const EPISODE_CODE_IN_NAME_RE = .*$/m, "EPISODE_CODE_IN_NAME_RE")}
   ${grab(/^function episodeNumberFromName\([\s\S]*?\n\}/m, "episodeNumberFromName")}
+  ${grab(/^const WATCH_ID_RE = .*$/m, "WATCH_ID_RE")}
+  ${grab(/^function watchIdFrom\([\s\S]*?\n\}/m, "watchIdFrom")}
   ${grab(/^function episodeIdentity\([\s\S]*?\n\}/m, "episodeIdentity")}
-  ${grab(/^let warnedConflictingBlocksFor = null;\nfunction detectShowEpisode\([\s\S]*?\n\}/m, "detectShowEpisode")}
+  ${grab(/^let warnedConflictingBlocksFor = null;\nlet warnedStaleBlockFor = null;\nfunction detectShowEpisode\([\s\S]*?\n\}/m, "detectShowEpisode")}
   ${grab(/^function detectFromJsonLdScript\([\s\S]*?\n\}/m, "detectFromJsonLdScript")}
   return detectShowEpisode;
 `
@@ -70,6 +72,49 @@ const lastAttack = {
 page.blocks = [lastAttack];
 d = detect();
 check("a season-less film still detects (no season fields)", d && d.seasonName === null && d.seasonNumber === null, JSON.stringify(d));
+
+// --- the block's own episode URL (2026-09-20, Open Question 21) ------------
+// Crunchyroll publishes the episode's watch URL in the block's `url`/`@id`,
+// and replaces the whole block in place on in-app navigation — so a block
+// naming another episode's URL is the page's previous metadata, mid-swap.
+const withUrl = (b, id) => ({ ...b, url: `https://www.crunchyroll.com/watch/${id}/slug-text`, "@id": `https://www.crunchyroll.com/watch/${id}` });
+const e1 = withUrl(elbaph, "GONE1");
+const e2 = withUrl(block("Elbaph (1156-current) | E1157 - Next", 2), "GTWO2");
+
+page.pathname = "/watch/GONE1/slug-text";
+page.blocks = [e1];
+d = detect();
+check("a block naming this page's watch id is used, and says so", d?.episodeNumber === 1156 && d.urlConfirmed === true, JSON.stringify(d));
+
+page.pathname = "/watch/GTWO2/next-episode";
+page.blocks = [e1];
+check("the previous episode's block alone → null (wait), not a wrong load", detect() === null);
+
+page.blocks = [e1, e2];
+d = detect();
+check("mid-swap, the block naming THIS page wins over the previous one", d?.episodeNumber === 1157, JSON.stringify(d));
+
+page.blocks = [e2, elbaph];
+d = detect();
+check("a URL-confirmed block is not outvoted by one that names no page", d?.episodeNumber === 1157, JSON.stringify(d));
+
+page.blocks = [e2, withUrl(block("Elbaph (1156-current) | E1158 - Third", 3), "GTWO2")];
+check("two blocks claiming THIS page but different episodes → null (wait)", detect() === null);
+
+page.pathname = "/watch/GONE1/slug-text";
+page.blocks = [elbaph];
+d = detect();
+check("a block with no url still detects, flagged as unconfirmed", d?.episodeNumber === 1156 && d.urlConfirmed === null, JSON.stringify(d));
+
+page.pathname = "/series/GSERIES/one-piece";
+page.blocks = [e1];
+d = detect();
+check("off a watch page, a url is present but nothing to compare it to", d?.episodeNumber === 1156 && d.urlConfirmed === null, JSON.stringify(d));
+
+page.pathname = "/watch/GONE1/slug-text";
+page.blocks = [{ ...elbaph, url: "https://www.crunchyroll.com/series/GSERIES/one-piece" }];
+d = detect();
+check("a url that isn't a watch URL is not treated as a mismatch", d?.episodeNumber === 1156 && d.urlConfirmed === null, JSON.stringify(d));
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);
