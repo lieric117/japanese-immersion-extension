@@ -41,7 +41,7 @@ What the project is and where it stands: status, product, scope, competition, ar
 **Phase:** 5 — Anki export. Every original Phase 5 build item is done, and entry resolution closed on 2026-08-13 (verified live). Two new build items were decided on 2026-09-22.
 
 **Next up, in priority order:**
-1. Build "sign cues never pair as translations" (Decisions → English subtitles, 2026-09-22) — next session.
+1. Sign cues, Session A: extend the caption probe, recapture at least 3 shows, measure every candidate signal — next session. The build waits for Eric's signal choice (Roadmap → Remaining).
 2. Build "cards made on non-Japanese audio skip the audio clip" — after verifying the `play` response's `audioLocale` on more live data.
 3. Run the browser pass: groups B–F of [`docs/live-test-checklist.md`](docs/live-test-checklist.md) (F8 passed and F9 ran on 2026-09-22), plus the 20–30 minute continuous session no pass has reached.
 4. Settle the NanakoRaws line-break shape — needs a real file first.
@@ -57,6 +57,7 @@ What the project is and where it stands: status, product, scope, competition, ar
 - The background-English-line drop (`\an8`), whose premise is unverified on real Crunchyroll files
 
 **Blocked / waiting on:**
+- The sign-cue build: Eric's recapture, labels and signal choice.
 - Checklist groups B–F and the continuous-session check: Eric's browser pass.
 - The non-Japanese-audio clip skip: more live `play` responses showing `audioLocale`.
 - The NanakoRaws line-break shape: a real file reproducing it.
@@ -729,6 +730,7 @@ Organized by component, not by build phase: to learn how something works, go to 
 - 2026-07-31 — "English only while Japanese is showing" confirmed working and not distracting, including the mirror case (a Japanese line like んっ with no English shows Japanese alone).
 - 2026-08-15 — A capture's `Translation` carried an unrelated background line ("Move your feet.") beside its own sentence. **Unverified premise:** no real Crunchyroll caption file has been inspected for `\an8` on such a line. The first real file seen (2026-09-22) puts KonoSuba 3 ep 6's 26 top-of-screen dialogue lines in a `Konosuba_Main_Top` *style* with no override tag, so the override-only check sees none of them, and its title card carries `\an3` (bottom); the style's own alignment value wasn't captured.
 - 2026-09-22 — The KonoSuba 3 ep 6 title card (bottom-right) pairs by timing with whatever Japanese line is spoken under it — the reason for the sign-cue rule.
+- 2026-09-23 — Measured offline (the real `content.js` pairing functions, the caption fixture's English events, the live Jimaku `…S03E06.2024.1080p.CR.WEB-DL` Japanese file, offset 0): on the Japanese-audio version the title card is the first of four English lines paired with 「ねえ　カズマ…」 (16.50–19.84), so it lands in `Translation`, and `dropBackgroundEnglishCues` keeps all four because the three `Konosuba_Main_Top` lines carry no override tag. On the dub the same line pairs with the title card alone, and 「うん」 (17:21) pairs with the `KONOSUBA` sign. Neither merges in that file, but a sign centred across two Japanese cues would anchor a merge and widen the clip.
 
 **See also:** Subtitle overlay, sync & offset (the English box's layout); Anki export: cards & capture (the `Translation` field and the split-sentence merge).
 
@@ -889,6 +891,8 @@ Organized by component, not by build phase: to learn how something works, go to 
 - The resolution audit separates what it PROVES from what it only FLAGS and what it can't check at all — it never claims to prove the resolved entry is the *right* one.
 - The audit never invents an episode number: an item with no position is `NO-POSITION` and unscored.
 - Live Jimaku tools never run alongside each other (they saturate the rate limit, and failures then read as regressions).
+- Full Crunchyroll caption captures stay local and gitignored, backed up outside git in Eric's Documents folder; only the sign-signal measurement script reads them, and it fails with a clear message when they're missing. The committed caption fixture holds the labelled lines verbatim, plus each file's `[V4+ Styles]`, its per-style event counts and its source.
+- No pinned test depends on a gitignored file.
 
 **How it works now:**
 - **`scripts/batch-test.js`** — kuromoji tokenization + JMdict lookup over real Jimaku subtitle files outside the browser, so segmentation and lookup bugs surface in minutes instead of hours of playback. Its corpus is 3 shows' episodes (Bocchi the Rock! ep 1, Frieren ep 1, One Piece ep 894), chosen for uploader and register diversity. It reports corpus-validation patterns numbered 1, 2 and 4–11 (Pattern 3, a "dangling single-char fragment" heuristic, was removed), whose counts form the regression baseline — currently `92/49/57/33/354/109/9/9/35/2` (Pattern 2 rose from 39 on 2026-09-18 because grunts now miss honestly instead of resolving to unrelated verbs). Update it here when a change moves the counts on purpose. It checks classification, **not ordering** — ordering changes need a manual spot-check. Needs `scripts/node_modules` (`cd scripts && npm install`) and `JIMAKU_API_KEY`.
@@ -943,6 +947,7 @@ Reload the extension first (`chrome://extensions` → reload). **Read the SERVIC
 - 2026-08-12 — Crunchyroll lists PVs inside a season with no code and no number; defaulting to 1 made Haikyu!!'s PV a DUPLICATE of episode 1 and Fairy Tail's a MIXED (that season is numbered from 176) — two of the three findings left in the full run.
 - 2026-08-12 — One transient `fetch failed` inside the resolver was scored as a proven EMPTY and put a phantom Haikyu!! failure into a regression run after the Chainsaw Man work; the integrity counter tracked only the audit's own requests, and a dropped connection throws rather than returning a status, so it had escaped the retry loop.
 - 2026-08-13 — Batch sizing for `audit-resolution.js`: `--only` batches of ~150 episodes (~1.5s per episode; larger batches exceed the 600s foreground limit).
+- 2026-09-23 — `probe-play-captions.js` kept only a 10-event sample of a file over 60 events, cut every event at 200 characters and never saved `[V4+ Styles]`: `caption-probe-2026-09-23.json` holds 10 of the Japanese-audio track's 395 events (its style counts are complete). Too thin to measure any sign-cue signal against real dialogue — hence the recapture (Decisions → English subtitles, 2026-09-23).
 
 **Decisions:** see Decisions → Test & audit tooling.
 
@@ -1014,9 +1019,10 @@ The core-loop endpoint: capture a word or sentence and send it to Anki, with Eng
 - Checklist F8 (audio-language switch) passed live (2026-09-22).
 - `scripts/probe-play-captions.js` written and run; the sniffer now warns on a non-ASS English track (2026-09-22).
 - Sign cues, dubs and non-Japanese audio decided (2026-09-22).
+- Sign-cue plan: current behaviour measured, signals proposed, the fixture's limits found, work split into recapture and build (2026-09-23).
 
 **Remaining, in priority order:**
-1. **Sign cues never pair as translations** (Decisions → English subtitles, 2026-09-22) — next session. Before changing anything: report what the current code does with the 0:15.99–0:20.47 title card on the Japanese-audio track, propose general sign-vs-dialogue signals, and classify every line of both tracks in `fixtures/captions/caption-probe-2026-09-23.json`, saying which signals are verified and which guessed. It changes English pairing, so checklist items E4, D9 and the English half of E6 need re-running afterwards.
+1. **Sign cues never pair as translations** (Decisions → English subtitles, 2026-09-22 and 2026-09-23), in three steps. **Session A (next):** extend `scripts/probe-play-captions.js` to save full English files plus `[V4+ Styles]` (hosts only, no signed URLs); Eric captures at least 3 shows — one heavy on on-screen text, one with a lot of top-of-screen dialogue, both audio versions wherever offered — into a gitignored `fixtures/captions/full/`; a new offline `scripts/measure-sign-signals.js` reports every candidate signal (override tags one column each) over every line and writes the labelling list: every flagged or disagreeing line, plus every line of one episode of the on-screen-text show. **Session A2:** Eric's labels become the committed fixture, report v2 gives exact dialogue drops and that episode's misses, and Eric's signal choice is logged in Decisions. **Session B:** build, only after that decision; it changes English pairing, so re-run checklist E4, D9 and the English half of E6 afterwards, spot-checking every recaptured show.
 2. **Skip the audio clip when the playing audio isn't Japanese** (Decisions → Anki export: audio capture, 2026-09-22) — the session after; verify the `play` response's `audioLocale` on more live data before relying on it.
 3. **Re-test group B and run groups C–E** of [`docs/live-test-checklist.md`](docs/live-test-checklist.md) — B's 2026-08-15 fixes are unconfirmed, C and D haven't been re-run since 2026-07-31 (the rebuilt trim editor is entirely unexercised), and E has never been in a browser.
 4. **The 20–30 minute continuous-session check**, which no pass has reached.
@@ -1581,6 +1587,15 @@ Decided, not yet built. A sign, typesetting or on-screen-text cue must never bec
 **2026-09-22 — Dubs keep Japanese subtitles; the Translation field stays empty.**
 Reading Japanese over English audio is legitimate practice, so Japanese subtitles keep loading on a dub. `Translation` is empty there because the dub's English subtitle track holds only signs — which follows from the sign-cue decision and needs no code of its own. *Rejected:* using the dub's `captions` track (the 585-cue WebVTT) as the translation — it transcribes the English dub script rather than translating the Japanese line, so it would mislead a learner checking what the Japanese meant. *Rejected:* dropping dub support — the sentence and definition on a dub card are still correct. *Rejected:* fetching the Japanese-audio version's English subtitles while on a dub — same timeline and a real translation, but it means calling Crunchyroll's API directly, against the passive-observation decision (2026-07-23).
 
+**2026-09-23 — Uncertain English cues are excluded, not kept.**
+When the sign check can't settle whether an English cue is dialogue, the cue is treated as a sign: it never becomes the English line or the `Translation`. A missing translation is visible and can be fixed at capture time; a wrong one enters a permanent card unnoticed — the same call as `CLAUDE.md`'s "when unsure, fail visibly" rule and the Strict frequency scheme (Dictionary data & lookup, 2026-07-19). This is about the classifier's signals disagreeing, not a labeller's uncertainty. *Rejected:* keeping uncertain cues for better translation coverage.
+
+**2026-09-23 — The sign signal is chosen from a multi-show recapture.**
+The 2026-09-23 caption fixture classifies only 14 of 399 lines, from one episode, so no signal's false-positive rate on real dialogue can be measured from it. *Rejected:* choosing the signal from the current fixture and building now.
+
+**2026-09-23 — Preview text blocks count as signs.**
+A next-episode preview's block of on-screen text (KonoSuba 3 ep 6's 10-second `wall o text`) is a sign even where a narrator speaks it: it is on-screen text, and a block that long pairs against several unrelated narration cues. *Rejected:* treating it as the translation when the narration is spoken.
+
 ### Anki export: cards & capture
 
 **2026-07-02 — AnkiConnect, not offline .apkg/CSV export.**
@@ -1776,7 +1791,7 @@ Dates written `~YYYY-MM-DD` are inferred: the question was logged without an ope
 
 **Dual-language stripping needs a live pass** (opened 2026-07-26 · Subtitle parsing & display filters) — Built after the second live round and verified only offline, against 27 real Jimaku files (zero Japanese lines lost; the tested `_ja-en.ass` cleaned exactly), and extended 2026-09-18 to rescue Japanese lines in dropped styles. Needs confirming on a real episode that a dual-language provider now shows a clean Japanese line, a clean Anki `Sentence`, and exactly one English line — ours. (The JP/EN timing half of this question was confirmed live on 2026-07-31; see Resolved.)
 
-**Re-verify JP/EN pairing after the sign-cue change** (opened 2026-09-22 · English subtitles) — Pairing was confirmed live on 2026-07-31, but the sign-cue rule will change what `pairEnglishCues` returns. After it's built, re-run checklist E4, D9 and the English half of E6, and check that the 1:1, one-to-two and two-to-one shapes still pair as before.
+**Re-verify JP/EN pairing after the sign-cue change** (opened 2026-09-22 · English subtitles) — Pairing was confirmed live on 2026-07-31, but the sign-cue rule will change what `pairEnglishCues` returns. After it's built, re-run checklist E4, D9 and the English half of E6, and check that the 1:1, one-to-two and two-to-one shapes still pair as before — on every show in the sign-cue recapture, on both audio versions where they exist, as well as KonoSuba 3 ep 6.
 
 **Split-sentence audio** (opened 2026-07-26 · Anki export: audio capture) — The card text was confirmed live on 2026-07-27 (a first-half capture produced the whole Japanese sentence and the matching English); the audio failed two live passes and was re-fixed twice (2026-07-27, 2026-07-31). On 2026-07-31 it was unreliable rather than uniformly wrong — sometimes both halves, sometimes only the first (an expiring wait, since made non-blocking and longer), and one second-half capture ran on into the following line, which has two possible causes, only one of them fixed (display windows wider than the sentence); the other would be the merge span over-extending when consecutive lines share an English translation. Checklist B6 (on a `[NanakoRaws]` file) and B7 then passed live on 2026-08-15 — **passed live pre-rework; re-verify on current code**, since that day's audio rework changed the capture path. B6 stays in the group B re-test. If the bleed recurs, record the line and provider — that tells the causes apart.
 
@@ -1792,7 +1807,7 @@ Dates written `~YYYY-MM-DD` are inferred: the question was logged without an ope
 
 **The 2026-08-15 audio rework, live** (opened 2026-08-15 · Anki export: audio capture) — Five interacting changes — the sample clock, the paused-video write skip, asymmetric padding with a tail wait, flushing an interrupted capture, and the discontinuity clamp — are verified only against harnesses that drive the clock by hand, not through a real `ScriptProcessorNode`. What a harness can't check is whether a paused media element really stops producing input; if it doesn't, clips will come out short rather than long — safer, but still a failure. Checklist group B.
 
-**Do Crunchyroll's caption files mark background lines with `\an8`?** (opened 2026-08-15 · English subtitles) — The fix that drops an unrelated background English line from `Translation` keys off ASS alignment overrides, the only signal in the file that tells the two apart, but no real Crunchyroll caption file had been inspected for one. The first real file (2026-09-22, the caption fixture) puts KonoSuba 3 ep 6's 26 top-of-screen dialogue lines in a `Konosuba_Main_Top` style with no override tag, so the override-only check sees none of them, and its title card carries `\an3` (bottom); the style's own alignment value wasn't captured. The sign-cue work picks this up; if a stray line survives, dump the caption file (URL from `window.__jpImmersionSnifferStats()`) and compare the two cues.
+**Do Crunchyroll's caption files mark background lines with `\an8`?** (opened 2026-08-15 · English subtitles) — The fix that drops an unrelated background English line from `Translation` keys off ASS alignment overrides, the only signal in the file that tells the two apart, but no real Crunchyroll caption file had been inspected for one. The first real file (2026-09-22, the caption fixture) puts KonoSuba 3 ep 6's 26 top-of-screen dialogue lines in a `Konosuba_Main_Top` style with no override tag, so the override-only check sees none of them, and its title card carries `\an3` (bottom); the style's own alignment value wasn't captured. The sign-cue recapture saves `[V4+ Styles]`, which shows a style's own alignment (e.g. `Konosuba_Main_Top`'s). The sign-cue work picks this up; if a stray line survives, dump the caption file (URL from `window.__jpImmersionSnifferStats()`) and compare the two cues.
 
 **The extension-reload banner is a stopgap** (opened 2026-08-15 · Platform & cross-cutting) — A content script could be re-injected into an open tab and everything but audio capture would recover; the blocker is that `createMediaElementSource` is once per `<video>` per page and the dead script still holds it. If a way is ever found to hand that graph over — or to detect an already-tapped video and degrade explicitly rather than silently — the reload prompt could become a genuine hot-swap. Not worth building speculatively; noted so the constraint isn't rediscovered.
 
@@ -1807,6 +1822,8 @@ Dates written `~YYYY-MM-DD` are inferred: the question was logged without an ope
 **What Phase 7 settings work is needed** (opened 2026-09-22 · Storage & settings) — "Settings persistence" was a Phase 7 roadmap item, but settings already persist in `chrome.storage.local`: the API key, the four metadata toggles, offsets, and per-season uploader/entry memory. It was removed from the roadmap; what, if anything, Phase 7 needs beyond that (e.g. the settings panel, import/export, a reset) is Eric's call.
 
 **Should the release-offset key move to the season's name?** (opened 2026-09-23 · Subtitle overlay, sync & offset) — Current behaviour: an offset adjustment writes `offset:<pathname>` for the episode and `offsetProvider:<series>:<season>:<releaseTag>` for the release, where `<season>` is Crunchyroll's season number — a list position that different works can share. On 2026-09-18 the remembered entry, the uploader preference and the sibling-title cache moved to the name-based `seasonMemoryKey`; the release-offset key did not. Should it follow them? That change set the precedent of not migrating old keys (Switcher, per-season memory & manual upload), which would apply to saved release offsets too.
+
+**Which sign signal and which tags** (opened 2026-09-23 · English subtitles) — Which candidate defines a sign cue, alone or combined: typesetting override tags, the Actor/Name field, a rare style, or a style whose font differs from the track's most-used style — and, if override tags, which tags count. *Already settled:* `\an`, `\i`, `\b` and `\u` never count as typesetting on their own, and neither does a style's own alignment (the style-level form of `\an`); this moves into the decision entry once the signal is chosen. Open because each candidate has been checked on one episode only; resolved when Eric chooses from the measurement report after labelling (Roadmap → the sign-cue item).
 
 ### Resolved
 
