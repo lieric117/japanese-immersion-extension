@@ -12,7 +12,9 @@ This file covers **how to work in this repo**: rules, commands and the session r
 
 **Core goal:** let learners who already study Japanese elsewhere use Crunchyroll anime as real immersion practice, with just enough support to confirm what they half-know without breaking the scene. **The extension's job is to keep them watching, not to teach them:** click a word for a fast dictionary check, capture a word or sentence into Anki, and everything else is secondary.
 
-**Litmus test:** Does it help the user capture something quickly and keep watching, or feed something into a system they already use (e.g. Anki)? Or does it ask them to stop and be taught, or duplicate a tool they already trust (e.g. Anki, or their existing grammar/SRS tools)? First answer → in scope. Second answer → out, regardless of whether a competitor has it. This test is the tie-breaker whenever something is ambiguous.
+**Litmus test** (a word-for-word copy of `project-plan.md` → Scope → Litmus test):
+
+**Does it help the user capture something quickly and keep watching, or feed something into a system they already use (e.g. Anki)? Or does it ask them to stop and be taught, or duplicate a tool they already trust (e.g. Anki, or their existing grammar/SRS tools)?** First answer → in scope. Second answer → out, regardless of whether a competitor (ManabiDojo or anyone else) has it. This test is the tie-breaker whenever something is ambiguous. It overrides the Scope lists in `project-plan.md`, not the other way around.
 
 - **Build only what the session brief asks for.** If something outside it seems needed — a new feature, extra behaviour, a "while I'm here" improvement — stop and ask Eric first. If an idea fails the litmus test, say so rather than proposing to build it.
 - When the brief doesn't clearly cover something, check `project-plan.md` → Scope before starting.
