@@ -438,7 +438,7 @@ This closes out every currently-known Phase 4.5 build-order item, and the oval-a
 
 *Remaining, in priority order:*
 
-1. **Sign cues never pair as translations** (Decisions Log 2026-09-22) — next session. Before changing anything: report what the current code does with the 0:15.99–0:20.47 title card on the Japanese-audio track, propose general sign-vs-dialogue signals, and classify every line of both tracks in `fixtures/captions/caption-probe-2026-09-23.json`, saying which signals are verified and which guessed.
+1. **Sign cues never pair as translations** (Decisions Log 2026-09-22) — next session. Before changing anything: report what the current code does with the 0:15.99–0:20.47 title card on the Japanese-audio track, propose general sign-vs-dialogue signals, and classify every line of both tracks in `fixtures/captions/caption-probe-2026-09-23.json`, saying which signals are verified and which guessed. It changes English pairing, so checklist items E4, D9 and the English half of E6 need re-running after it.
 2. **Skip the audio clip when the playing audio isn't Japanese** (Decisions Log 2026-09-22) — the session after; verify the `play` response's `audioLocale` on more live data before relying on it.
 3. **Re-test group B and run groups C–D** — group B was run on 2026-08-15 and everything it found is fixed, so it needs one more pass to confirm the fixes; C (two-phase Anki send) and D (edit panel) have still never been re-run since 2026-07-31. The rebuilt trim editor is entirely unexercised in a browser.
 4. **The 20–30 minute continuous-session check**, which no pass has reached yet.

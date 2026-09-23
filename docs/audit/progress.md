@@ -14,6 +14,7 @@ Started 2026-09-18 from commit `c1c95b2`. This file exists so a fresh session ca
 | 2 — Invariants | enforced in code and tests — see `report.md` §3 |
 | 3 — Harness | built; detection sweep run live (1,485 sampled episodes, all three captures) |
 | 4 — Fixes | done: 7 detection + 7 parsing root causes, one commit each; end-of-session report in `report.md` |
+| 5 — Live validation | **in progress.** Offline work is complete; what remains is the browser pass (checklist group F in `project-plan.md` §6). F8 (audio switch) passed and F9 (JSON-LD collector) was run on 2026-09-22; F1–F7 and F10 have not run |
 
 ## Environment notes (read first)
 
@@ -118,7 +119,14 @@ Root causes fixed, one commit each: lossless tokenization, any-count timestamps,
 
 ## Where to resume
 
-Nothing is mid-flight. The next step is live: checklist group F in `project-plan.md` section 6 (item 1 now also covers the 2026-09-20 URL check's console lines).
+Nothing is mid-flight, and nothing offline is left: every remaining audit item is a browser check. **As of 2026-09-22:**
+- **Done live:** F8, the audio-language switch (KonoSuba 3, Japanese ↔ English): the stale `TVEpisode` block was ignored, the old version's in-flight load discarded, and each version loaded its own English track. F9, two JSON-LD collector runs (76 navigations, 35 watch pages): every watch page had a block, none lacked a URL, and every block named its own page within 500ms, dub pages included. That closed Open Question 21; the numbers are in `project-plan.md` §5 (Phase 4.5, detection invariants), and the second run is `fixtures/jsonld/jsonld-blocks-2026-09-23.json`.
+- **Still to run live:** F1–F7 (fast switching, Shangri-La's remembered pick, a pick with no matching file, Mission Recon, display filters, film second half, grunts) and F10 (autoplay-next, episode-list click, back button, direct URL entry, cross-show navigation, rapid switching with the Anki card's episode label checked).
+- **NanakoRaws line-break shape (PA8):** still open and needs a real file. F5 already plays Kimi no Na wa from NanakoRaws; if a sentence splits across four lines there, note the timestamp.
+- **Decisions Log format review of the 13 audit entries (2026-09-18):** all 13 give reasoning and name a rejected alternative. Two titles are over the ~12-word limit and haven't been shortened yet: the base-60 timestamp entry (15 words) and the grunts/stutters entry (24 words).
+- **Outside this audit but touching it:** the 2026-09-22 caption probe found sign cues pairing as English translations (Decisions Log 2026-09-22; the next build session). It changes English pairing, so checklist items E4, D9 and the English half of E6 need re-running after it. A new parse gap, PA20 (WebVTT cue settings), is logged in `failure-taxonomy.md` and pinned as an expected-fail check; it can't be reached today.
+
+Checklist F1 also covers the console lines the URL check prints.
 
 **Environment, 2026-09-20:** both went missing and both are restored — `~/.zshenv` was re-created with the key (verified by a live `test-render-pipeline.js` run), and `.audit-cache/` was moved back from the user's Downloads folder (2,001 cached Jimaku responses + `corpus.json`, 60MB), so the offline replays below run again as written. To re-verify offline after any change:
 - `JIMAKU_CACHE_MODE=offline node scripts/audit/detection-sweep.js <3 captures> --sample --lists after.json`, then `diff-lists.js` against a run with `--background <old copy>`;
