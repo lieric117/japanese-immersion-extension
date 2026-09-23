@@ -1,0 +1,170 @@
+{
+  "capturedAt": "2026-09-23T01:08:02.731Z",
+  "live": true,
+  "responses": [
+    {
+      "at": "2026-09-23T01:07:36.743Z",
+      "page": "/watch/G50UZ0JEE/a-farewell-to-this-lavish-lifestyle",
+      "audioLocale": "en-US",
+      "snifferReads": "subtitles",
+      "topLevelKeys": [
+        "assetId",
+        "audioLocale",
+        "audioRole",
+        "bifs",
+        "burnedInLocale",
+        "captions",
+        "encodingProfile",
+        "hardSubs",
+        "packagingProfile",
+        "playbackType",
+        "session",
+        "subtitles",
+        "token",
+        "url",
+        "versions",
+        "videoContainer",
+        "drm"
+      ],
+      "tracks": [
+        {
+          "group": "subtitles",
+          "locale": "en-US",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com",
+          "bytes": 4827,
+          "dialogueLines": 4,
+          "commentLines": 0,
+          "styles": {
+            "wall o text": 1,
+            "Konosuba_Ep_Title": 1,
+            "Sign_Basic": 1,
+            "Konosuba_Next_Ep_Title": 1
+          },
+          "events": [
+            "Dialogue: 0,0:23:30.05,0:23:40.05,wall o text,Ending signs,0,0,0,,It's your devoted Sylvia!\\N And I am really starting to get into this vacation. It's so liberating! And satisfying!\\N It seems a compe",
+            "Dialogue: 0,0:00:15.99,0:00:20.47,Konosuba_Ep_Title,Eptitle sign,0,0,0,,{\\fad(1,417)\\an3\\pos(610,315)\\3c&H0A0A0A&}Episode 6: {\\fsp1.2}A Farewell to This Lavish Lifestyle!",
+            "Dialogue: 0,0:17:21.72,0:17:23.22,Sign_Basic,Sign,0,0,0,,{\\fad(350,0)\\pos(232,280)\\fnArial\\b1\\bord0\\shad0\\c&H6007BC&}KO{\\c&H027AE9&}NO{\\c&H23D396&}SU{\\c&HD4A20E&}BA",
+            "Dialogue: 0,0:23:30.05,0:23:40.05,Konosuba_Next_Ep_Title,Sign,0,0,0,,Episode {\\c&HA400D7&}7{\\c&HFFFFFF&}: {\\c}Rest {\\c&HFFFFFF&}for This {\\c}Up{\\c&HFFFFFF&}-{\\c&HA400D7&}And{\\c&HFFFFFF&}-{\\c}Coming {\\"
+          ]
+        },
+        {
+          "group": "subtitles",
+          "locale": "none",
+          "format": null,
+          "host": null
+        },
+        {
+          "group": "captions",
+          "locale": "en-US",
+          "format": "vtt",
+          "host": "vod-fy-mod.crunchyrollcdn.com",
+          "bytes": 38123,
+          "cueTimeLines": 585,
+          "timeLinesWithCueSettings": 0,
+          "sample": [
+            "00:00:00.876 --> 00:00:02.711",
+            "00:00:02.836 --> 00:00:04.129",
+            "00:00:04.254 --> 00:00:05.965",
+            "00:00:06.089 --> 00:00:07.382",
+            "00:00:07.507 --> 00:00:08.550"
+          ]
+        }
+      ]
+    },
+    {
+      "at": "2026-09-23T01:07:45.852Z",
+      "page": "/watch/GEVUZ7JN5/a-farewell-to-this-lavish-lifestyle",
+      "audioLocale": "ja-JP",
+      "snifferReads": "subtitles",
+      "topLevelKeys": [
+        "assetId",
+        "audioLocale",
+        "audioRole",
+        "bifs",
+        "burnedInLocale",
+        "captions",
+        "encodingProfile",
+        "hardSubs",
+        "packagingProfile",
+        "playbackType",
+        "session",
+        "subtitles",
+        "token",
+        "url",
+        "versions",
+        "videoContainer",
+        "drm"
+      ],
+      "tracks": [
+        {
+          "group": "subtitles",
+          "locale": "en-US",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com",
+          "bytes": 43708,
+          "dialogueLines": 395,
+          "commentLines": 0,
+          "styles": {
+            "Konosuba_Italics": 21,
+            "Konosuba_Main": 337,
+            "Konosuba_Ep_Title": 1,
+            "Konosuba_Main_Top": 26,
+            "Konosuba_Flashback": 7,
+            "Sign_Basic": 1,
+            "wall o text": 1,
+            "Konosuba_Next_Ep_Title": 1
+          },
+          "events": [
+            "Dialogue: 0,0:00:01.09,0:00:02.83,Konosuba_Italics,Kazuma,0,0,0,,Some Divine Treasure this was.",
+            "Dialogue: 0,0:00:04.69,0:00:07.78,Konosuba_Italics,Kazuma,0,0,0,,Who'd have thought it'd wear off so soon?",
+            "Dialogue: 0,0:00:11.24,0:00:15.98,Konosuba_Main,Kazuma,0,0,0,,Eris-sama! I'm not into \\Nthis kind of teasing!",
+            "Dialogue: 0,0:00:15.99,0:00:20.47,Konosuba_Ep_Title,Eptitle sign,0,0,0,,{\\fad(1,417)\\an3\\pos(610,315)\\3c&H0A0A0A&}Episode 6: {\\fsp1.2}A Farewell to This Lavish Lifestyle!",
+            "Dialogue: 0,0:00:16.62,0:00:17.94,Konosuba_Main_Top,Aqua,0,0,0,,Hey, Kazuma.",
+            "Dialogue: 0,0:00:17.63,0:00:18.90,Konosuba_Main_Top,Kazuma,0,0,0,,Yes, I'm Kazuma.",
+            "Dialogue: 0,0:00:17.94,0:00:19.50,Konosuba_Main_Top,Aqua,0,0,0,,You love calling me an idiot,",
+            "Dialogue: 0,0:00:19.50,0:00:21.86,Konosuba_Main_Top,Aqua,0,0,0,,but now I can be sure of something...",
+            "Dialogue: 0,0:00:22.18,0:00:25.38,Konosuba_Main_Top,Aqua,0,0,0,,You're, like, an idiot of the \\Nhighest caliber, aren't you?",
+            "Dialogue: 0,0:00:25.38,0:00:26.90,Konosuba_Main_Top,Kazuma,0,0,0,,It's not like that!"
+          ]
+        },
+        {
+          "group": "subtitles",
+          "locale": "es-419",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com"
+        },
+        {
+          "group": "subtitles",
+          "locale": "pl-PL",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com"
+        },
+        {
+          "group": "subtitles",
+          "locale": "pt-BR",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com"
+        },
+        {
+          "group": "subtitles",
+          "locale": "ru-RU",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com"
+        },
+        {
+          "group": "subtitles",
+          "locale": "ar-SA",
+          "format": "ass",
+          "host": "vod-fy-mod.crunchyrollcdn.com"
+        },
+        {
+          "group": "subtitles",
+          "locale": "none",
+          "format": null,
+          "host": null
+        }
+      ]
+    }
+  ]
+}

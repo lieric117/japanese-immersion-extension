@@ -1,0 +1,4292 @@
+{
+  "capturedAt": "2026-09-23T00:42:31.314Z",
+  "live": true,
+  "navigations": [
+    {
+      "reason": "initial",
+      "at": "2026-09-23T00:34:29.660Z",
+      "pathname": "/watch/G0DUND0K2/the-journeys-end",
+      "watchId": "G0DUND0K2",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G0DUND0K2/the-journeys-end",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:34:48.370Z",
+      "pathname": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+      "watchId": "GEVUZXG7J",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "@id": "https://www.crunchyroll.com/watch/G0DUND0K2/the-journeys-end",
+              "name": "Season 1 | E1 - The Journey's End",
+              "episodeNumber": 1,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "name": "Season 1 | E2 - It Didn't Have to Be Magic...",
+              "episodeNumber": 2,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "name": "Season 1 | E2 - It Didn't Have to Be Magic...",
+              "episodeNumber": 2,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "name": "Season 1 | E2 - It Didn't Have to Be Magic...",
+              "episodeNumber": 2,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "name": "Season 1 | E2 - It Didn't Have to Be Magic...",
+              "episodeNumber": 2,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZXG7J/it-didnt-have-to-be-magic",
+              "name": "Season 1 | E2 - It Didn't Have to Be Magic...",
+              "episodeNumber": 2,
+              "seriesName": "Frieren: Beyond Journey's End",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:08.333Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": true,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:10.855Z",
+      "pathname": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+      "watchId": "GE00377909JAJP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00377909JAJP/the-future-is-in-our-hands",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:31.710Z",
+      "pathname": "/watch/GE00377918JAJP/deadly-skillz",
+      "watchId": "GE00377918JAJP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "@id": "https://www.crunchyroll.com/watch/GE00377909JAJP/the-future-is-in-our-hands",
+              "name": "Season 1 | E1 - The Future Is in Our Hands",
+              "episodeNumber": 1,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "@id": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "name": "Season 1 | E10 - Deadly Skillz",
+              "episodeNumber": 10,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "@id": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "name": "Season 1 | E10 - Deadly Skillz",
+              "episodeNumber": 10,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "@id": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "name": "Season 1 | E10 - Deadly Skillz",
+              "episodeNumber": 10,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "@id": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "name": "Season 1 | E10 - Deadly Skillz",
+              "episodeNumber": 10,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00377918JAJP/deadly-skillz",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "@id": "https://www.crunchyroll.com/watch/GE00377918JAJP/deadly-skillz",
+              "name": "Season 1 | E10 - Deadly Skillz",
+              "episodeNumber": 10,
+              "seriesName": "BLACK TORCH",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:45.012Z",
+      "pathname": "/search",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": true,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": true,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:46.798Z",
+      "pathname": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:35:53.837Z",
+      "pathname": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+      "watchId": "GEVUZN38N",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "name": "KONOSUBA -An Explosion on This Wonderful World! | E1 - The Crimson-Eyed Wizards",
+              "episodeNumber": 1,
+              "seriesName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "name": "KONOSUBA -An Explosion on This Wonderful World! | E1 - The Crimson-Eyed Wizards",
+              "episodeNumber": 1,
+              "seriesName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "name": "KONOSUBA -An Explosion on This Wonderful World! | E1 - The Crimson-Eyed Wizards",
+              "episodeNumber": 1,
+              "seriesName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GEVUZN38N/the-crimson-eyed-wizards",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "@id": "https://www.crunchyroll.com/watch/GEVUZN38N/the-crimson-eyed-wizards",
+              "name": "KONOSUBA -An Explosion on This Wonderful World! | E1 - The Crimson-Eyed Wizards",
+              "episodeNumber": 1,
+              "seriesName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonName": "KONOSUBA -An Explosion on This Wonderful World!",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:06.616Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/videos/popular",
+          "movedOn": true,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:08.771Z",
+      "pathname": "/videos/popular",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/videos/popular",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:12.270Z",
+      "pathname": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GEXH3W49E/i-got-a-cheat-skill-in-another-world-and-became-unrivaled-in-the-real-world-too",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": true,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:16.095Z",
+      "pathname": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+      "watchId": "G14UV4GZQ",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G14UV4GZQ/the-legendary-dragonawakens",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "@id": "https://www.crunchyroll.com/watch/G14UV4GZQ/the-legendary-dragonawakens",
+              "name": "Special | E1 - The Legendary Dragon—Awakens",
+              "episodeNumber": 1,
+              "seriesName": "I Got a Cheat Skill in Another World and Became Unrivaled in The Real World, Too",
+              "seasonName": "Special",
+              "seasonNumber": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:28.737Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:39.071Z",
+      "pathname": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/G8DHV7809/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": true,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:41.573Z",
+      "pathname": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+      "watchId": "GMEE00351144JAJP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "@id": "https://www.crunchyroll.com/watch/GMEE00351144JAJP/demon-slayer-kimetsu-no-yaiba-infinity-castle-i",
+              "name": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I | Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "episodeNumber": 1,
+              "seriesName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonName": "Demon Slayer: Kimetsu no Yaiba Infinity Castle I",
+              "seasonNumber": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:36:56.903Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": true,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:01.606Z",
+      "pathname": "/series/GY9PJ5KWR/naruto",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GY9PJ5KWR/naruto",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:06.705Z",
+      "pathname": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+      "watchId": "GY5VE3D5Y",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 7,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "@id": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "name": "Season 5 | E188 - The Mystery of the Targeted Merchants",
+              "episodeNumber": 9,
+              "seriesName": "Naruto",
+              "seasonName": "Season 5",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 7,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "@id": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "name": "Season 5 | E188 - The Mystery of the Targeted Merchants",
+              "episodeNumber": 9,
+              "seriesName": "Naruto",
+              "seasonName": "Season 5",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 7,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "@id": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "name": "Season 5 | E188 - The Mystery of the Targeted Merchants",
+              "episodeNumber": 9,
+              "seriesName": "Naruto",
+              "seasonName": "Season 5",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+          "movedOn": false,
+          "blockCount": 7,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "@id": "https://www.crunchyroll.com/watch/GY5VE3D5Y/the-mystery-of-the-targeted-merchants",
+              "name": "Season 5 | E188 - The Mystery of the Targeted Merchants",
+              "episodeNumber": 9,
+              "seriesName": "Naruto",
+              "seasonName": "Season 5",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:37.099Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:42.736Z",
+      "pathname": "/videos/new",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/videos/new",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": true,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:45.823Z",
+      "pathname": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GT00374354/i-want-to-love-you-till-your-dying-day",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "@id": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "name": "Season 1 | E6 - Welcome Home",
+              "episodeNumber": 6,
+              "seriesName": "I Want to Love You Till Your Dying Day",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:37:48.520Z",
+      "pathname": "/watch/GE00378367JAJP/welcome-home",
+      "watchId": "GE00378367JAJP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "@id": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "name": "Season 1 | E6 - Welcome Home",
+              "episodeNumber": 6,
+              "seriesName": "I Want to Love You Till Your Dying Day",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "@id": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "name": "Season 1 | E6 - Welcome Home",
+              "episodeNumber": 6,
+              "seriesName": "I Want to Love You Till Your Dying Day",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "@id": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "name": "Season 1 | E6 - Welcome Home",
+              "episodeNumber": 6,
+              "seriesName": "I Want to Love You Till Your Dying Day",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00378367JAJP/welcome-home",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "@id": "https://www.crunchyroll.com/watch/GE00378367JAJP/welcome-home",
+              "name": "Season 1 | E6 - Welcome Home",
+              "episodeNumber": 6,
+              "seriesName": "I Want to Love You Till Your Dying Day",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:00.213Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:11.050Z",
+      "pathname": "/series/GT00369409/star-detective-precure",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GT00369409/star-detective-precure",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GT00369409/star-detective-precure",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GT00369409/star-detective-precure",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GT00369409/star-detective-precure",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GT00369409/star-detective-precure",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": true,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": true,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:12.499Z",
+      "pathname": "/watch/GE00369411JAJP/debut-star-detective-precure",
+      "watchId": "GE00369411JAJP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GE00369411JAJP/debut-star-detective-precure",
+          "movedOn": false,
+          "blockCount": 6,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "@id": "https://www.crunchyroll.com/watch/GE00369411JAJP/debut-star-detective-precure",
+              "name": "Season 1 | E1 - Debut! Star Detective Precure!",
+              "episodeNumber": 1,
+              "seriesName": "Star Detective Precure!",
+              "seasonName": "Season 1",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:25.995Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": true,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:29.662Z",
+      "pathname": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GRGG9798R/rezero--starting-life-in-another-world-",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:35.432Z",
+      "pathname": "/watch/GR3KQQ7QR/the-frozen-bond",
+      "watchId": "GR3KQQ7QR",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GR3KQQ7QR/the-frozen-bond",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:38:52.364Z",
+      "pathname": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+      "watchId": "GY4P51GQ6",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "@id": "https://www.crunchyroll.com/watch/GR3KQQ7QR/the-frozen-bond",
+              "name": "OVAs | EEX - The Frozen Bond",
+              "episodeNumber": 2,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GY4P51GQ6/memory-snow-directors-cut",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:39:06.418Z",
+      "pathname": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+      "watchId": "G63KQJ5V6",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "@id": "https://www.crunchyroll.com/watch/GY4P51GQ6/memory-snow-directors-cut",
+              "name": "OVAs | EEX - Memory Snow (Director's Cut)",
+              "episodeNumber": 1,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "OVAs",
+              "seasonNumber": 2
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "@id": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "name": "Season 1: Director's Cut | E12 - A Flash of Sloth \\ Nefarious Sloth",
+              "episodeNumber": 12,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "Season 1: Director's Cut",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "@id": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "name": "Season 1: Director's Cut | E12 - A Flash of Sloth \\ Nefarious Sloth",
+              "episodeNumber": 12,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "Season 1: Director's Cut",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "@id": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "name": "Season 1: Director's Cut | E12 - A Flash of Sloth \\ Nefarious Sloth",
+              "episodeNumber": 12,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "Season 1: Director's Cut",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "@id": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "name": "Season 1: Director's Cut | E12 - A Flash of Sloth \\ Nefarious Sloth",
+              "episodeNumber": 12,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "Season 1: Director's Cut",
+              "seasonNumber": 1
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "@id": "https://www.crunchyroll.com/watch/G63KQJ5V6/a-flash-of-sloth--nefarious-sloth",
+              "name": "Season 1: Director's Cut | E12 - A Flash of Sloth \\ Nefarious Sloth",
+              "episodeNumber": 12,
+              "seriesName": "Re:ZERO -Starting Life in Another World-",
+              "seasonName": "Season 1: Director's Cut",
+              "seasonNumber": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:39:58.753Z",
+      "pathname": "/discover",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/discover",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:05.272Z",
+      "pathname": "/series/GVDHX8P8Q/attack-on-titan-movies",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 1,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GVDHX8P8Q/attack-on-titan-movies",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/search",
+          "movedOn": true,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:09.973Z",
+      "pathname": "/search",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/search",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": true,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": true,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:11.945Z",
+      "pathname": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GJ0H7Q5V7/konosuba--an-explosion-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 3,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:17.884Z",
+      "pathname": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+      "watchId": null,
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/series/GYE5K3GQR/konosuba---gods-blessing-on-this-wonderful-world",
+          "movedOn": false,
+          "blockCount": 4,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:24.834Z",
+      "pathname": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+      "watchId": "GWDU82VQ0",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:40:39.025Z",
+      "pathname": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+      "watchId": "GG1U2JWZP",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "@id": "https://www.crunchyroll.com/watch/GWDU82VQ0/a-re-education-for-this-bright-little-girl",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E3 - A Re-education for This Bright Little Girl!",
+              "episodeNumber": 3,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:41:05.965Z",
+      "pathname": "/watch/G7PU4787X",
+      "watchId": "G7PU4787X",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/G7PU4787X",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/G7PU4787X",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/GG1U2JWZP/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": true,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": true,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:41:06.186Z",
+      "pathname": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+      "watchId": "G7PU4787X",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 0,
+          "episodeBlockCount": 0,
+          "matchesPage": false,
+          "anyUrl": false,
+          "blocks": []
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "reason": "navigation",
+      "at": "2026-09-23T00:41:21.397Z",
+      "pathname": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+      "watchId": "GVWU0M3NM",
+      "samples": [
+        {
+          "ms": 0,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 100,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": false,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "@id": "https://www.crunchyroll.com/watch/G7PU4787X/divine-punishment-for-this-handsome-gentleman-thief",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E4 - Divine Punishment for This Handsome Gentleman Thief!",
+              "episodeNumber": 4,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 250,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "@id": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E5 - Nefarious Friends for This Sheltered Princess!",
+              "episodeNumber": 5,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 500,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "@id": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E5 - Nefarious Friends for This Sheltered Princess!",
+              "episodeNumber": 5,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 1000,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "@id": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E5 - Nefarious Friends for This Sheltered Princess!",
+              "episodeNumber": 5,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 2000,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "@id": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E5 - Nefarious Friends for This Sheltered Princess!",
+              "episodeNumber": 5,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        },
+        {
+          "ms": 5000,
+          "pathnameNow": "/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+          "movedOn": false,
+          "blockCount": 5,
+          "episodeBlockCount": 1,
+          "matchesPage": true,
+          "anyUrl": true,
+          "blocks": [
+            {
+              "@type": "TVEpisode",
+              "url": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "@id": "https://www.crunchyroll.com/watch/GVWU0M3NM/nefarious-friends-for-this-sheltered-princess",
+              "name": "KONOSUBA -God's Blessing on This Wonderful World! 3 | E5 - Nefarious Friends for This Sheltered Princess!",
+              "episodeNumber": 5,
+              "seriesName": "Konosuba - God's Blessing on This Wonderful World!",
+              "seasonName": "KONOSUBA -God's Blessing on This Wonderful World! 3",
+              "seasonNumber": 5
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
