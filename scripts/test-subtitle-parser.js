@@ -100,5 +100,26 @@ check("an unreadable time is NaN (and reported), never a guessed number", Number
   check("a Chinese staff credit with a の inside a name is still stripped", !kept.some((t) => t.startsWith("日听")), JSON.stringify(kept));
 }
 
+// ── known gaps (expected-fail) ──────────────────────────────────────────────
+// Each case pins a defect that is logged and deliberately NOT fixed yet. It
+// PASSES while the defect is still there and FAILS the moment behaviour
+// changes, so whoever fixes it has to turn it into an ordinary check.
+const knownGap = (label, stillBroken, detail = "") =>
+  check(`[known gap] ${label}`, stillBroken, `behaviour changed — if this is the fix, rewrite it as a normal check. ${detail}`);
+
+// SYNTHETIC (2026-09-22): WebVTT cue settings after the end time. Non-ASS
+// English tracks go through parseSrt (background.js fetchEnglishSubtitles),
+// which reads "00:00:03.000 align:start line:10%" as the whole end time, so the
+// cue gets end NaN and never shows. Not reachable today: every English track
+// the sniffer reads is ASS, and the one WebVTT track seen (the dub's `captions`
+// in fixtures/captions/caption-probe-2026-09-23.json) has no cue settings.
+// Logged as PA20 in docs/audit/failure-taxonomy.md.
+{
+  const vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:03.000 align:start line:10%\nHello\n\n00:00:04.000 --> 00:00:05.000\nWorld\n";
+  const cues = quiet(() => parser.parseSrt(vtt));
+  knownGap("WebVTT cue settings make the end time NaN", cues[0] && Number.isNaN(cues[0].end), JSON.stringify(cues[0]));
+  check("…and a WebVTT cue without settings parses normally", cues[1] && cues[1].start === 4 && cues[1].end === 5, JSON.stringify(cues[1]));
+}
+
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

@@ -117,6 +117,7 @@ Measured on the 386-file corpus (`scripts/audit/parse-sweep.js`: 233,963 distinc
 | PA17 | Encoding (BOM, UTF-16, mojibake) | N | not observed in the corpus; not changed | live corpus |
 | PA18 | HTML entities | N | measured 0 | live corpus |
 | PA19 | **Astral-plane characters (emoji runs, 𠮟, 𩸽)** | N: kuromoji deleted following text | C: `tokenizeLossless`; the characters themselves stay unclickable (51 lines) | property test + corpus |
+| PA20 | **WebVTT cue settings** (`--> 00:00:03.000 align:start`) on a non-ASS English track (logged 2026-09-22) | N | **N, deliberately unfixed**: parseSrt reads the settings as part of the end time, NaN, cue never shows. Not reachable today (every English track the sniffer reads is ASS; the one WebVTT track seen, the dub's `captions`, has no settings). Expected-fail check in `test-subtitle-parser.js`; the sniffer warns on any non-ASS format | synthetic + live probe |
 
 ### 2b. Tokenization
 | # | Input category | Before | After | Evidence |

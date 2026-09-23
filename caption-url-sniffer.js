@@ -171,6 +171,16 @@
     console.log(
       `[jp-immersion] caption sniffer: found ${found.locale} subtitles (format: ${found.format}) on host ${host}`
     );
+    // Every English track seen so far is ASS (2026-09-22). Anything else is
+    // parsed by parseSrt, which reads WebVTT cue settings as part of the end
+    // time and silently drops those cues — known gap PA20 in
+    // docs/audit/failure-taxonomy.md. Say so rather than degrade quietly.
+    if (String(found.format).toLowerCase() !== "ass") {
+      console.warn(
+        `[jp-immersion] caption sniffer: English track format is "${found.format}", not "ass" — it will be parsed as .srt, ` +
+          "and WebVTT cues with position settings will not show (known gap PA20)."
+      );
+    }
     lastFound = found;
     post(found);
   }
